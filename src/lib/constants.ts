@@ -6,7 +6,13 @@ import { PlanTier, UserRole, AppointmentStatus, TaskStatus, TaskPriority } from 
 
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Psychology Clinic SaaS';
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4200';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+if (!apiBaseUrl && process.env.NODE_ENV === 'production') {
+  throw new Error('Missing NEXT_PUBLIC_API_BASE_URL in production environment');
+}
+
+export const API_BASE_URL = apiBaseUrl || 'http://localhost:3000/api/v1';
 
 // ==========================================
 // ROUTES
