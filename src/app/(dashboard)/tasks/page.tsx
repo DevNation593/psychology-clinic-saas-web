@@ -81,7 +81,7 @@ export default function TasksPage() {
   // Complete task mutation
   const completeTask = useMutation({
     mutationFn: (id: string) =>
-      tasksApi.update(id, { status: TaskStatus.COMPLETED, completedAt: new Date().toISOString() }),
+      tasksApi.update(id, { status: TaskStatus.COMPLETED }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_MY });
