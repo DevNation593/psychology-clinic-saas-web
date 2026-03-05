@@ -86,11 +86,17 @@ export const patientSchema = z.object({
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
   dateOfBirth: z.string().optional(),
-  gender: z.nativeEnum(Gender).optional(),
+  gender: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.nativeEnum(Gender).optional(),
+  ),
   address: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
-  assignedPsychologistId: z.string().optional(),
+  assignedPsychologistId: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional(),
+  ),
   notes: z.string().optional(),
 });
 

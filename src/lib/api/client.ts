@@ -122,7 +122,7 @@ class ApiClient {
     if (error.response?.data) {
       const data = error.response.data as any;
       return {
-        message: data.message || 'An error occurred',
+        message: data.message || 'Ocurrió un error',
         code: data.code,
         field: data.field,
         details: data.details,
@@ -131,13 +131,13 @@ class ApiClient {
 
     if (error.request) {
       return {
-        message: 'No response from server. Please check your internet connection.',
+        message: 'No se recibió respuesta del servidor. Verifica tu conexión a internet.',
         code: 'NETWORK_ERROR',
       };
     }
 
     return {
-      message: error.message || 'An unexpected error occurred',
+      message: error.message || 'Ocurrió un error inesperado',
       code: 'UNKNOWN_ERROR',
     };
   }
