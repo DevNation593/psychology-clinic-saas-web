@@ -10,6 +10,7 @@ import {
   FeatureFlags,
   UsageMetrics,
   PlanTier,
+  TenantType,
 } from './index';
 
 export function isUserRole(value: string): value is UserRole {
@@ -17,23 +18,23 @@ export function isUserRole(value: string): value is UserRole {
 }
 
 export function canAccessClinicalNotes(user: User): boolean {
-  return [UserRole.TENANT_ADMIN, UserRole.PSYCHOLOGIST].includes(user.role);
+  return [UserRole.CLIENTE, UserRole.PSICOLOGO, UserRole.SOPORTE].includes(user.role);
 }
 
 export function canManageUsers(user: User): boolean {
-  return user.role === UserRole.TENANT_ADMIN;
+  return [UserRole.CLIENTE, UserRole.SOPORTE].includes(user.role);
 }
 
 export function canManageSubscription(user: User): boolean {
-  return user.role === UserRole.TENANT_ADMIN;
+  return [UserRole.CLIENTE, UserRole.SOPORTE].includes(user.role);
 }
 
 export function canEditAppointment(user: User): boolean {
-  return user.role !== UserRole.ASSISTANT; // All except assistant
+  return user.role !== UserRole.PACIENTE; // All except patient
 }
 
 export function canDeletePatient(user: User): boolean {
-  return user.role === UserRole.TENANT_ADMIN;
+  return [UserRole.CLIENTE, UserRole.SOPORTE].includes(user.role);
 }
 
 export function isActiveAppointment(status: AppointmentStatus): boolean {
@@ -43,6 +44,18 @@ export function isActiveAppointment(status: AppointmentStatus): boolean {
 export function isOverdueTask(task: { dueDate?: string; status: TaskStatus }): boolean {
   if (!task.dueDate || task.status === TaskStatus.COMPLETED) return false;
   return new Date(task.dueDate) < new Date();
+}
+
+// ==========================================
+// PLAN TYPE HELPERS
+// ==========================================
+
+/**
+ * Returns true if the tenant has a clinic plan (not personal/individual).
+ * Only clinic plans have access to the team module.
+ */
+export function isClinicPlan(tenant: { tenantType?: TenantType } | null | undefined): boolean {
+  return tenant?.tenantType === TenantType.CLINIC;
 }
 
 // ==========================================

@@ -165,7 +165,7 @@ export default function ProfilePage() {
     );
   }
 
-  const isPsychologist = user?.role === UserRole.PSYCHOLOGIST;
+  const isPsychologist = user?.role === UserRole.PSICOLOGO;
 
   return (
     <div className="space-y-6 max-w-4xl">

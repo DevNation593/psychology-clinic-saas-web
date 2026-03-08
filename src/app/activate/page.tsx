@@ -1,0 +1,173 @@
+'use client';
+
+import { useState, Suspense } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { resetPasswordSchema, type ResetPasswordFormData } from '@/lib/validations/schemas';
+import { usersApi } from '@/lib/api/endpoints';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Brain, ArrowLeft, Lock, CheckCircle2, AlertTriangle } from 'lucide-react';
+
+function ActivateAccountForm() {
+  const searchParams = useSearchParams();
+  const tenantId = searchParams.get('tenantId');
+  const userId = searchParams.get('userId');
+
+  const [submitted, setSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+  });
+
+  if (!tenantId || !userId) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+            <AlertTriangle className="h-6 w-6 text-red-600" />
+          </div>
+          <CardTitle>Enlace invalido</CardTitle>
+          <CardDescription>
+            El enlace de activacion es invalido o ha expirado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-2">
+            <Link href="/login" className="w-full">
+              <Button className="w-full">Ir a iniciar sesion</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="mx-auto h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+            <CheckCircle2 className="h-6 w-6 text-green-600" />
+          </div>
+          <CardTitle>Cuenta activada</CardTitle>
+          <CardDescription>
+            Tu cuenta fue activada. Ya puedes iniciar sesion con tu nueva contrasena.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/login" className="w-full">
+            <Button className="w-full">Iniciar sesion</Button>
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const onSubmit = async (data: ResetPasswordFormData) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await usersApi.activateWithTenant(tenantId, userId, data.password);
+      setSubmitted(true);
+      toast.success('Cuenta activada exitosamente');
+    } catch (err: any) {
+      const message = err.message || 'Error al activar la cuenta. El enlace puede haber expirado.';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="text-center">
+        <div className="mx-auto h-12 w-12 rounded-lg bg-primary flex items-center justify-center mb-4">
+          <Brain className="h-7 w-7 text-primary-foreground" />
+        </div>
+        <CardTitle>Activar cuenta</CardTitle>
+        <CardDescription>Establece tu contrasena para acceder.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="password">
+              <Lock className="h-4 w-4 inline mr-1" />
+              Contrasena
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              {...register('password')}
+              error={errors.password?.message}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Minimo 8 caracteres, una mayuscula, una minuscula y un numero.
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="confirmPassword">
+              <Lock className="h-4 w-4 inline mr-1" />
+              Confirmar contrasena
+            </Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              {...register('confirmPassword')}
+              error={errors.confirmPassword?.message}
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading} loading={isLoading}>
+            Activar cuenta
+          </Button>
+
+          <Link href="/login" className="block">
+            <Button variant="ghost" className="w-full">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver al inicio de sesion
+            </Button>
+          </Link>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ActivatePage() {
+  return (
+    <Suspense
+      fallback={
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Cargando...</p>
+          </CardContent>
+        </Card>
+      }
+    >
+      <ActivateAccountForm />
+    </Suspense>
+  );
+}

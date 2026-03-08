@@ -36,7 +36,7 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
   } = useForm<UserInviteFormData>({
     resolver: zodResolver(userInviteSchema),
     defaultValues: {
-      role: UserRole.PSYCHOLOGIST,
+      role: UserRole.PSICOLOGO,
     },
   });
 
@@ -112,8 +112,8 @@ export function InviteUserDialog({ open, onOpenChange }: InviteUserDialogProps) 
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               {...register('role')}
             >
-              <option value={UserRole.PSYCHOLOGIST}>Psicólogo/a</option>
-              <option value={UserRole.ASSISTANT}>Asistente</option>
+              <option value={UserRole.PSICOLOGO}>Psicólogo/a</option>
+              <option value={UserRole.PACIENTE}>Paciente</option>
             </select>
             {errors.role && (
               <p className="text-sm text-destructive">{errors.role.message}</p>

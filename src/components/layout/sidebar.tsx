@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { canManageUsers, canManageSubscription } from '@/types/guards';
+import { canManageUsers, canManageSubscription, isClinicPlan } from '@/types/guards';
 import {
   LayoutDashboard,
   Calendar,
@@ -39,7 +39,7 @@ export function Sidebar() {
       name: 'Equipo',
       href: '/admin/team',
       icon: UserCog,
-      show: user && canManageUsers(user),
+      show: user && canManageUsers(user) && isClinicPlan(tenant),
     },
     {
       name: 'Suscripción',

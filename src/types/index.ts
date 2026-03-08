@@ -3,9 +3,15 @@
 // ==========================================
 
 export enum UserRole {
-  TENANT_ADMIN = 'TENANT_ADMIN',
-  PSYCHOLOGIST = 'PSYCHOLOGIST',
-  ASSISTANT = 'ASSISTANT',
+  CLIENTE = 'CLIENTE',
+  PSICOLOGO = 'PSICOLOGO',
+  SOPORTE = 'SOPORTE',
+  PACIENTE = 'PACIENTE',
+}
+
+export enum TenantType {
+  PERSONAL = 'PERSONAL',
+  CLINIC = 'CLINIC',
 }
 
 export enum PlanTier {
@@ -220,10 +226,15 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
-  logoUrl?: string;
-  contactEmail: string;
-  contactPhone?: string;
+  email: string;
+  phone?: string;
   address?: string;
+  logoUrl?: string;
+  tenantType?: TenantType;
+  isActive?: boolean;
+  onboardingCompleted?: boolean;
+  contactEmail?: string;
+  contactPhone?: string;
   subscription: Subscription;
   settings: TenantSettings;
   createdAt: string;
@@ -275,6 +286,10 @@ export interface User {
   avatarUrl?: string;
   phone?: string;
   isActive: boolean;
+  managedByProvider?: boolean;
+  invitedAt?: string;
+  invitedBy?: string;
+  activatedAt?: string;
   lastLogin?: string;
   emailVerified: boolean;
   createdAt: string;

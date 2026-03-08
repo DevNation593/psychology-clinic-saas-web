@@ -65,11 +65,13 @@ export const onboardingAdminSchema = z.object({
   path: ['confirmPassword'],
 });
 
+const inviteRoles = [UserRole.PSICOLOGO, UserRole.PACIENTE] as const;
+
 export const onboardingInviteSchema = z.object({
   email: z.string().email('Email inválido'),
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  role: z.nativeEnum(UserRole),
+  role: z.enum(inviteRoles),
 });
 
 export type OnboardingTenantFormData = z.infer<typeof onboardingTenantSchema>;
@@ -173,7 +175,7 @@ export const userInviteSchema = z.object({
   email: z.string().email('Email inválido'),
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  role: z.nativeEnum(UserRole),
+  role: z.enum(inviteRoles),
   professionalTitle: z.string().optional(),
 });
 

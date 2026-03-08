@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { Users, UserPlus, Database, HardDrive } from 'lucide-react';
 import { UsageCard } from './usage-card';
 import { useSubscription, useUsageMetrics } from '@/hooks/useSubscription';
-import { getRemainingSeats, getRemainingPatients, getRemainingStorageGB } from '@/types/guards';
+import { getRemainingSeats, getRemainingPatients, getRemainingStorageGB, isClinicPlan } from '@/types/guards';
+import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/lib/constants';
 
 export function PsychologistsUsageWidget() {
@@ -119,9 +120,11 @@ export function StorageUsageWidget() {
 
 // Combined widget for dashboard overview
 export function UsageOverview() {
+  const tenant = useAuthStore((state) => state.tenant);
+
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <PsychologistsUsageWidget />
+      {isClinicPlan(tenant) && <PsychologistsUsageWidget />}
       <PatientsUsageWidget />
       <StorageUsageWidget />
     </div>
