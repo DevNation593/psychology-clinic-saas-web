@@ -23,9 +23,9 @@ export default function NewPatientPage() {
   const { mutate: createPatient, isPending } = useCreatePatient();
 
   const { data: psychologists } = useQuery({
-    queryKey: [...QUERY_KEYS.USERS, { role: UserRole.PSYCHOLOGIST }],
+    queryKey: [...QUERY_KEYS.USERS, { role: UserRole.PSICOLOGO }],
     queryFn: async () => {
-      const response = await usersApi.list({ role: UserRole.PSYCHOLOGIST, isActive: true });
+      const response = await usersApi.list({ role: UserRole.PSICOLOGO, isActive: true });
       return extractArray(response);
     },
   });

@@ -52,7 +52,7 @@ export default function OnboardingPage() {
   const inviteForm = useForm<OnboardingInviteFormData>({
     resolver: zodResolver(onboardingInviteSchema),
     defaultValues: {
-      role: UserRole.PSYCHOLOGIST,
+      role: UserRole.PSICOLOGO,
     },
   });
 
@@ -117,7 +117,7 @@ export default function OnboardingPage() {
 
   const addInvite = (data: OnboardingInviteFormData) => {
     setInvites([...invites, data]);
-    inviteForm.reset({ role: UserRole.PSYCHOLOGIST });
+    inviteForm.reset({ role: UserRole.PSICOLOGO });
     toast.success('Usuario agregado a la lista de invitaciones');
   };
 
@@ -391,8 +391,8 @@ export default function OnboardingPage() {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     {...inviteForm.register('role')}
                   >
-                    <option value={UserRole.PSYCHOLOGIST}>Psicólogo/a</option>
-                    <option value={UserRole.ASSISTANT}>Asistente</option>
+                    <option value={UserRole.PSICOLOGO}>Psicólogo/a</option>
+                    <option value={UserRole.PACIENTE}>Paciente</option>
                   </select>
                 </div>
                 <Button type="submit" className="w-full">

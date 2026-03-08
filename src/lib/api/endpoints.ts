@@ -50,10 +50,15 @@ function getTenantId(): string {
 function mapPlanType(apiPlan: string): PlanTier {
   switch (apiPlan) {
     case 'PRO':
+    case 'PERSONAL_PRO':
+    case 'CLINIC_PRO':
       return PlanTier.PROFESSIONAL;
     case 'CUSTOM':
+    case 'CLINIC_ENTERPRISE':
       return PlanTier.ENTERPRISE;
     case 'BASIC':
+    case 'PERSONAL_BASIC':
+    case 'CLINIC_BASIC':
       return PlanTier.BASIC;
     default:
       return PlanTier.TRIAL;
@@ -244,6 +249,8 @@ function normalizeTenantSettings(raw: any): TenantSettings {
 function normalizeTenant(raw: any): Tenant {
   return {
     ...raw,
+    email: raw?.email ?? raw?.contactEmail,
+    phone: raw?.phone ?? raw?.contactPhone,
     settings: normalizeTenantSettings(raw.settings),
     subscription: normalizeSubscription(raw.subscription),
   } as Tenant;
@@ -254,6 +261,7 @@ function normalizeUser(raw: any): User {
     ...raw,
     isActive: raw?.isActive ?? true,
     emailVerified: raw?.emailVerified ?? true,
+    managedByProvider: raw?.managedByProvider ?? false,
     createdAt: raw?.createdAt ?? new Date().toISOString(),
     updatedAt: raw?.updatedAt ?? new Date().toISOString(),
   } as User;
@@ -391,25 +399,45 @@ export const tenantSettingsApi = {
 
 export const usersApi = {
   list: (params?: { role?: string; isActive?: boolean; page?: number; limit?: number }) =>
-    apiClient.get<PaginatedResponse<User>>(API_ENDPOINTS.USERS(getTenantId()), { params }),
+    apiClient
+      .get<PaginatedResponse<User> | User[]>(API_ENDPOINTS.USERS(getTenantId()), { params })
+      .then((raw) =>
+        Array.isArray(raw)
+          ? raw.map(normalizeUser)
+          : {
+              ...raw,
+              data: (raw.data ?? []).map(normalizeUser),
+            }
+      ),
 
   get: (userId: string) =>
-    apiClient.get<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId)),
+    apiClient
+      .get<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId))
+      .then((raw) => normalizeUser(raw)),
 
   create: (data: Partial<User>) =>
-    apiClient.post<User>(API_ENDPOINTS.USERS(getTenantId()), data),
+    apiClient
+      .post<User>(API_ENDPOINTS.USERS(getTenantId()), data)
+      .then((raw) => normalizeUser(raw)),
 
   invite: (data: OnboardingInviteInput) =>
-    apiClient.post<User>(API_ENDPOINTS.USER_INVITE(getTenantId()), data),
+    apiClient
+      .post<User>(API_ENDPOINTS.USER_INVITE(getTenantId()), data)
+      .then((raw) => normalizeUser(raw)),
 
   update: (userId: string, data: Partial<User>) =>
-    apiClient.patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId), data),
+    apiClient
+      .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId), data)
+      .then((raw) => normalizeUser(raw)),
 
   delete: (userId: string) =>
     apiClient.delete<void>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId)),
 
-  activate: (userId: string) =>
-    apiClient.post<void>(API_ENDPOINTS.USER_ACTIVATE(getTenantId(), userId)),
+  activate: (userId: string, password: string) =>
+    apiClient.post<void>(API_ENDPOINTS.USER_ACTIVATE(getTenantId(), userId), { password }),
+
+  activateWithTenant: (tenantId: string, userId: string, password: string) =>
+    apiClient.post<void>(API_ENDPOINTS.USER_ACTIVATE(tenantId, userId), { password }),
 };
 
 // ==========================================

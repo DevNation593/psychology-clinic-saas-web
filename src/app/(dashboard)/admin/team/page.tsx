@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS, ROLE_LABELS } from '@/lib/constants';
 import type { User } from '@/types';
+import { UserRole } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +14,37 @@ import { Alert } from '@/components/ui/alert';
 import { Plus, UserPlus, UserX } from 'lucide-react';
 import { InviteUserDialog } from '@/features/admin/invite-user-dialog';
 import { useAuthStore } from '@/store/authStore';
+import { isClinicPlan } from '@/types/guards';
 import { formatRelativeDate } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 export default function TeamPage() {
   const queryClient = useQueryClient();
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const tenant = useAuthStore((state) => state.tenant);
+  const router = useRouter();
+
+  // Redirect personal plan users away from team page
+  if (!isClinicPlan(tenant)) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <UserPlus className="h-12 w-12 text-muted-foreground mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Módulo de Equipo no disponible</h2>
+            <p className="text-muted-foreground text-center max-w-md mb-4">
+              Tu plan actual es individual y solo permite un usuario. Para gestionar un equipo
+              de psicólogos, actualiza a un plan de clínica.
+            </p>
+            <Button onClick={() => router.push('/admin/subscription')}>
+              Ver Planes de Clínica
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: QUERY_KEYS.USERS,
@@ -46,9 +71,8 @@ export default function TeamPage() {
     }
   };
 
-  const psychologistsCount = usersData?.filter(
-    (u) => u.role === 'PSYCHOLOGIST'
-  ).length || 0;
+  const psychologistsCount =
+    usersData?.filter((u) => u.role === UserRole.PSICOLOGO).length || 0;
   const seatsAvailable = (tenant?.subscription?.plan?.limits?.maxPsychologists || 0) - psychologistsCount;
 
   return (
@@ -126,6 +150,11 @@ export default function TeamPage() {
                         <Badge variant={user.isActive ? 'success' : 'secondary'}>
                           {user.isActive ? 'Activo' : 'Inactivo'}
                         </Badge>
+                        {user.managedByProvider && !user.isActive && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Pendiente de aprobacion del proveedor
+                          </p>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-sm text-muted-foreground">
                         {user.lastLogin

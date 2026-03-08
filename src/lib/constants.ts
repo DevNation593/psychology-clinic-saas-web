@@ -182,9 +182,10 @@ export const QUERY_KEYS = {
 // ==========================================
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.TENANT_ADMIN]: 'Administrador',
-  [UserRole.PSYCHOLOGIST]: 'Psicólogo/a',
-  [UserRole.ASSISTANT]: 'Asistente',
+  [UserRole.CLIENTE]: 'Administrador',
+  [UserRole.PSICOLOGO]: 'Psicólogo/a',
+  [UserRole.SOPORTE]: 'Soporte',
+  [UserRole.PACIENTE]: 'Paciente',
 };
 
 // ==========================================
