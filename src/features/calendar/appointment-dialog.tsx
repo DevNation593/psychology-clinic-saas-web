@@ -37,9 +37,9 @@ export function AppointmentDialog({
   const { mutate: createAppointment, isPending } = useCreateAppointment();
   const { data: patientsData } = usePatients();
   const { data: psychologistsData } = useQuery({
-    queryKey: [...QUERY_KEYS.USERS, { role: UserRole.PSYCHOLOGIST }],
+    queryKey: [...QUERY_KEYS.USERS, { role: UserRole.PSICOLOGO }],
     queryFn: async () => {
-      const response = await usersApi.list({ role: UserRole.PSYCHOLOGIST });
+      const response = await usersApi.list({ role: UserRole.PSICOLOGO });
       return extractArray(response);
     },
   });

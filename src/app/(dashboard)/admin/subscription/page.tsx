@@ -29,7 +29,6 @@ import {
   FileText,
   Video,
   Bell,
-  Palette,
   Globe,
   Lock,
 } from 'lucide-react';
@@ -76,13 +75,17 @@ interface PlanDefinition {
   }[];
 }
 
-const PLAN_DEFINITIONS: PlanDefinition[] = [
+// ==========================================
+// Individual Plans (1 psychologist, no team module)
+// ==========================================
+
+const INDIVIDUAL_PLANS: PlanDefinition[] = [
   {
     planType: PlanTier.BASIC,
     name: 'Básico',
-    description: 'Para consultorios individuales que están empezando.',
-    priceMonthly: '$299',
-    priceYearly: '$249',
+    description: 'Para psicólogos independientes que comienzan su práctica.',
+    priceMonthly: '$29',
+    priceYearly: '$24',
     limits: {
       psychologists: '1',
       patients: '50',
@@ -91,22 +94,102 @@ const PLAN_DEFINITIONS: PlanDefinition[] = [
     features: [
       { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
       { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Estadísticas básicas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: false },
+      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
+      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
+      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
+      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: false },
       { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: false },
       { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: false },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: false },
-      { label: 'Marca personalizada', icon: <Palette className="h-4 w-4" />, included: false },
-      { label: 'Acceso a API', icon: <Globe className="h-4 w-4" />, included: false },
+      { label: 'Sincronización calendario', icon: <Calendar className="h-4 w-4" />, included: false },
+      { label: 'Reportes personalizados', icon: <Globe className="h-4 w-4" />, included: false },
+    ],
+  },
+  {
+    planType: PlanTier.PROFESSIONAL,
+    name: 'Profesional',
+    description: 'Para psicólogos que buscan herramientas avanzadas.',
+    priceMonthly: '$49',
+    priceYearly: '$39',
+    highlighted: true,
+    limits: {
+      psychologists: '1',
+      patients: '150',
+      storage: '10 GB',
+    },
+    features: [
+      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
+      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
+      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
+      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
+      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
+      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
+      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
+      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
+      { label: 'Sincronización calendario', icon: <Calendar className="h-4 w-4" />, included: true },
+      { label: 'Reportes personalizados', icon: <Globe className="h-4 w-4" />, included: true },
+    ],
+  },
+  {
+    planType: PlanTier.ENTERPRISE,
+    name: 'Personalizado',
+    description: 'Para profesionales con necesidades específicas.',
+    priceMonthly: 'Personalizado',
+    priceYearly: 'Personalizado',
+    limits: {
+      psychologists: '1',
+      patients: 'Ilimitados',
+      storage: '50 GB',
+    },
+    features: [
+      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
+      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
+      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
+      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
+      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
+      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
+      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
+      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
+      { label: 'Sincronización calendario', icon: <Calendar className="h-4 w-4" />, included: true },
+      { label: 'Reportes personalizados', icon: <Globe className="h-4 w-4" />, included: true },
+    ],
+  },
+];
+
+// ==========================================
+// Clinic/Enterprise Plans (multiple psychologists, team module)
+// ==========================================
+
+const CLINIC_PLANS: PlanDefinition[] = [
+  {
+    planType: PlanTier.BASIC,
+    name: 'Básico',
+    description: 'Para clínicas pequeñas que inician con su equipo.',
+    priceMonthly: '$79',
+    priceYearly: '$65',
+    limits: {
+      psychologists: 'Hasta 3',
+      patients: '100',
+      storage: '5 GB',
+    },
+    features: [
+      { label: 'Gestión de equipo', icon: <Users className="h-4 w-4" />, included: true },
+      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
+      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
+      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
+      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
+      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
+      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: false },
+      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: false },
+      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: false },
       { label: 'SSO / MFA', icon: <Lock className="h-4 w-4" />, included: false },
     ],
   },
   {
     planType: PlanTier.PROFESSIONAL,
     name: 'Profesional',
-    description: 'Para clínicas en crecimiento con equipo de psicólogos.',
-    priceMonthly: '$799',
-    priceYearly: '$649',
+    description: 'Para clínicas en crecimiento con equipo de psicólogos.', 
+    priceMonthly: '$149',
+    priceYearly: '$125',
     highlighted: true,
     limits: {
       psychologists: 'Hasta 15',
@@ -114,21 +197,21 @@ const PLAN_DEFINITIONS: PlanDefinition[] = [
       storage: '50 GB',
     },
     features: [
+      { label: 'Gestión de equipo', icon: <Users className="h-4 w-4" />, included: true },
       { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
       { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Estadísticas básicas', icon: <BarChart3 className="h-4 w-4" />, included: true },
       { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
+      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
+      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
+      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
       { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
       { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Marca personalizada', icon: <Palette className="h-4 w-4" />, included: false },
-      { label: 'Acceso a API', icon: <Globe className="h-4 w-4" />, included: false },
       { label: 'SSO / MFA', icon: <Lock className="h-4 w-4" />, included: false },
     ],
   },
   {
     planType: PlanTier.ENTERPRISE,
-    name: 'Empresarial',
+    name: 'Personalizado',
     description: 'Para grandes organizaciones con necesidades avanzadas.',
     priceMonthly: 'Personalizado',
     priceYearly: 'Personalizado',
@@ -138,15 +221,15 @@ const PLAN_DEFINITIONS: PlanDefinition[] = [
       storage: '500 GB',
     },
     features: [
+      { label: 'Gestión de equipo', icon: <Users className="h-4 w-4" />, included: true },
       { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
       { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Estadísticas básicas', icon: <BarChart3 className="h-4 w-4" />, included: true },
       { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
+      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
+      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
+      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
       { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
       { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Marca personalizada', icon: <Palette className="h-4 w-4" />, included: true },
-      { label: 'Acceso a API', icon: <Globe className="h-4 w-4" />, included: true },
       { label: 'SSO / MFA', icon: <Lock className="h-4 w-4" />, included: true },
     ],
   },
@@ -413,6 +496,7 @@ export default function SubscriptionPage() {
   const router = useRouter();
   const tenant = useAuthStore((state) => state.tenant);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
+  const [planCategory, setPlanCategory] = useState<'individual' | 'clinic'>('individual');
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanTier | null>(null);
 
@@ -617,7 +701,7 @@ export default function SubscriptionPage() {
           <div>
             <h2 className="text-xl font-semibold">Planes Disponibles</h2>
             <p className="text-muted-foreground text-sm mt-1">
-              Compara los planes y elige el que mejor se adapte a tu clínica
+              Compara los planes y elige el que mejor se adapte a tus necesidades
             </p>
           </div>
           <div className="flex items-center bg-muted rounded-lg p-1">
@@ -647,10 +731,53 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
+        {/* Category Tabs */}
+        <div className="flex items-center gap-2 mb-6">
+          <button
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
+              planCategory === 'individual'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+            }`}
+            onClick={() => setPlanCategory('individual')}
+          >
+            <Shield className="h-4 w-4" />
+            Individual
+          </button>
+          <button
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
+              planCategory === 'clinic'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+            }`}
+            onClick={() => setPlanCategory('clinic')}
+          >
+            <Crown className="h-4 w-4" />
+            Empresarial
+          </button>
+        </div>
+
+        {/* Category Description */}
+        <div className="mb-6">
+          {planCategory === 'individual' ? (
+            <Alert
+              variant="default"
+              title="Planes Individuales"
+              description="Diseñados para psicólogos independientes. Incluyen un solo usuario con acceso al sistema. No incluyen módulo de gestión de equipo."
+            />
+          ) : (
+            <Alert
+              variant="default"
+              title="Planes Empresariales"
+              description="Diseñados para clínicas con múltiples psicólogos. Incluyen módulo de gestión de equipo, asientos adicionales y herramientas colaborativas."
+            />
+          )}
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6">
-          {PLAN_DEFINITIONS.map((plan) => (
+          {(planCategory === 'individual' ? INDIVIDUAL_PLANS : CLINIC_PLANS).map((plan) => (
             <PlanCard
-              key={plan.planType}
+              key={`${planCategory}-${plan.planType}`}
               plan={plan}
               currentPlanType={currentPlanType}
               isAnnual={billingInterval === 'annual'}
@@ -755,7 +882,6 @@ function renderFeatureList(features?: FeatureFlags) {
     { key: 'dataExport', label: 'Exportar datos', value: features.dataExport },
     { key: 'videoIntegration', label: 'Video', value: features.videoIntegration },
     { key: 'customBranding', label: 'Marca propia', value: features.customBranding },
-    { key: 'apiAccess', label: 'API', value: features.apiAccess !== 'none' },
     { key: 'mfa', label: 'MFA', value: features.mfa },
     { key: 'sso', label: 'SSO', value: features.sso },
     { key: 'auditLogs', label: 'Auditoría', value: features.auditLogs },

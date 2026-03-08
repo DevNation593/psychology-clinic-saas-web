@@ -24,9 +24,12 @@ import {
 import { formatDate, formatRelativeDate } from '@/lib/utils';
 import { APPOINTMENT_STATUS_COLORS, TASK_PRIORITY_COLORS } from '@/lib/constants';
 import Link from 'next/link';
+import { useAuthStore } from '@/store/authStore';
+import { isClinicPlan } from '@/types/guards';
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
+  const tenant = useAuthStore((state) => state.tenant);
   const today = new Date().toISOString().split('T')[0];
 
   // Get start of week (Monday)
@@ -361,12 +364,14 @@ export default function DashboardPage() {
                 <span>Ver Pacientes</span>
               </Button>
             </Link>
-            <Link href="/admin/team" className="block">
-              <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
-                <Users className="h-6 w-6" />
-                <span>Gestionar Equipo</span>
-              </Button>
-            </Link>
+            {isClinicPlan(tenant) && (
+              <Link href="/admin/team" className="block">
+                <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
+                  <Users className="h-6 w-6" />
+                  <span>Gestionar Equipo</span>
+                </Button>
+              </Link>
+            )}
           </div>
         </CardContent>
       </Card>
