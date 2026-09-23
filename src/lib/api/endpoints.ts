@@ -33,6 +33,7 @@ import {
   ReminderRule,
   Specialty,
   TenantModule,
+  Invoice,
 } from '@/types';
 
 // ==========================================
@@ -242,6 +243,19 @@ function normalizeTenantSettings(raw: any): TenantSettings {
     legalName: raw.legalName ?? '',
     taxIdentificationType: raw.taxIdentificationType ?? 'RUC',
     taxIdentificationNumber: raw.taxIdentificationNumber ?? '',
+    fakturApiKey: raw.fakturApiKey ?? '',
+    fakturApiUrl: raw.fakturApiUrl ?? '',
+    fakturInvoicePath: raw.fakturInvoicePath ?? '/invoices',
+    fakturEnvironment: raw.fakturEnvironment ?? 'TEST',
+    fakturEstablishment: raw.fakturEstablishment ?? '',
+    fakturEmissionPoint: raw.fakturEmissionPoint ?? '',
+    fakturNextSequential: raw.fakturNextSequential ?? 1,
+    fakturBusinessName: raw.fakturBusinessName ?? '',
+    fakturBusinessAddress: raw.fakturBusinessAddress ?? '',
+    fakturSpecialTaxpayer: !!raw.fakturSpecialTaxpayer,
+    fakturAccountingRequired: !!raw.fakturAccountingRequired,
+    fakturWithholdingAgent: !!raw.fakturWithholdingAgent,
+    fakturEnabled: !!raw.fakturEnabled,
     workingHours: normalizeWorkingHours(raw),
     defaultSessionDuration: raw.defaultAppointmentDuration ?? 60,
     reminderRules,
@@ -372,6 +386,19 @@ export const tenantSettingsApi = {
       legalName: settings.legalName,
       taxIdentificationType: settings.taxIdentificationType,
       taxIdentificationNumber: settings.taxIdentificationNumber,
+      fakturApiKey: settings.fakturApiKey,
+      fakturApiUrl: settings.fakturApiUrl,
+      fakturInvoicePath: settings.fakturInvoicePath,
+      fakturEnvironment: settings.fakturEnvironment,
+      fakturEstablishment: settings.fakturEstablishment,
+      fakturEmissionPoint: settings.fakturEmissionPoint,
+      fakturNextSequential: settings.fakturNextSequential,
+      fakturBusinessName: settings.fakturBusinessName,
+      fakturBusinessAddress: settings.fakturBusinessAddress,
+      fakturSpecialTaxpayer: settings.fakturSpecialTaxpayer,
+      fakturAccountingRequired: settings.fakturAccountingRequired,
+      fakturWithholdingAgent: settings.fakturWithholdingAgent,
+      fakturEnabled: settings.fakturEnabled,
       timezone: settings.timezone,
       locale: settings.locale,
       defaultAppointmentDuration: settings.defaultSessionDuration,
@@ -411,6 +438,10 @@ export const tenantSettingsApi = {
       .patch<any>(API_ENDPOINTS.TENANT_SETTINGS(getTenantId()), payload)
       .then((raw) => normalizeTenantSettings(raw));
   },
+};
+
+export const billingApi = {
+  listInvoices: () => apiClient.get<Invoice[]>(API_ENDPOINTS.BILLING_INVOICES(getTenantId())),
 };
 
 // ==========================================

@@ -36,6 +36,7 @@ export const ROUTES = {
   ADMIN_TEAM: '/admin/team',
   ADMIN_SUBSCRIPTION: '/admin/subscription',
   ADMIN_SETTINGS: '/admin/settings',
+  ADMIN_BILLING: '/admin/billing',
   ADMIN_STORAGE: '/admin/storage',
   
   // Profile
@@ -110,6 +111,8 @@ export const API_ENDPOINTS = {
   SUBSCRIPTION_USAGE: (tenantId: string) => `/tenants/${tenantId}/subscription/usage`,
   SUBSCRIPTION_UPGRADE: (tenantId: string) => `/tenants/${tenantId}/subscription/upgrade`,
   SUBSCRIPTION_DOWNGRADE: (tenantId: string) => `/tenants/${tenantId}/subscription/downgrade`,
+  BILLING_INVOICES: (tenantId: string) => `/tenants/${tenantId}/billing/invoices`,
+  BILLING_INVOICE: (tenantId: string, invoiceId: string) => `/tenants/${tenantId}/billing/invoices/${invoiceId}`,
 
   // Audit Logs (tenant-scoped)
   AUDIT_LOGS: (tenantId: string) => `/tenants/${tenantId}/audit-logs`,
@@ -267,7 +270,7 @@ export const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[
 // DATE/TIME
 // ==========================================
 
-export const DEFAULT_SESSION_DURATION = 50; // minutes
+export const DEFAULT_SESSION_DURATION = 60; // minutes
 export const TIME_SLOTS = [
   '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',

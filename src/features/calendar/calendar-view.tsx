@@ -54,9 +54,10 @@ export default function CalendarView({
   const lastClosing = configuredSchedules.length > 0
     ? Math.max(...configuredSchedules.map((schedule) => toMinutes(schedule.endTime)))
     : 20 * 60;
-  const slotDuration = settings?.defaultSessionDuration
-    ? `00:${Math.floor(settings.defaultSessionDuration / 60).toString().padStart(2, '0')}:${(settings.defaultSessionDuration % 60).toString().padStart(2, '0')}`
-    : '00:30:00';
+  const configuredDuration = settings?.defaultSessionDuration || 60;
+  const slotDuration = `00:${Math.floor(configuredDuration / 60)
+    .toString()
+    .padStart(2, '0')}:${(configuredDuration % 60).toString().padStart(2, '0')}`;
 
   const calendarEvents = events.map((appointment) => ({
     id: appointment.id,
@@ -103,6 +104,7 @@ export default function CalendarView({
       slotMaxTime={formatTime(lastClosing)}
       scrollTime={formatTime(firstOpening)}
       slotDuration={slotDuration}
+      snapDuration={slotDuration}
       height="auto"
       select={(info) => onDateSelect(info.start)}
       eventClick={(info) => {

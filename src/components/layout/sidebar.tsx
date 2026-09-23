@@ -18,6 +18,7 @@ import {
   ChevronRight,
   UserCog,
   CreditCard,
+  FileText,
   Settings,
   HardDrive,
   ClipboardList,
@@ -57,6 +58,12 @@ export function Sidebar() {
       name: 'Suscripción',
       href: '/admin/subscription',
       icon: CreditCard,
+      show: user && canManageSubscription(user),
+    },
+    {
+      name: 'Facturación',
+      href: '/admin/billing',
+      icon: FileText,
       show: user && canManageSubscription(user),
     },
     {

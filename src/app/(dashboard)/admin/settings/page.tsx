@@ -72,7 +72,7 @@ export default function AdminSettingsPage() {
     settings?.workingHours || DEFAULT_WORKING_HOURS
   );
   const [sessionDuration, setSessionDuration] = useState(
-    settings?.defaultSessionDuration || 50
+    settings?.defaultSessionDuration || 60
   );
   const [timezone, setTimezone] = useState(settings?.timezone || 'America/Mexico_City');
   const [locale, setLocale] = useState(settings?.locale || 'es');
@@ -86,6 +86,19 @@ export default function AdminSettingsPage() {
   const [taxIdentificationNumber, setTaxIdentificationNumber] = useState(
     settings?.taxIdentificationNumber || ''
   );
+  const [fakturApiKey, setFakturApiKey] = useState(settings?.fakturApiKey || '');
+  const [fakturApiUrl, setFakturApiUrl] = useState(settings?.fakturApiUrl || '');
+  const [fakturInvoicePath, setFakturInvoicePath] = useState(settings?.fakturInvoicePath || '/invoices');
+  const [fakturEnvironment, setFakturEnvironment] = useState(settings?.fakturEnvironment || 'TEST');
+  const [fakturEstablishment, setFakturEstablishment] = useState(settings?.fakturEstablishment || '');
+  const [fakturEmissionPoint, setFakturEmissionPoint] = useState(settings?.fakturEmissionPoint || '');
+  const [fakturNextSequential, setFakturNextSequential] = useState(settings?.fakturNextSequential || 1);
+  const [fakturBusinessName, setFakturBusinessName] = useState(settings?.fakturBusinessName || '');
+  const [fakturBusinessAddress, setFakturBusinessAddress] = useState(settings?.fakturBusinessAddress || '');
+  const [fakturSpecialTaxpayer, setFakturSpecialTaxpayer] = useState(settings?.fakturSpecialTaxpayer || false);
+  const [fakturAccountingRequired, setFakturAccountingRequired] = useState(settings?.fakturAccountingRequired || false);
+  const [fakturWithholdingAgent, setFakturWithholdingAgent] = useState(settings?.fakturWithholdingAgent || false);
+  const [fakturEnabled, setFakturEnabled] = useState(settings?.fakturEnabled || false);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Redirect non-admin users
@@ -98,13 +111,26 @@ export default function AdminSettingsPage() {
   const [initialized, setInitialized] = useState(false);
   if (settings && !initialized) {
     setWorkingHours(settings.workingHours || DEFAULT_WORKING_HOURS);
-    setSessionDuration(settings.defaultSessionDuration || 50);
+    setSessionDuration(settings.defaultSessionDuration || 60);
     setTimezone(settings.timezone || 'America/Mexico_City');
     setLocale(settings.locale || 'es');
     setReminders(settings.reminderRules || DEFAULT_REMINDERS);
     setLegalName(settings.legalName || '');
     setTaxIdentificationType(settings.taxIdentificationType || 'RUC');
     setTaxIdentificationNumber(settings.taxIdentificationNumber || '');
+    setFakturApiKey(settings.fakturApiKey || '');
+    setFakturApiUrl(settings.fakturApiUrl || '');
+    setFakturInvoicePath(settings.fakturInvoicePath || '/invoices');
+    setFakturEnvironment(settings.fakturEnvironment || 'TEST');
+    setFakturEstablishment(settings.fakturEstablishment || '');
+    setFakturEmissionPoint(settings.fakturEmissionPoint || '');
+    setFakturNextSequential(settings.fakturNextSequential || 1);
+    setFakturBusinessName(settings.fakturBusinessName || '');
+    setFakturBusinessAddress(settings.fakturBusinessAddress || '');
+    setFakturSpecialTaxpayer(settings.fakturSpecialTaxpayer || false);
+    setFakturAccountingRequired(settings.fakturAccountingRequired || false);
+    setFakturWithholdingAgent(settings.fakturWithholdingAgent || false);
+    setFakturEnabled(settings.fakturEnabled || false);
     setInitialized(true);
   }
 
@@ -151,6 +177,19 @@ export default function AdminSettingsPage() {
         legalName,
         taxIdentificationType,
         taxIdentificationNumber,
+        fakturApiKey,
+        fakturApiUrl,
+        fakturInvoicePath,
+        fakturEnvironment,
+        fakturEstablishment,
+        fakturEmissionPoint,
+        fakturNextSequential,
+        fakturBusinessName,
+        fakturBusinessAddress,
+        fakturSpecialTaxpayer,
+        fakturAccountingRequired,
+        fakturWithholdingAgent,
+        fakturEnabled,
       },
       {
         onSuccess: () => {
@@ -163,13 +202,26 @@ export default function AdminSettingsPage() {
   const handleReset = () => {
     if (settings) {
       setWorkingHours(settings.workingHours || DEFAULT_WORKING_HOURS);
-      setSessionDuration(settings.defaultSessionDuration || 50);
+      setSessionDuration(settings.defaultSessionDuration || 60);
       setTimezone(settings.timezone || 'America/Mexico_City');
       setLocale(settings.locale || 'es');
       setReminders(settings.reminderRules || DEFAULT_REMINDERS);
       setLegalName(settings.legalName || '');
       setTaxIdentificationType(settings.taxIdentificationType || 'RUC');
       setTaxIdentificationNumber(settings.taxIdentificationNumber || '');
+      setFakturApiKey(settings.fakturApiKey || '');
+      setFakturApiUrl(settings.fakturApiUrl || '');
+      setFakturInvoicePath(settings.fakturInvoicePath || '/invoices');
+      setFakturEnvironment(settings.fakturEnvironment || 'TEST');
+      setFakturEstablishment(settings.fakturEstablishment || '');
+      setFakturEmissionPoint(settings.fakturEmissionPoint || '');
+      setFakturNextSequential(settings.fakturNextSequential || 1);
+      setFakturBusinessName(settings.fakturBusinessName || '');
+      setFakturBusinessAddress(settings.fakturBusinessAddress || '');
+      setFakturSpecialTaxpayer(settings.fakturSpecialTaxpayer || false);
+      setFakturAccountingRequired(settings.fakturAccountingRequired || false);
+      setFakturWithholdingAgent(settings.fakturWithholdingAgent || false);
+      setFakturEnabled(settings.fakturEnabled || false);
     }
     setHasChanges(false);
   };
@@ -433,6 +485,145 @@ export default function AdminSettingsPage() {
                   markChanged();
                 }}
               />
+            </div>
+            <div className="md:col-span-3 border-t pt-4">
+              <h3 className="font-medium">Conexión con Faktur</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Configura las credenciales y numeración autorizada por tu proveedor.
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="faktur-api-key">API key</Label>
+              <Input
+                id="faktur-api-key"
+                type="password"
+                value={fakturApiKey}
+                placeholder="Ingresa una nueva API key"
+                onChange={(e) => {
+                  setFakturApiKey(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="faktur-api-url">URL de Faktur</Label>
+              <Input
+                id="faktur-api-url"
+                value={fakturApiUrl}
+                placeholder="https://api.faktur.ec"
+                onChange={(e) => {
+                  setFakturApiUrl(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="faktur-invoice-path">Ruta de emisión</Label>
+              <Input
+                id="faktur-invoice-path"
+                value={fakturInvoicePath}
+                placeholder="/invoices"
+                onChange={(e) => {
+                  setFakturInvoicePath(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="faktur-environment">Ambiente</Label>
+              <select
+                id="faktur-environment"
+                value={fakturEnvironment}
+                onChange={(e) => {
+                  setFakturEnvironment(e.target.value);
+                  markChanged();
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
+              >
+                <option value="TEST">Pruebas</option>
+                <option value="PRODUCTION">Producción</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="faktur-establishment">Establecimiento</Label>
+              <Input
+                id="faktur-establishment"
+                value={fakturEstablishment}
+                placeholder="001"
+                onChange={(e) => {
+                  setFakturEstablishment(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="faktur-emission-point">Punto de emisión</Label>
+              <Input
+                id="faktur-emission-point"
+                value={fakturEmissionPoint}
+                placeholder="001"
+                onChange={(e) => {
+                  setFakturEmissionPoint(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="faktur-next-sequential">Siguiente secuencial</Label>
+              <Input
+                id="faktur-next-sequential"
+                type="number"
+                min={1}
+                value={fakturNextSequential}
+                onChange={(e) => {
+                  setFakturNextSequential(Number(e.target.value));
+                  markChanged();
+                }}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="faktur-business-name">Nombre comercial</Label>
+              <Input
+                id="faktur-business-name"
+                value={fakturBusinessName}
+                onChange={(e) => {
+                  setFakturBusinessName(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div className="md:col-span-3">
+              <Label htmlFor="faktur-business-address">Dirección del establecimiento</Label>
+              <Input
+                id="faktur-business-address"
+                value={fakturBusinessAddress}
+                onChange={(e) => {
+                  setFakturBusinessAddress(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div className="md:col-span-3 flex flex-wrap gap-6">
+              {[
+                ['faktur-enabled', 'Activar facturación electrónica', fakturEnabled, setFakturEnabled],
+                ['faktur-special-taxpayer', 'Contribuyente especial', fakturSpecialTaxpayer, setFakturSpecialTaxpayer],
+                ['faktur-accounting-required', 'Obligado a llevar contabilidad', fakturAccountingRequired, setFakturAccountingRequired],
+                ['faktur-withholding-agent', 'Agente de retención', fakturWithholdingAgent, setFakturWithholdingAgent],
+              ].map(([id, label, checked, setter]) => (
+                <label key={id as string} className="flex items-center gap-2 text-sm">
+                  <input
+                    id={id as string}
+                    type="checkbox"
+                    checked={checked as boolean}
+                    onChange={(e) => {
+                      (setter as (value: boolean) => void)(e.target.checked);
+                      markChanged();
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                  {label as string}
+                </label>
+              ))}
             </div>
           </div>
         </CardContent>
