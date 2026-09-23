@@ -5,23 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { authApi, tenantsApi, usersApi } from '@/lib/api/endpoints';
+import { authApi, tenantsApi } from '@/lib/api/endpoints';
 import { apiClient } from '@/lib/api/client';
 import { useAuthStore } from '@/store/authStore';
 import {
   onboardingTenantSchema,
   onboardingAdminSchema,
-  onboardingInviteSchema,
   type OnboardingTenantFormData,
   type OnboardingAdminFormData,
-  type OnboardingInviteFormData,
 } from '@/lib/validations/schemas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Brain, Building2, User, Users, Check } from 'lucide-react';
-import { UserRole } from '@/types';
 import { toast } from 'sonner';
 
 type Step = 1 | 2 | 3 | 4;
@@ -32,7 +29,6 @@ export default function OnboardingPage() {
   const setUser = useAuthStore((state) => state.setUser);
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [tenantData, setTenantData] = useState<OnboardingTenantFormData | null>(null);
-  const [invites, setInvites] = useState<OnboardingInviteFormData[]>([]);
 
   // Step 1: Tenant Info
   const tenantForm = useForm<OnboardingTenantFormData>({
@@ -46,14 +42,6 @@ export default function OnboardingPage() {
   // Step 2: Admin Info
   const adminForm = useForm<OnboardingAdminFormData>({
     resolver: zodResolver(onboardingAdminSchema),
-  });
-
-  // Step 3: Invite Users
-  const inviteForm = useForm<OnboardingInviteFormData>({
-    resolver: zodResolver(onboardingInviteSchema),
-    defaultValues: {
-      role: UserRole.PSICOLOGO,
-    },
   });
 
   // Create Tenant Mutation
@@ -88,10 +76,7 @@ export default function OnboardingPage() {
 
   // Complete Onboarding Mutation
   const completeOnboardingMutation = useMutation({
-    mutationFn: async (users: OnboardingInviteFormData[]) => {
-      for (const invite of users) {
-        await usersApi.invite(invite);
-      }
+    mutationFn: async () => {
       await tenantsApi.completeOnboarding();
     },
     onSuccess: () => {
@@ -115,22 +100,8 @@ export default function OnboardingPage() {
     createTenantMutation.mutate({ ...tenantData, ...data });
   };
 
-  const addInvite = (data: OnboardingInviteFormData) => {
-    setInvites([...invites, data]);
-    inviteForm.reset({ role: UserRole.PSICOLOGO });
-    toast.success('Usuario agregado a la lista de invitaciones');
-  };
-
-  const removeInvite = (index: number) => {
-    setInvites(invites.filter((_, i) => i !== index));
-  };
-
   const finishOnboarding = () => {
-    if (invites.length > 0) {
-      completeOnboardingMutation.mutate(invites);
-    } else {
-      router.push('/dashboard');
-    }
+    completeOnboardingMutation.mutate();
   };
 
   const steps = [
@@ -223,17 +194,6 @@ export default function OnboardingPage() {
                     placeholder="contacto@clinica.com"
                     {...tenantForm.register('contactEmail')}
                     error={tenantForm.formState.errors.contactEmail?.message}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="slug" required>
-                    Slug de la clínica
-                  </Label>
-                  <Input
-                    id="slug"
-                    placeholder="mi-clinica"
-                    {...tenantForm.register('slug')}
-                    error={tenantForm.formState.errors.slug?.message}
                   />
                 </div>
                 <div className="space-y-2">
@@ -343,95 +303,19 @@ export default function OnboardingPage() {
           </Card>
         )}
 
-        {/* Step 3: Invite Team */}
+        {/* Step 3: Access setup */}
         {currentStep === 3 && (
           <Card>
             <CardHeader>
-              <CardTitle>Invitar a tu Equipo</CardTitle>
+              <CardTitle>Configuración completada</CardTitle>
               <CardDescription>
-                Invita psicólogos y asistentes (puedes hacerlo después)
+                Los usuarios son creados directamente por el administrador del sistema.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <form
-                onSubmit={inviteForm.handleSubmit(addInvite)}
-                className="space-y-4 p-4 border rounded-lg"
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="inviteFirstName">Nombre</Label>
-                    <Input
-                      id="inviteFirstName"
-                      {...inviteForm.register('firstName')}
-                      error={inviteForm.formState.errors.firstName?.message}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="inviteLastName">Apellido</Label>
-                    <Input
-                      id="inviteLastName"
-                      {...inviteForm.register('lastName')}
-                      error={inviteForm.formState.errors.lastName?.message}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="inviteEmail">Email</Label>
-                  <Input
-                    id="inviteEmail"
-                    type="email"
-                    {...inviteForm.register('email')}
-                    error={inviteForm.formState.errors.email?.message}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="inviteRole">Rol</Label>
-                  <select
-                    id="inviteRole"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    {...inviteForm.register('role')}
-                  >
-                    <option value={UserRole.PSICOLOGO}>Psicólogo/a</option>
-                    <option value={UserRole.PACIENTE}>Paciente</option>
-                  </select>
-                </div>
-                <Button type="submit" className="w-full">
-                  Agregar a la lista
-                </Button>
-              </form>
-
-              {invites.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold">Invitaciones ({invites.length})</h4>
-                  {invites.map((invite, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border rounded"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {invite.firstName} {invite.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{invite.email}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeInvite(index)}
-                      >
-                        Eliminar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
+            <CardContent />
             <div className="p-6 pt-0 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => router.push('/dashboard')}>
-                Omitir
-              </Button>
               <Button onClick={finishOnboarding} loading={completeOnboardingMutation.isPending}>
-                {invites.length > 0 ? 'Enviar Invitaciones' : 'Finalizar'}
+                Finalizar
               </Button>
             </div>
           </Card>

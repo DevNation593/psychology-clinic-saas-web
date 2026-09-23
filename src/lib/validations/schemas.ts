@@ -38,10 +38,6 @@ export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export const onboardingTenantSchema = z.object({
   clinicName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  slug: z
-    .string()
-    .min(2, 'El slug debe tener al menos 2 caracteres')
-    .regex(/^[a-z0-9-]+$/, 'Solo letras minúsculas, números y guiones'),
   contactEmail: z.string().email('Email inválido'),
   contactPhone: z.string().optional(),
   timezone: z.string().default('America/Mexico_City'),

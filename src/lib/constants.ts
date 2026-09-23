@@ -68,7 +68,6 @@ export const API_ENDPOINTS = {
 
   // Users (tenant-scoped)
   USERS: (tenantId: string) => `/tenants/${tenantId}/users`,
-  USER_INVITE: (tenantId: string) => `/tenants/${tenantId}/users/invite`,
   USER_DETAIL: (tenantId: string, userId: string) => `/tenants/${tenantId}/users/${userId}`,
   USER_ACTIVATE: (tenantId: string, userId: string) => `/tenants/${tenantId}/users/${userId}/activate`,
   USER_AVATAR: (tenantId: string, userId: string) => `/tenants/${tenantId}/users/${userId}/avatar`,

@@ -78,12 +78,6 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" loading={isPending}>
             Iniciar Sesión
           </Button>
-          <p className="text-sm text-center text-muted-foreground">
-            ¿No tienes cuenta?{' '}
-            <Link href="/onboarding" className="text-primary hover:underline">
-              Crear clínica
-            </Link>
-          </p>
         </CardFooter>
       </form>
     </Card>

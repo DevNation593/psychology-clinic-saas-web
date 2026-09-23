@@ -19,7 +19,6 @@ import {
   PaginatedResponse,
   OnboardingTenantInput,
   OnboardingAdminInput,
-  OnboardingInviteInput,
   UpgradeRequest,
   UpgradeResponse,
   DowngradeRequest,
@@ -303,7 +302,6 @@ export const tenantsApi = {
   create: (data: OnboardingTenantInput & OnboardingAdminInput) =>
     apiClient.post<Tenant>(API_ENDPOINTS.TENANT_CREATE, {
       name: (data as any).clinicName ?? (data as any).name,
-      slug: (data as any).slug,
       email: (data as any).contactEmail ?? (data as any).email,
       phone: (data as any).contactPhone ?? (data as any).phone,
       address: (data as any).address,
@@ -323,7 +321,7 @@ export const tenantsApi = {
       .patch<Tenant>(API_ENDPOINTS.TENANT_UPDATE(tenantId ?? getTenantId()), data)
       .then((raw) => normalizeTenant(raw)),
 
-  completeOnboarding: (_data?: { invites?: OnboardingInviteInput[] }, tenantId?: string) =>
+  completeOnboarding: (tenantId?: string) =>
     apiClient.post<void>(API_ENDPOINTS.TENANT_COMPLETE_ONBOARDING(tenantId ?? getTenantId())),
 
   getSubscription: (tenantId?: string) =>
@@ -420,10 +418,6 @@ export const usersApi = {
       .post<User>(API_ENDPOINTS.USERS(getTenantId()), data)
       .then((raw) => normalizeUser(raw)),
 
-  invite: (data: OnboardingInviteInput) =>
-    apiClient
-      .post<User>(API_ENDPOINTS.USER_INVITE(getTenantId()), data)
-      .then((raw) => normalizeUser(raw)),
 
   update: (userId: string, data: Partial<User>) =>
     apiClient
