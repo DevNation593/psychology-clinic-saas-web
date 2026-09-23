@@ -63,6 +63,7 @@ interface PlanDefinition {
   priceMonthly: string;
   priceYearly: string;
   highlighted?: boolean;
+  specialties?: string[];
   limits: {
     psychologists: string;
     patients: string;
@@ -74,6 +75,15 @@ interface PlanDefinition {
     included: boolean;
   }[];
 }
+
+const SPECIALTIES_BY_PLAN: Record<string, string[]> = {
+  'individual-BASIC': ['Cualquier especialidad (1 incluida)'],
+  'individual-PROFESSIONAL': ['Cualquier especialidad (2 incluidas)'],
+  'individual-ENTERPRISE': ['Cualquier especialidad (2 incluidas)'],
+  'clinic-BASIC': ['Cualquier especialidad (2 incluidas)'],
+  'clinic-PROFESSIONAL': ['Cualquier especialidad (3 incluidas)'],
+  'clinic-ENTERPRISE': ['Cualquier especialidad (cupo ampliado)'],
+};
 
 // ==========================================
 // Individual Plans (1 psychologist, no team module)
@@ -304,16 +314,19 @@ function PlanCard({
   isAnnual,
   onSelect,
   isLoading,
+  category,
 }: {
   plan: PlanDefinition;
   currentPlanType: PlanTier;
   isAnnual: boolean;
   onSelect: (planType: PlanTier) => void;
   isLoading: boolean;
+  category: 'individual' | 'clinic';
 }) {
   const isCurrent = plan.planType === currentPlanType;
   const isUpgrade = canUpgradeTo(currentPlanType, plan.planType);
   const price = isAnnual ? plan.priceYearly : plan.priceMonthly;
+  const specialties = plan.specialties || SPECIALTIES_BY_PLAN[`${category}-${plan.planType}`] || [];
 
   return (
     <Card
@@ -353,6 +366,10 @@ function PlanCard({
           {price !== 'Personalizado' && (
             <span className="text-muted-foreground text-sm"> USD/mes</span>
           )}
+        </div>
+        <div className="mt-3 text-left rounded-md bg-muted/50 p-3">
+          <p className="text-xs font-semibold text-muted-foreground">ESPECIALIDADES INCLUIDAS</p>
+          <p className="text-sm mt-1">{specialties.join(', ')}</p>
         </div>
       </CardHeader>
 
@@ -783,6 +800,7 @@ export default function SubscriptionPage() {
               isAnnual={billingInterval === 'annual'}
               onSelect={handleSelectPlan}
               isLoading={upgradeMutation.isPending}
+              category={planCategory}
             />
           ))}
         </div>

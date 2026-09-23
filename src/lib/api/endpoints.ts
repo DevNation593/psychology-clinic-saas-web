@@ -34,6 +34,7 @@ import {
   Specialty,
   TenantModule,
   Invoice,
+  SpecialtyRecord,
 } from '@/types';
 
 // ==========================================
@@ -442,6 +443,27 @@ export const tenantSettingsApi = {
 
 export const billingApi = {
   listInvoices: () => apiClient.get<Invoice[]>(API_ENDPOINTS.BILLING_INVOICES(getTenantId())),
+  createInvoice: (data: { subtotal: number; tax?: number; description: string; idempotencyKey?: string }) =>
+    apiClient.post<Invoice>(API_ENDPOINTS.BILLING_INVOICES(getTenantId()), data),
+};
+
+export const specialtyRecordsApi = {
+  list: (patientId: string, moduleKey?: string) =>
+    apiClient.get<SpecialtyRecord[]>(
+      API_ENDPOINTS.PATIENT_SPECIALTY_RECORDS(getTenantId(), patientId),
+      moduleKey ? { params: { moduleKey } } : undefined,
+    ),
+  create: (patientId: string, data: {
+    specialtyCode: string;
+    moduleKey: string;
+    data: Record<string, unknown>;
+    notes?: string;
+    recordDate?: string;
+    appointmentId?: string;
+  }) => apiClient.post<SpecialtyRecord>(
+    API_ENDPOINTS.PATIENT_SPECIALTY_RECORDS(getTenantId(), patientId),
+    data,
+  ),
 };
 
 // ==========================================
