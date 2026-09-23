@@ -6,8 +6,8 @@ import { Providers } from '@/components/providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Psychology Clinic SaaS',
-  description: 'Multi-tenant psychology clinic management system',
+  title: 'Consultorios de Salud',
+  description: 'Gestión modular para consultorios y profesionales de la salud',
 };
 
 export default function RootLayout({

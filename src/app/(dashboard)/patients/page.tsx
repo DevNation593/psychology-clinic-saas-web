@@ -120,7 +120,7 @@ export default function PatientsPage() {
                     <th className="text-left py-3 px-4 font-medium">Nombre</th>
                     <th className="text-left py-3 px-4 font-medium">Email</th>
                     <th className="text-left py-3 px-4 font-medium">Teléfono</th>
-                    <th className="text-left py-3 px-4 font-medium">Psicólogo Asignado</th>
+                    <th className="text-left py-3 px-4 font-medium">Profesional Asignado</th>
                     <th className="text-left py-3 px-4 font-medium">Estado</th>
                     <th className="text-left py-3 px-4 font-medium">Agregado</th>
                     <th className="text-right py-3 px-4 font-medium">Acciones</th>

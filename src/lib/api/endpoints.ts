@@ -31,6 +31,8 @@ import {
   TenantSettings,
   WorkingHours,
   ReminderRule,
+  Specialty,
+  TenantModule,
 } from '@/types';
 
 // ==========================================
@@ -237,6 +239,9 @@ function normalizeTenantSettings(raw: any): TenantSettings {
   });
 
   return {
+    legalName: raw.legalName ?? '',
+    taxIdentificationType: raw.taxIdentificationType ?? 'RUC',
+    taxIdentificationNumber: raw.taxIdentificationNumber ?? '',
     workingHours: normalizeWorkingHours(raw),
     defaultSessionDuration: raw.defaultAppointmentDuration ?? 60,
     reminderRules,
@@ -330,6 +335,20 @@ export const tenantsApi = {
       .then((raw) => normalizeSubscription(raw)),
 };
 
+export const specialtiesApi = {
+  list: (tenantId?: string) =>
+    apiClient.get<Specialty[]>(API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId())),
+
+  modules: (tenantId?: string) =>
+    apiClient.get<TenantModule[]>(API_ENDPOINTS.TENANT_MODULES(tenantId ?? getTenantId())),
+
+  setModuleEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
+    apiClient.patch<TenantModule>(
+      API_ENDPOINTS.TENANT_MODULE(tenantId ?? getTenantId(), moduleKey),
+      { enabled },
+    ),
+};
+
 export const tenantSettingsApi = {
   get: () =>
     apiClient
@@ -350,6 +369,9 @@ export const tenantSettingsApi = {
     }
 
     const payload: Record<string, unknown> = {
+      legalName: settings.legalName,
+      taxIdentificationType: settings.taxIdentificationType,
+      taxIdentificationNumber: settings.taxIdentificationNumber,
       timezone: settings.timezone,
       locale: settings.locale,
       defaultAppointmentDuration: settings.defaultSessionDuration,
