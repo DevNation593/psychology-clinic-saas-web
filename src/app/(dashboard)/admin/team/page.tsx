@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS, ROLE_LABELS } from '@/lib/constants';
@@ -11,8 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { Alert } from '@/components/ui/alert';
-import { Plus, UserPlus, UserX } from 'lucide-react';
-import { InviteUserDialog } from '@/features/admin/invite-user-dialog';
+import { UserPlus, UserX } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { isClinicPlan } from '@/types/guards';
 import { formatRelativeDate } from '@/lib/utils';
@@ -21,7 +19,6 @@ import { useRouter } from 'next/navigation';
 
 export default function TeamPage() {
   const queryClient = useQueryClient();
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const tenant = useAuthStore((state) => state.tenant);
   const router = useRouter();
 
@@ -84,13 +81,6 @@ export default function TeamPage() {
             Administra los usuarios de tu clínica
           </p>
         </div>
-        <Button
-          onClick={() => setInviteDialogOpen(true)}
-          disabled={seatsAvailable <= 0}
-        >
-          <UserPlus className="h-4 w-4 mr-2" />
-          Invitar Usuario
-        </Button>
       </div>
 
       {/* Seats Usage Alert */}
@@ -186,10 +176,6 @@ export default function TeamPage() {
         </CardContent>
       </Card>
 
-      <InviteUserDialog
-        open={inviteDialogOpen}
-        onOpenChange={setInviteDialogOpen}
-      />
     </div>
   );
 }
