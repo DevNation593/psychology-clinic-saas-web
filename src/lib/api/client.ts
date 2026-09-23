@@ -168,6 +168,7 @@ class ApiClient {
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
     localStorage.removeItem(STORAGE_KEYS.TENANT);
+    localStorage.removeItem('auth-storage');
   }
 
   // ==========================================
