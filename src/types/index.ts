@@ -269,11 +269,40 @@ export interface TenantSettings {
   legalName?: string;
   taxIdentificationType?: string;
   taxIdentificationNumber?: string;
+  fakturApiKey?: string;
+  fakturApiUrl?: string;
+  fakturInvoicePath?: string;
+  fakturEnvironment?: 'TEST' | 'PRODUCTION' | string;
+  fakturEstablishment?: string;
+  fakturEmissionPoint?: string;
+  fakturNextSequential?: number;
+  fakturBusinessName?: string;
+  fakturBusinessAddress?: string;
+  fakturSpecialTaxpayer?: boolean;
+  fakturAccountingRequired?: boolean;
+  fakturWithholdingAgent?: boolean;
+  fakturEnabled?: boolean;
   workingHours: WorkingHours;
   defaultSessionDuration: number; // minutes
   reminderRules: ReminderRule[];
   timezone: string;
   locale: string;
+}
+
+export interface Invoice {
+  id: string;
+  status: 'PENDING' | 'ISSUED' | 'FAILED' | 'VOIDED';
+  issueDate: string;
+  customerName: string;
+  description: string;
+  subtotal: number | string;
+  tax: number | string;
+  total: number | string;
+  externalId?: string;
+  accessKey?: string;
+  pdfUrl?: string;
+  xmlUrl?: string;
+  errorMessage?: string;
 }
 
 export interface WorkingHours {
