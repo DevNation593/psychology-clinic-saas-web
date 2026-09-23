@@ -22,6 +22,7 @@ import {
   Settings,
   HardDrive,
   ClipboardList,
+  Stethoscope,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -45,6 +46,8 @@ export function Sidebar() {
     { name: 'Calendario', href: '/calendar', icon: Calendar, show: true },
     { name: 'Pacientes', href: '/patients', icon: Users, show: true },
     { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: true },
+    { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: true },
+    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user?.role === 'CLIENTE' || user?.role === 'PSICOLOGO' },
   ];
 
   const adminNavigation = [
@@ -58,12 +61,6 @@ export function Sidebar() {
       name: 'Suscripción',
       href: '/admin/subscription',
       icon: CreditCard,
-      show: user && canManageSubscription(user),
-    },
-    {
-      name: 'Facturación',
-      href: '/admin/billing',
-      icon: FileText,
       show: user && canManageSubscription(user),
     },
     {
@@ -83,8 +80,10 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        'flex flex-col bg-card border-r transition-all duration-300',
-        sidebarCollapsed ? 'w-16' : 'w-64'
+        'flex flex-col bg-card border-r transition-all duration-300 shrink-0',
+        sidebarCollapsed
+          ? 'hidden md:flex md:w-16'
+          : 'fixed inset-y-0 left-0 z-50 flex w-64 shadow-xl md:static md:shadow-none'
       )}
     >
       {/* Logo */}

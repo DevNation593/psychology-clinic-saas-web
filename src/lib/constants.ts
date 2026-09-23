@@ -43,6 +43,7 @@ export const ROUTES = {
   ADMIN_SUBSCRIPTION: '/admin/subscription',
   ADMIN_SETTINGS: '/admin/settings',
   ADMIN_BILLING: '/admin/billing',
+  ADMIN_SPECIALTIES: '/admin/specialties',
   ADMIN_STORAGE: '/admin/storage',
   
   // Profile
@@ -76,6 +77,7 @@ export const API_ENDPOINTS = {
   TENANT_MODULES: (tenantId: string) => `/tenants/${tenantId}/modules`,
   TENANT_MODULE: (tenantId: string, moduleKey: string) =>
     `/tenants/${tenantId}/modules/${moduleKey}`,
+  TENANT_SPECIALTIES_UPDATE: (tenantId: string) => `/tenants/${tenantId}/specialties`,
 
   // Users (tenant-scoped)
   USERS: (tenantId: string) => `/tenants/${tenantId}/users`,
