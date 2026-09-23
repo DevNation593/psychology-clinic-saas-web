@@ -4,7 +4,7 @@ import { PlanTier, UserRole, AppointmentStatus, TaskStatus, TaskPriority } from 
 // APPLICATION
 // ==========================================
 
-export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Psychology Clinic SaaS';
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Consultorios de Salud';
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4200';
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -71,6 +71,10 @@ export const API_ENDPOINTS = {
   TENANT_UPDATE: (tenantId: string) => `/tenants/${tenantId}`,
   TENANT_COMPLETE_ONBOARDING: (tenantId: string) => `/tenants/${tenantId}/complete-onboarding`,
   TENANT_SUBSCRIPTION: (tenantId: string) => `/tenants/${tenantId}/subscription`,
+  TENANT_SPECIALTIES: (tenantId: string) => `/tenants/${tenantId}/specialties`,
+  TENANT_MODULES: (tenantId: string) => `/tenants/${tenantId}/modules`,
+  TENANT_MODULE: (tenantId: string, moduleKey: string) =>
+    `/tenants/${tenantId}/modules/${moduleKey}`,
 
   // Users (tenant-scoped)
   USERS: (tenantId: string) => `/tenants/${tenantId}/users`,
@@ -180,6 +184,8 @@ export const QUERY_KEYS = {
   // Tenant
   TENANT: ['tenant'],
   TENANT_SETTINGS: ['tenant', 'settings'],
+  TENANT_SPECIALTIES: ['tenant', 'specialties'],
+  TENANT_MODULES: ['tenant', 'modules'],
 } as const;
 
 // ==========================================

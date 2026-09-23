@@ -238,9 +238,37 @@ export interface Tenant {
   settings: TenantSettings;
   createdAt: string;
   updatedAt: string;
+  specialties?: Specialty[];
+  enabledModules?: TenantModule[];
+}
+
+export interface Specialty {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  modules?: SpecialtyModule[];
+}
+
+export interface SpecialtyModule {
+  id: string;
+  specialtyId: string;
+  moduleKey: string;
+}
+
+export interface TenantModule {
+  id: string;
+  tenantId: string;
+  moduleKey: string;
+  enabled: boolean;
+  limits?: Record<string, unknown>;
 }
 
 export interface TenantSettings {
+  legalName?: string;
+  taxIdentificationType?: string;
+  taxIdentificationNumber?: string;
   workingHours: WorkingHours;
   defaultSessionDuration: number; // minutes
   reminderRules: ReminderRule[];
@@ -284,6 +312,9 @@ export interface User {
   tenantId: string;
   avatarUrl?: string;
   phone?: string;
+  professionalTitle?: string;
+  licenseNumber?: string;
+  professionalSpecialties?: Specialty[];
   isActive: boolean;
   managedByProvider?: boolean;
   invitedAt?: string;

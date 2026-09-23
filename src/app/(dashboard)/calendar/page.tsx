@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { AppointmentDialog } from '@/features/calendar/appointment-dialog';
+import { useTenantSettings } from '@/hooks/useTenantSettings';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 import type { Appointment } from '@/types';
@@ -34,6 +35,7 @@ export default function CalendarPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const { data: settings } = useTenantSettings();
 
   const { data: appointmentsData, isLoading } = useQuery({
     queryKey: QUERY_KEYS.APPOINTMENTS,
@@ -90,6 +92,7 @@ export default function CalendarPage() {
           onEventClick={(appointment) => setSelectedAppointment(appointment)}
           onEventDrop={handleEventDrop}
           onEventResize={handleEventDrop}
+          settings={settings}
         />
       </div>
 
@@ -115,7 +118,7 @@ export default function CalendarPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Psicólogo</p>
+                  <p className="text-muted-foreground">Profesional</p>
                   <p className="font-medium">
                     {selectedAppointment.psychologist.firstName} {selectedAppointment.psychologist.lastName}
                   </p>
