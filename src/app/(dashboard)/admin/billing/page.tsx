@@ -1,15 +1,19 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { FileText, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { billingApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
 import { Invoice } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const STATUS_LABELS: Record<Invoice['status'], string> = {
   PENDING: 'Pendiente',
@@ -19,9 +23,30 @@ const STATUS_LABELS: Record<Invoice['status'], string> = {
 };
 
 export default function BillingPage() {
+  const queryClient = useQueryClient();
+  const [description, setDescription] = useState('');
+  const [subtotal, setSubtotal] = useState('');
+  const [tax, setTax] = useState('0');
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: [...QUERY_KEYS.TENANT, 'billing', 'invoices'],
     queryFn: billingApi.listInvoices,
+  });
+  const createInvoice = useMutation({
+    mutationFn: () => billingApi.createInvoice({
+      subtotal: Number(subtotal),
+      tax: Number(tax || 0),
+      description,
+      idempotencyKey: `manual-${Date.now()}`,
+    }),
+    onSuccess: () => {
+      setDescription('');
+      setSubtotal('');
+      setTax('0');
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.TENANT, 'billing', 'invoices'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'No fue posible emitir la factura');
+    },
   });
 
   return (
@@ -46,8 +71,68 @@ export default function BillingPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Emitir comprobante</CardTitle>
+          <CardDescription>La configuración debe estar activa y completa para emitir con Faktur.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"
+            onSubmit={(event) => {
+              event.preventDefault();
+              createInvoice.mutate();
+            }}
+          >
+            <div className="md:col-span-2">
+              <Label htmlFor="invoice-description">Descripción</Label>
+              <Input
+                id="invoice-description"
+                required
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Suscripción mensual"
+              />
+            </div>
+            <div>
+              <Label htmlFor="invoice-subtotal">Subtotal</Label>
+              <Input
+                id="invoice-subtotal"
+                required
+                min="0"
+                step="0.01"
+                type="number"
+                value={subtotal}
+                onChange={(event) => setSubtotal(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="invoice-tax">Impuesto</Label>
+              <Input
+                id="invoice-tax"
+                min="0"
+                step="0.01"
+                type="number"
+                value={tax}
+                onChange={(event) => setTax(event.target.value)}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={createInvoice.isPending || !description || !subtotal}
+              loading={createInvoice.isPending}
+            >
+              Emitir factura
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Comprobantes electrónicos</CardTitle>
           <CardDescription>Historial de facturas de este consultorio.</CardDescription>
+          <p className="text-sm text-muted-foreground">
+            Límite incluido: <strong>50 facturas electrónicas por mes</strong>.
+          </p>
         </CardHeader>
         <CardContent>
           {isLoading ? (

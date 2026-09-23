@@ -89,6 +89,8 @@ export const API_ENDPOINTS = {
   // Patients (tenant-scoped)
   PATIENTS: (tenantId: string) => `/tenants/${tenantId}/patients`,
   PATIENT_DETAIL: (tenantId: string, patientId: string) => `/tenants/${tenantId}/patients/${patientId}`,
+  PATIENT_SPECIALTY_RECORDS: (tenantId: string, patientId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/specialty-records`,
 
   // Appointments (tenant-scoped)
   APPOINTMENTS: (tenantId: string) => `/tenants/${tenantId}/appointments`,
@@ -156,6 +158,7 @@ export const QUERY_KEYS = {
   PATIENT_DETAIL: (id: string) => ['patients', id],
   PATIENT_CLINICAL_NOTES: (patientId: string) => ['patients', patientId, 'clinical-notes'],
   PATIENT_SESSION_PLAN: (patientId: string) => ['patients', patientId, 'session-plan'],
+  PATIENT_SPECIALTY_RECORDS: (patientId: string) => ['patients', patientId, 'specialty-records'],
   
   // Appointments
   APPOINTMENTS: ['appointments'],
