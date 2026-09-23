@@ -360,7 +360,7 @@ function PlanCard({
           {plan.planType === PlanTier.ENTERPRISE && <Crown className="h-6 w-6 text-primary" />}
         </div>
         <CardTitle className="text-xl">{plan.name}</CardTitle>
-        <CardDescription className="min-h-[40px]">{plan.description}</CardDescription>
+        <CardDescription>{plan.description}</CardDescription>
         <div className="mt-4">
           <span className="text-3xl font-bold">{price}</span>
           {price !== 'Personalizado' && (
@@ -390,27 +390,8 @@ function PlanCard({
           </div>
         </div>
 
-        {/* Features */}
-        <ul className="space-y-2 flex-1">
-          {plan.features.map((feature) => (
-            <li key={feature.label} className="flex items-center gap-2 text-sm">
-              {feature.included ? (
-                <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-              ) : (
-                <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-              )}
-              <span className="flex items-center gap-1.5">
-                {feature.icon}
-                <span className={feature.included ? '' : 'text-muted-foreground/60'}>
-                  {feature.label}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-
         {/* CTA */}
-        <div className="mt-6">
+        <div className="mt-4">
           {isCurrent ? (
             <Button variant="outline" className="w-full" disabled>
               Plan Actual
@@ -654,13 +635,6 @@ export default function SubscriptionPage() {
               </div>
             </div>
 
-            {/* Included Features */}
-            <div className="mt-6 pt-6 border-t">
-              <h4 className="text-sm font-semibold text-muted-foreground mb-3">CARACTERÍSTICAS INCLUIDAS</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                {renderFeatureList(currentPlan!.features)}
-              </div>
-            </div>
           </CardContent>
         </Card>
       ) : (
@@ -774,24 +748,7 @@ export default function SubscriptionPage() {
           </button>
         </div>
 
-        {/* Category Description */}
-        <div className="mb-6">
-          {planCategory === 'individual' ? (
-            <Alert
-              variant="default"
-              title="Planes Individuales"
-              description="Diseñados para psicólogos independientes. Incluyen un solo usuario con acceso al sistema. No incluyen módulo de gestión de equipo."
-            />
-          ) : (
-            <Alert
-              variant="default"
-              title="Planes Empresariales"
-              description="Diseñados para clínicas con múltiples psicólogos. Incluyen módulo de gestión de equipo, asientos adicionales y herramientas colaborativas."
-            />
-          )}
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-3 gap-4">
           {(planCategory === 'individual' ? INDIVIDUAL_PLANS : CLINIC_PLANS).map((plan) => (
             <PlanCard
               key={`${planCategory}-${plan.planType}`}
@@ -805,45 +762,6 @@ export default function SubscriptionPage() {
           ))}
         </div>
       </div>
-
-      {/* FAQ */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Preguntas Frecuentes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">¿Puedo cambiar de plan en cualquier momento?</h4>
-              <p className="text-sm text-muted-foreground">
-                Sí, puedes actualizar tu plan al instante. Los cargos se prorratean automáticamente.
-                Si bajas de plan, el cambio se aplica al final del periodo de facturación.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">¿Qué pasa con mis datos al cambiar de plan?</h4>
-              <p className="text-sm text-muted-foreground">
-                Tus datos permanecen seguros. Si bajas de plan, podrás ver datos anteriores
-                pero las funcionalidades avanzadas se desactivarán hasta que actualices.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">¿Qué métodos de pago aceptan?</h4>
-              <p className="text-sm text-muted-foreground">
-                Aceptamos tarjetas de crédito/débito (Visa, Mastercard, AMEX)
-                y transferencias bancarias para planes Enterprise.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">¿Ofrecen descuentos para instituciones?</h4>
-              <p className="text-sm text-muted-foreground">
-                Sí, ofrecemos precios especiales para instituciones educativas y ONGs.
-                Contacta a nuestro equipo de ventas para más información.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Upgrade Confirmation Dialog */}
       <AlertDialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>

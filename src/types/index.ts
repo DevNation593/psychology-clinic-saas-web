@@ -303,6 +303,7 @@ export interface Invoice {
   pdfUrl?: string;
   xmlUrl?: string;
   errorMessage?: string;
+  issuer?: { id: string; firstName: string; lastName: string; role: string };
 }
 
 export interface WorkingHours {

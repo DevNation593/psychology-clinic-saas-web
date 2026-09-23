@@ -14,6 +14,7 @@ import { QUERY_KEYS } from '@/lib/constants';
 import { Invoice } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/authStore';
 
 const STATUS_LABELS: Record<Invoice['status'], string> = {
   PENDING: 'Pendiente',
@@ -24,6 +25,7 @@ const STATUS_LABELS: Record<Invoice['status'], string> = {
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const [description, setDescription] = useState('');
   const [subtotal, setSubtotal] = useState('');
   const [tax, setTax] = useState('0');
@@ -51,7 +53,7 @@ export default function BillingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <FileText className="h-7 w-7" />
@@ -61,12 +63,14 @@ export default function BillingPage() {
             Consulta los comprobantes electrónicos emitidos mediante Faktur.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/admin/settings">
-            <Settings className="h-4 w-4 mr-2" />
-            Configurar Faktur
-          </Link>
-        </Button>
+        {user?.role === 'CLIENTE' && (
+          <Button asChild variant="outline">
+            <Link href="/admin/settings">
+              <Settings className="h-4 w-4 mr-2" />
+              Configurar Faktur
+            </Link>
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -148,6 +152,7 @@ export default function BillingPage() {
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="p-3 font-medium">Fecha</th>
                     <th className="p-3 font-medium">Cliente</th>
+                    <th className="p-3 font-medium">Emisor</th>
                     <th className="p-3 font-medium">Descripción</th>
                     <th className="p-3 font-medium text-right">Total</th>
                     <th className="p-3 font-medium">Estado</th>
@@ -158,6 +163,7 @@ export default function BillingPage() {
                     <tr key={invoice.id} className="border-b last:border-0">
                       <td className="p-3">{formatDate(invoice.issueDate, 'dd/MM/yyyy')}</td>
                       <td className="p-3">{invoice.customerName}</td>
+                      <td className="p-3">{invoice.issuer ? `${invoice.issuer.firstName} ${invoice.issuer.lastName}` : '—'}</td>
                       <td className="p-3">{invoice.description}</td>
                       <td className="p-3 text-right">${Number(invoice.total).toFixed(2)}</td>
                       <td className="p-3">

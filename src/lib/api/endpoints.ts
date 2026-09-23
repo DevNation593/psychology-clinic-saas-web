@@ -362,6 +362,11 @@ export const specialtiesApi = {
       API_ENDPOINTS.TENANT_MODULE(tenantId ?? getTenantId(), moduleKey),
       { enabled },
     ),
+  setForTenant: (specialtyCodes: string[], tenantId?: string) =>
+    apiClient.post(
+      API_ENDPOINTS.TENANT_SPECIALTIES_UPDATE(tenantId ?? getTenantId()),
+      { specialtyCodes },
+    ),
 };
 
 export const tenantSettingsApi = {

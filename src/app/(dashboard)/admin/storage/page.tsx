@@ -209,7 +209,7 @@ function StorageOverviewCard({
             </div>
 
             {/* Legend cards */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {breakdownData.map((d) => {
                 const pct = limitGB > 0 ? (d.value / limitGB) * 100 : 0;
                 return (
@@ -390,7 +390,7 @@ export default function StorageManagementPage() {
           <Skeleton className="h-4 w-48 mt-2" />
         </div>
         <SkeletonCard />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
