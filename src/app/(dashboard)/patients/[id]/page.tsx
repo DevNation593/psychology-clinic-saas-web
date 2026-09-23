@@ -1,12 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient } from '@/hooks/usePatients';
 import { usePatientClinicalNotes, useCreateClinicalNote, useDeleteClinicalNote } from '@/hooks/useClinicalNotes';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { usePatientSessionPlan, useCreateSessionPlan, useUpdateSessionPlan } from '@/hooks/useSessionPlans';
+import { usePatientSpecialtyRecords, useCreateSpecialtyRecord } from '@/hooks/useSpecialtyRecords';
+import { specialtiesApi } from '@/lib/api/endpoints';
+import { QUERY_KEYS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import { canAccessClinicalNotes, canEditAppointment, canDeletePatient } from '@/types/guards';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
@@ -76,7 +80,7 @@ import {
 // ==========================================
 // TAB TYPES
 // ==========================================
-type TabId = 'overview' | 'clinical' | 'appointments' | 'tasks' | 'session-plan';
+type TabId = 'overview' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
 
 interface Tab {
   id: TabId;
@@ -87,6 +91,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'overview', label: 'General', icon: UserIcon },
   { id: 'clinical', label: 'Historia Clínica', icon: FileText },
+  { id: 'specialties', label: 'Especialidades', icon: ClipboardList },
   { id: 'appointments', label: 'Citas', icon: Calendar },
   { id: 'tasks', label: 'Tareas', icon: ClipboardList },
   { id: 'session-plan', label: 'Plan de Sesión', icon: Target },
@@ -202,6 +207,7 @@ export default function PatientDetailPage() {
       <div>
         {activeTab === 'overview' && <OverviewTab patient={patient} />}
         {activeTab === 'clinical' && <ClinicalHistoryTab patientId={patientId} />}
+        {activeTab === 'specialties' && <SpecialtyRecordsTab patientId={patientId} />}
         {activeTab === 'appointments' && <AppointmentsTab patientId={patientId} />}
         {activeTab === 'tasks' && <TasksTab patientId={patientId} />}
         {activeTab === 'session-plan' && <SessionPlanTab patientId={patientId} />}
@@ -572,6 +578,195 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// ==========================================
+// SPECIALTY RECORDS TAB
+// ==========================================
+const SPECIALTY_FIELD_LABELS: Record<string, string> = {
+  testName: 'Nombre de prueba',
+  score: 'Puntaje',
+  interpretation: 'Interpretación',
+  weightKg: 'Peso (kg)',
+  heightCm: 'Altura (cm)',
+  bmi: 'IMC',
+  dietaryGoals: 'Objetivos alimenticios',
+  dailyCalories: 'Calorías diarias',
+  meals: 'Comidas sugeridas',
+  painLevel: 'Nivel de dolor (0-10)',
+  mobility: 'Movilidad',
+  progress: 'Evolución',
+  exercises: 'Ejercicios',
+  frequency: 'Frecuencia',
+  repetitions: 'Repeticiones',
+  procedure: 'Procedimiento',
+  tooth: 'Pieza dental',
+  treatmentStatus: 'Estado del tratamiento',
+  findings: 'Hallazgos',
+  surfaces: 'Superficies',
+};
+
+const SPECIALTY_MODULE_FIELDS: Record<string, string[]> = {
+  'psychology.assessments': ['testName', 'score', 'interpretation'],
+  'nutrition.assessments': ['weightKg', 'heightCm', 'bmi'],
+  'nutrition.diet-plans': ['dailyCalories', 'meals', 'dietaryGoals'],
+  'physiotherapy.evolution': ['painLevel', 'mobility', 'progress'],
+  'physiotherapy.exercise-plans': ['exercises', 'frequency', 'repetitions'],
+  'dentistry.treatments': ['procedure', 'tooth', 'treatmentStatus'],
+  'dentistry.odontogram': ['findings', 'surfaces'],
+};
+
+function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
+  const { data: records = [], isLoading } = usePatientSpecialtyRecords(patientId);
+  const createRecord = useCreateSpecialtyRecord(patientId);
+  const [selectedModule, setSelectedModule] = useState('');
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState('');
+
+  const { data: specialties = [] } = useQuery({
+    queryKey: ['specialties'],
+    queryFn: () => specialtiesApi.list(),
+  });
+  const { data: enabledModules = [] } = useQuery({
+    queryKey: QUERY_KEYS.TENANT_MODULES,
+    queryFn: () => specialtiesApi.modules(),
+  });
+
+  const enabledKeys = new Set(enabledModules.filter((module) => module.enabled).map((module) => module.moduleKey));
+  const moduleOptions = specialties.flatMap((specialty) =>
+    (specialty.modules || [])
+      .filter((module) => enabledKeys.has(module.moduleKey) && SPECIALTY_MODULE_FIELDS[module.moduleKey])
+      .map((module) => ({
+        code: specialty.code,
+        name: specialty.name,
+        moduleKey: module.moduleKey,
+      })),
+  );
+  const selectedOption = moduleOptions.find((option) => option.moduleKey === selectedModule);
+  const fields = selectedModule ? SPECIALTY_MODULE_FIELDS[selectedModule] || [] : [];
+
+  const handleModuleChange = (moduleKey: string) => {
+    setSelectedModule(moduleKey);
+    setFormData({});
+  };
+
+  const handleSubmit = () => {
+    if (!selectedOption) return;
+    createRecord.mutate(
+      {
+        specialtyCode: selectedOption.code,
+        moduleKey: selectedOption.moduleKey,
+        data: Object.fromEntries(fields.map((field) => [field, formData[field] || ''])),
+        notes: notes.trim() || undefined,
+      },
+      {
+        onSuccess: () => {
+          setFormData({});
+          setNotes('');
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Registrar evolución especializada</CardTitle>
+          <CardDescription>
+            Guarda evaluaciones, planes y evoluciones según la especialidad habilitada.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="specialty-module">Módulo</Label>
+            <select
+              id="specialty-module"
+              value={selectedModule}
+              onChange={(event) => handleModuleChange(event.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
+            >
+              <option value="">Selecciona un módulo</option>
+              {moduleOptions.map((option) => (
+                <option key={option.moduleKey} value={option.moduleKey}>
+                  {option.name} · {option.moduleKey.split('.')[1]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedModule && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {fields.map((field) => (
+                  <div key={field}>
+                    <Label htmlFor={`specialty-${field}`}>{SPECIALTY_FIELD_LABELS[field] || field}</Label>
+                    <Input
+                      id={`specialty-${field}`}
+                      required
+                      value={formData[field] || ''}
+                      onChange={(event) => setFormData({ ...formData, [field]: event.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <Label htmlFor="specialty-notes">Notas adicionales</Label>
+                <Textarea
+                  id="specialty-notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                  placeholder="Indicaciones, observaciones o seguimiento..."
+                />
+              </div>
+              <Button onClick={handleSubmit} disabled={createRecord.isPending} loading={createRecord.isPending}>
+                Guardar registro
+              </Button>
+            </>
+          )}
+          {moduleOptions.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No hay módulos especializados habilitados para este consultorio.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold">Historial especializado</h3>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : records.length === 0 ? (
+          <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No hay registros especializados.</CardContent></Card>
+        ) : (
+          records.map((record) => (
+            <Card key={record.id}>
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium">{record.specialty?.name || record.moduleKey}</p>
+                    <p className="text-sm text-muted-foreground">{record.moduleKey}</p>
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      {Object.entries(record.data).map(([key, value]) => (
+                        <div key={key}>
+                          <span className="text-muted-foreground">{SPECIALTY_FIELD_LABELS[key] || key}: </span>
+                          <span>{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {record.notes && <p className="mt-3 text-sm whitespace-pre-wrap">{record.notes}</p>}
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {formatDate(record.recordDate, 'dd/MM/yyyy')}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }

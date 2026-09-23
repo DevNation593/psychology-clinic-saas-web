@@ -480,6 +480,19 @@ export interface ClinicalNote {
   updatedBy: string;
 }
 
+export interface SpecialtyRecord {
+  id: string;
+  patientId: string;
+  specialtyId: string;
+  moduleKey: string;
+  recordDate: string;
+  data: Record<string, unknown>;
+  notes?: string;
+  specialty?: { code: string; name: string };
+  professional?: { id: string; firstName: string; lastName: string };
+  appointment?: { id: string; title: string; startTime: string };
+}
+
 export interface SessionPlan {
   id: string;
   patientId: string;
