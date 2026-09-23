@@ -16,6 +16,7 @@ import {
   Clock,
   Globe,
   Bell,
+  FileText,
   Save,
   RotateCcw,
 } from 'lucide-react';
@@ -78,6 +79,13 @@ export default function AdminSettingsPage() {
   const [reminders, setReminders] = useState<ReminderRule[]>(
     settings?.reminderRules || DEFAULT_REMINDERS
   );
+  const [legalName, setLegalName] = useState(settings?.legalName || '');
+  const [taxIdentificationType, setTaxIdentificationType] = useState(
+    settings?.taxIdentificationType || 'RUC'
+  );
+  const [taxIdentificationNumber, setTaxIdentificationNumber] = useState(
+    settings?.taxIdentificationNumber || ''
+  );
   const [hasChanges, setHasChanges] = useState(false);
 
   // Redirect non-admin users
@@ -94,6 +102,9 @@ export default function AdminSettingsPage() {
     setTimezone(settings.timezone || 'America/Mexico_City');
     setLocale(settings.locale || 'es');
     setReminders(settings.reminderRules || DEFAULT_REMINDERS);
+    setLegalName(settings.legalName || '');
+    setTaxIdentificationType(settings.taxIdentificationType || 'RUC');
+    setTaxIdentificationNumber(settings.taxIdentificationNumber || '');
     setInitialized(true);
   }
 
@@ -137,6 +148,9 @@ export default function AdminSettingsPage() {
         timezone,
         locale,
         reminderRules: reminders,
+        legalName,
+        taxIdentificationType,
+        taxIdentificationNumber,
       },
       {
         onSuccess: () => {
@@ -153,6 +167,9 @@ export default function AdminSettingsPage() {
       setTimezone(settings.timezone || 'America/Mexico_City');
       setLocale(settings.locale || 'es');
       setReminders(settings.reminderRules || DEFAULT_REMINDERS);
+      setLegalName(settings.legalName || '');
+      setTaxIdentificationType(settings.taxIdentificationType || 'RUC');
+      setTaxIdentificationNumber(settings.taxIdentificationNumber || '');
     }
     setHasChanges(false);
   };
@@ -360,6 +377,63 @@ export default function AdminSettingsPage() {
                 </span>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Billing */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Facturación electrónica
+          </CardTitle>
+          <CardDescription>
+            Estos datos se utilizarán como información del emisor al generar comprobantes con Faktur.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <Label htmlFor="legal-name">Razón social</Label>
+              <Input
+                id="legal-name"
+                value={legalName}
+                placeholder="Clínica Integral S.A."
+                onChange={(e) => {
+                  setLegalName(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="tax-identification-type">Tipo de identificación</Label>
+              <select
+                id="tax-identification-type"
+                value={taxIdentificationType}
+                onChange={(e) => {
+                  setTaxIdentificationType(e.target.value);
+                  markChanged();
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
+              >
+                <option value="RUC">RUC</option>
+                <option value="CEDULA">Cédula</option>
+                <option value="PASSPORT">Pasaporte</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="tax-identification-number">Número de identificación</Label>
+              <Input
+                id="tax-identification-number"
+                value={taxIdentificationNumber}
+                placeholder="1790012345001"
+                onChange={(e) => {
+                  setTaxIdentificationNumber(e.target.value);
+                  markChanged();
+                }}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

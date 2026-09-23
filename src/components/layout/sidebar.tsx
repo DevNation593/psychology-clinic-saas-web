@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
+import { specialtiesApi } from '@/lib/api/endpoints';
+import { QUERY_KEYS } from '@/lib/constants';
 import { canManageUsers, canManageSubscription, isClinicPlan } from '@/types/guards';
 import {
   LayoutDashboard,
@@ -26,6 +29,15 @@ export function Sidebar() {
   const user = useAuthStore((state) => state.user);
   const tenant = useAuthStore((state) => state.tenant);
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { data: enabledModules = [] } = useQuery({
+    queryKey: QUERY_KEYS.TENANT_MODULES,
+    queryFn: () => specialtiesApi.modules(),
+    enabled: Boolean(tenant?.id),
+    staleTime: 1000 * 60 * 5,
+  });
+  const hasTeamModule = enabledModules.some(
+    (module) => module.moduleKey === 'core.team' && module.enabled,
+  );
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
@@ -39,7 +51,7 @@ export function Sidebar() {
       name: 'Equipo',
       href: '/admin/team',
       icon: UserCog,
-      show: user && canManageUsers(user) && isClinicPlan(tenant),
+      show: user && canManageUsers(user) && (hasTeamModule || isClinicPlan(tenant)),
     },
     {
       name: 'Suscripción',

@@ -66,7 +66,7 @@ export default function OnboardingPage() {
         console.warn('Could not fetch tenant details');
       }
       
-      toast.success('¡Clínica creada exitosamente!');
+      toast.success('¡Consultorio creado exitosamente!');
       setCurrentStep(3);
     },
     onError: (error: any) => {
@@ -105,7 +105,7 @@ export default function OnboardingPage() {
   };
 
   const steps = [
-    { number: 1, title: 'Información de la Clínica', icon: Building2 },
+    { number: 1, title: 'Información del Consultorio', icon: Building2 },
     { number: 2, title: 'Tu Perfil de Administrador', icon: User },
     { number: 3, title: 'Invitar Equipo (Opcional)', icon: Users },
     { number: 4, title: 'Completado', icon: Check },
@@ -121,7 +121,7 @@ export default function OnboardingPage() {
               <Brain className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold">Configura tu Clínica</h1>
+          <h1 className="text-3xl font-bold">Configura tu consultorio</h1>
           <p className="text-muted-foreground mt-2">
             Completa estos pasos para comenzar a usar la plataforma
           </p>
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
         {currentStep === 1 && (
           <Card>
             <CardHeader>
-              <CardTitle>Información de la Clínica</CardTitle>
+              <CardTitle>Información del consultorio</CardTitle>
               <CardDescription>
                 Ingresa los datos básicos de tu consultorio o clínica
               </CardDescription>
@@ -175,11 +175,11 @@ export default function OnboardingPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="clinicName" required>
-                    Nombre de la Clínica
+                    Nombre del consultorio
                   </Label>
                   <Input
                     id="clinicName"
-                    placeholder="Clínica de Psicología Integral"
+                    placeholder="Consultorio Integral de Salud"
                     {...tenantForm.register('clinicName')}
                     error={tenantForm.formState.errors.clinicName?.message}
                   />
