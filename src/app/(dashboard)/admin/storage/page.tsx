@@ -46,7 +46,7 @@ import {
   Trash2,
   Download,
   FileText,
-  Image,
+  Image as ImageIcon,
   FileArchive,
   TrendingUp,
   AlertTriangle,
@@ -94,7 +94,7 @@ function formatDateFull(date: string): string {
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; bgColor: string }> = {
   attachment: { label: 'Adjuntos', icon: <FileText className="h-4 w-4" />, color: 'text-blue-700', bgColor: 'bg-blue-50 border-blue-200' },
-  avatar: { label: 'Avatares', icon: <Image className="h-4 w-4" />, color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200' },
+  avatar: { label: 'Avatares', icon: <ImageIcon className="h-4 w-4" />, color: 'text-purple-700', bgColor: 'bg-purple-50 border-purple-200' },
   export: { label: 'Exportaciones', icon: <FileArchive className="h-4 w-4" />, color: 'text-green-700', bgColor: 'bg-green-50 border-green-200' },
 };
 
@@ -600,7 +600,7 @@ export default function StorageManagementPage() {
               </div>
             </div>
             <div className="flex gap-3">
-              <Image className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <ImageIcon className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium">Optimiza imágenes</p>
                 <p className="text-xs text-muted-foreground">
