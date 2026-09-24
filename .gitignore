@@ -39,3 +39,6 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Isolated Codex worktrees
+/.worktrees/
