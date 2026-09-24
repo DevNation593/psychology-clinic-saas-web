@@ -21,9 +21,30 @@ export default function TeamPage() {
   const queryClient = useQueryClient();
   const tenant = useAuthStore((state) => state.tenant);
   const router = useRouter();
+  const hasTeamModule = isClinicPlan(tenant);
+
+  const { data: usersData, isLoading } = useQuery({
+    queryKey: QUERY_KEYS.USERS,
+    queryFn: async (): Promise<User[]> => {
+      const response = await usersApi.list();
+      return extractArray(response);
+    },
+    enabled: hasTeamModule,
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.delete(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USERS });
+      toast.success('Usuario desactivado');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al desactivar usuario');
+    },
+  });
 
   // Redirect personal plan users away from team page
-  if (!isClinicPlan(tenant)) {
+  if (!hasTeamModule) {
     return (
       <div className="space-y-6">
         <Card>
@@ -42,25 +63,6 @@ export default function TeamPage() {
       </div>
     );
   }
-
-  const { data: usersData, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.USERS,
-    queryFn: async (): Promise<User[]> => {
-      const response = await usersApi.list();
-      return extractArray(response);
-    },
-  });
-
-  const deactivateMutation = useMutation({
-    mutationFn: (userId: string) => usersApi.delete(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USERS });
-      toast.success('Usuario desactivado');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al desactivar usuario');
-    },
-  });
 
   const handleDeactivate = (userId: string) => {
     if (confirm('¿Estás seguro de desactivar este usuario?')) {

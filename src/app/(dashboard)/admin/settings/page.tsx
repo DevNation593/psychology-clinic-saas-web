@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { canManageUsers } from '@/types/guards';
@@ -100,16 +100,13 @@ export default function AdminSettingsPage() {
   const [fakturWithholdingAgent, setFakturWithholdingAgent] = useState(settings?.fakturWithholdingAgent || false);
   const [fakturEnabled, setFakturEnabled] = useState(settings?.fakturEnabled || false);
   const [hasChanges, setHasChanges] = useState(false);
-
-  // Redirect non-admin users
-  if (user && !canManageUsers(user)) {
-    router.replace('/dashboard');
-    return null;
-  }
-
-  // Sync state when settings load
   const [initialized, setInitialized] = useState(false);
-  if (settings && !initialized) {
+
+  useEffect(() => {
+    if (!settings || initialized) {
+      return;
+    }
+
     setWorkingHours(settings.workingHours || DEFAULT_WORKING_HOURS);
     setSessionDuration(settings.defaultSessionDuration || 60);
     setTimezone(settings.timezone || 'America/Mexico_City');
@@ -132,6 +129,12 @@ export default function AdminSettingsPage() {
     setFakturWithholdingAgent(settings.fakturWithholdingAgent || false);
     setFakturEnabled(settings.fakturEnabled || false);
     setInitialized(true);
+  }, [initialized, settings]);
+
+  // Redirect non-admin users
+  if (user && !canManageUsers(user)) {
+    router.replace('/dashboard');
+    return null;
   }
 
   const markChanged = () => setHasChanges(true);
