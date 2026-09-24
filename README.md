@@ -330,9 +330,9 @@ npm start
 
 The unit-test baseline uses Vitest, jsdom, and React Testing Library.
 
-- Unit tests (Vitest + React Testing Library)
-- Integration tests (Playwright)
-- E2E tests (Playwright)
+- Implemented: unit tests (Vitest + React Testing Library)
+- Planned: integration tests (Playwright)
+- Planned: E2E tests (Playwright)
 
 ## 🔒 Security
 
