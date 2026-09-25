@@ -10,10 +10,12 @@ import { specialtiesApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/authStore';
+import { isAdminRole } from '@/types/guards';
+import { UserRole } from '@/types';
 
 export default function SpecialtiesPage() {
   const user = useAuthStore((state) => state.user);
-  const canConfigure = user?.role === 'CLIENTE' || user?.role === 'SOPORTE';
+  const canConfigure = user ? isAdminRole(user.role) || user.role === UserRole.SOPORTE : false;
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<string[] | null>(null);
   const { data: specialties = [], isLoading } = useQuery({
