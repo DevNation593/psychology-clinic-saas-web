@@ -17,16 +17,34 @@ export function isUserRole(value: string): value is UserRole {
   return Object.values(UserRole).includes(value as UserRole);
 }
 
+export function isAdminRole(role: UserRole): boolean {
+  return role === UserRole.CLIENTE || role === UserRole.ADMIN;
+}
+
+export function isProfessionalRole(role: UserRole): boolean {
+  return role === UserRole.PSICOLOGO || role === UserRole.PROFESIONAL;
+}
+
+export function toCanonicalRole(role: UserRole): UserRole {
+  if (role === UserRole.CLIENTE) return UserRole.ADMIN;
+  if (role === UserRole.PSICOLOGO) return UserRole.PROFESIONAL;
+  return role;
+}
+
+export function hasActiveProfessionalProfile(user: User): boolean {
+  return user.professionalProfile?.isActive === true;
+}
+
 export function canAccessClinicalNotes(user: User): boolean {
   return [UserRole.CLIENTE, UserRole.PSICOLOGO, UserRole.SOPORTE].includes(user.role);
 }
 
 export function canManageUsers(user: User): boolean {
-  return [UserRole.CLIENTE, UserRole.SOPORTE].includes(user.role);
+  return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
 }
 
 export function canManageSubscription(user: User): boolean {
-  return [UserRole.CLIENTE, UserRole.SOPORTE].includes(user.role);
+  return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
 }
 
 export function canEditAppointment(user: User): boolean {
@@ -34,7 +52,7 @@ export function canEditAppointment(user: User): boolean {
 }
 
 export function canDeletePatient(user: User): boolean {
-  return [UserRole.CLIENTE, UserRole.SOPORTE].includes(user.role);
+  return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
 }
 
 export function isActiveAppointment(status: AppointmentStatus): boolean {
@@ -97,7 +115,7 @@ export function canCreateRecords(subscription: Subscription): boolean {
 // ==========================================
 
 export function canAddPsychologist(usage: UsageMetrics): boolean {
-  return usage.users.psychologists.active < usage.users.psychologists.limit;
+  return usage.users.professionals.active < usage.users.professionals.limit;
 }
 
 export function canAddPatient(usage: UsageMetrics): boolean {
@@ -126,7 +144,7 @@ export function hasExceededLimit(used: number, limit: number): boolean {
 }
 
 export function getRemainingSeats(usage: UsageMetrics): number {
-  return Math.max(0, usage.users.psychologists.limit - usage.users.psychologists.active);
+  return Math.max(0, usage.users.professionals.limit - usage.users.professionals.active);
 }
 
 export function getRemainingPatients(usage: UsageMetrics): number {

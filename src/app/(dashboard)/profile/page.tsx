@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProfile, useUpdateProfile, useChangePassword, useUploadAvatar } from '@/hooks/useProfile';
 import { ROLE_LABELS, PASSWORD_MIN_LENGTH } from '@/lib/constants';
 import { getInitials, formatDate } from '@/lib/utils';
-import { UserRole } from '@/types';
+import { hasActiveProfessionalProfile, isProfessionalRole } from '@/types/guards';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,7 +36,6 @@ import {
   Camera,
   Save,
   Award,
-  BookOpen,
   Calendar,
 } from 'lucide-react';
 
@@ -49,7 +48,6 @@ const profileSchema = z.object({
   phone: z.string().optional(),
   professionalTitle: z.string().optional(),
   bio: z.string().optional(),
-  specializations: z.string().optional(), // comma-separated, we split it
   licenseNumber: z.string().optional(),
 });
 
@@ -96,20 +94,18 @@ export default function ProfilePage() {
       firstName: profile?.firstName || user?.firstName || '',
       lastName: profile?.lastName || user?.lastName || '',
       phone: profile?.phone || user?.phone || '',
-      professionalTitle: (profile as any)?.professionalTitle || '',
-      bio: (profile as any)?.bio || '',
-      specializations: (profile as any)?.specializations?.join(', ') || '',
-      licenseNumber: (profile as any)?.licenseNumber || '',
+      professionalTitle: profile?.professionalProfile?.professionalTitle || profile?.professionalTitle || '',
+      bio: profile?.professionalProfile?.bio ?? profile?.bio ?? '',
+      licenseNumber: profile?.professionalProfile?.licenseNumber || profile?.licenseNumber || '',
     },
     values: profile
       ? {
           firstName: profile.firstName,
           lastName: profile.lastName,
           phone: profile.phone || '',
-          professionalTitle: (profile as any)?.professionalTitle || '',
-          bio: (profile as any)?.bio || '',
-          specializations: (profile as any)?.specializations?.join(', ') || '',
-          licenseNumber: (profile as any)?.licenseNumber || '',
+          professionalTitle: profile.professionalProfile?.professionalTitle || profile.professionalTitle || '',
+          bio: profile.professionalProfile?.bio ?? profile.bio ?? '',
+          licenseNumber: profile.professionalProfile?.licenseNumber || profile.licenseNumber || '',
         }
       : undefined,
   });
@@ -124,13 +120,21 @@ export default function ProfilePage() {
   });
 
   const onSubmitProfile = (data: ProfileFormData) => {
-    const { specializations, ...rest } = data;
+    const currentProfessionalProfile = profile?.professionalProfile ?? user?.professionalProfile;
     updateProfile.mutate({
-      ...rest,
-      specializations: specializations
-        ? specializations.split(',').map((s) => s.trim()).filter(Boolean)
-        : [],
-    } as any);
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      ...(currentProfessionalProfile
+        ? {
+            professionalProfile: {
+              professionalTitle: data.professionalTitle,
+              licenseNumber: data.licenseNumber,
+              bio: data.bio,
+            },
+          }
+        : {}),
+    });
   };
 
   const onSubmitPassword = (data: ChangePasswordFormData) => {
@@ -165,7 +169,8 @@ export default function ProfilePage() {
     );
   }
 
-  const isPsychologist = user?.role === UserRole.PSICOLOGO;
+  const activeUser = profile ?? user;
+  const isProfessional = activeUser ? isProfessionalRole(activeUser.role) || hasActiveProfessionalProfile(activeUser) : false;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -293,7 +298,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* Professional Info */}
-        {isPsychologist && (
+        {isProfessional && (
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -322,21 +327,6 @@ export default function ProfilePage() {
                     placeholder="Ej: 12345678"
                   />
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="specializations">
-                  <BookOpen className="h-4 w-4 inline mr-1" />
-                  Especializaciones
-                </Label>
-                <Input
-                  id="specializations"
-                  {...register('specializations')}
-                  placeholder="Ansiedad, Depresión, Terapia de pareja (separadas por coma)"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Separa las especializaciones con comas.
-                </p>
               </div>
 
               <div>

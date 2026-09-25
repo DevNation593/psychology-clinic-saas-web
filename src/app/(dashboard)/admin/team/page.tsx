@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS, ROLE_LABELS } from '@/lib/constants';
 import type { User } from '@/types';
-import { UserRole } from '@/types';
+import { countActiveProfessionalProfiles } from '@/lib/professional-profiles';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +53,7 @@ export default function TeamPage() {
             <h2 className="text-xl font-semibold mb-2">Módulo de Equipo no disponible</h2>
             <p className="text-muted-foreground text-center max-w-md mb-4">
               Tu plan actual es individual y solo permite un usuario. Para gestionar un equipo
-              de psicólogos, actualiza a un plan de clínica.
+              de profesionales, actualiza a un plan de clínica.
             </p>
             <Button onClick={() => router.push('/admin/subscription')}>
               Ver Planes de Clínica
@@ -70,9 +70,8 @@ export default function TeamPage() {
     }
   };
 
-  const psychologistsCount =
-    usersData?.filter((u) => u.role === UserRole.PSICOLOGO).length || 0;
-  const seatsAvailable = (tenant?.subscription?.plan?.limits?.maxPsychologists || 0) - psychologistsCount;
+  const professionalsCount = countActiveProfessionalProfiles(usersData ?? []);
+  const seatsAvailable = (tenant?.subscription?.plan?.limits?.maxPsychologists || 0) - professionalsCount;
 
   return (
     <div className="space-y-6">
@@ -89,10 +88,10 @@ export default function TeamPage() {
       <Alert
         variant={seatsAvailable > 2 ? 'default' : seatsAvailable > 0 ? 'warning' : 'destructive'}
         title="Uso de Licencias"
-        description={`Estás usando ${psychologistsCount} de ${tenant?.subscription?.plan?.limits?.maxPsychologists || 0} licencias de psicólogos. ${
+        description={`Estás usando ${professionalsCount} de ${tenant?.subscription?.plan?.limits?.maxPsychologists || 0} licencias de profesionales. ${
           seatsAvailable > 0
             ? `Te quedan ${seatsAvailable} disponibles.`
-            : 'Has alcanzado el límite. Actualiza tu plan para agregar más psicólogos.'
+            : 'Has alcanzado el límite. Actualiza tu plan para agregar más profesionales.'
         }`}
       />
 
