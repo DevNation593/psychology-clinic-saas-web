@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useProfile, useUpdateProfile, useChangePassword, useUploadAvatar } from '@/hooks/useProfile';
 import { ROLE_LABELS, PASSWORD_MIN_LENGTH } from '@/lib/constants';
 import { getInitials, formatDate } from '@/lib/utils';
-import { UserRole } from '@/types';
+import { hasActiveProfessionalProfile, isProfessionalRole } from '@/types/guards';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,6 +48,7 @@ const profileSchema = z.object({
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   phone: z.string().optional(),
   professionalTitle: z.string().optional(),
+  specialtyId: z.string().optional(),
   bio: z.string().optional(),
   specializations: z.string().optional(), // comma-separated, we split it
   licenseNumber: z.string().optional(),
@@ -96,20 +97,22 @@ export default function ProfilePage() {
       firstName: profile?.firstName || user?.firstName || '',
       lastName: profile?.lastName || user?.lastName || '',
       phone: profile?.phone || user?.phone || '',
-      professionalTitle: (profile as any)?.professionalTitle || '',
-      bio: (profile as any)?.bio || '',
+      professionalTitle: profile?.professionalProfile?.professionalTitle || profile?.professionalTitle || '',
+      specialtyId: profile?.professionalProfile?.specialtyId || '',
+      bio: profile?.professionalProfile?.bio || profile?.bio || '',
       specializations: (profile as any)?.specializations?.join(', ') || '',
-      licenseNumber: (profile as any)?.licenseNumber || '',
+      licenseNumber: profile?.professionalProfile?.licenseNumber || profile?.licenseNumber || '',
     },
     values: profile
       ? {
           firstName: profile.firstName,
           lastName: profile.lastName,
           phone: profile.phone || '',
-          professionalTitle: (profile as any)?.professionalTitle || '',
-          bio: (profile as any)?.bio || '',
+          professionalTitle: profile.professionalProfile?.professionalTitle || profile.professionalTitle || '',
+          specialtyId: profile.professionalProfile?.specialtyId || '',
+          bio: profile.professionalProfile?.bio || profile.bio || '',
           specializations: (profile as any)?.specializations?.join(', ') || '',
-          licenseNumber: (profile as any)?.licenseNumber || '',
+          licenseNumber: profile.professionalProfile?.licenseNumber || profile.licenseNumber || '',
         }
       : undefined,
   });
@@ -124,9 +127,10 @@ export default function ProfilePage() {
   });
 
   const onSubmitProfile = (data: ProfileFormData) => {
-    const { specializations, ...rest } = data;
+    const { specializations, specialtyId, ...rest } = data;
     updateProfile.mutate({
       ...rest,
+      ...(specialtyId ? { specialtyId } : {}),
       specializations: specializations
         ? specializations.split(',').map((s) => s.trim()).filter(Boolean)
         : [],
@@ -165,7 +169,8 @@ export default function ProfilePage() {
     );
   }
 
-  const isPsychologist = user?.role === UserRole.PSICOLOGO;
+  const activeUser = profile ?? user;
+  const isProfessional = activeUser ? isProfessionalRole(activeUser.role) || hasActiveProfessionalProfile(activeUser) : false;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -293,7 +298,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* Professional Info */}
-        {isPsychologist && (
+        {isProfessional && (
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

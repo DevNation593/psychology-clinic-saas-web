@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { specialtiesApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
-import { canManageUsers, canManageSubscription, isClinicPlan } from '@/types/guards';
+import { canManageUsers, canManageSubscription, isAdminRole, isProfessionalRole, isClinicPlan } from '@/types/guards';
 import {
   LayoutDashboard,
   Calendar,
@@ -47,7 +47,7 @@ export function Sidebar() {
     { name: 'Pacientes', href: '/patients', icon: Users, show: true },
     { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: true },
     { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: true },
-    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user?.role === 'CLIENTE' || user?.role === 'PSICOLOGO' },
+    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user ? isAdminRole(user.role) || isProfessionalRole(user.role) : false },
   ];
 
   const adminNavigation = [

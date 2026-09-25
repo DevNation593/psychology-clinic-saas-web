@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import {
   User,
+  UserInput,
   Patient,
   PatientDetail,
   Appointment,
@@ -493,13 +494,13 @@ export const usersApi = {
       .get<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId))
       .then((raw) => normalizeUser(raw)),
 
-  create: (data: Partial<User>) =>
+  create: (data: UserInput) =>
     apiClient
       .post<User>(API_ENDPOINTS.USERS(getTenantId()), data)
       .then((raw) => normalizeUser(raw)),
 
 
-  update: (userId: string, data: Partial<User>) =>
+  update: (userId: string, data: UserInput) =>
     apiClient
       .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId), data)
       .then((raw) => normalizeUser(raw)),
@@ -655,10 +656,21 @@ export const subscriptionApi = {
     apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION_USAGE(getTenantId()), { params }).then((raw) => {
       // API shape: { period, usage, activity, warnings }
       if (raw?.users && raw?.patients && raw?.storage) {
-        return raw as UsageMetrics;
+        const professionals = raw.users.professionals ?? raw.users.psychologists;
+        return {
+          ...raw,
+          users: { ...raw.users, professionals, psychologists: professionals },
+        } as UsageMetrics;
       }
 
       const usage = raw?.usage ?? {};
+      const professionals = {
+        total: usage?.seats?.used ?? 0,
+        active: usage?.seats?.used ?? 0,
+        inactive: 0,
+        limit: usage?.seats?.limit ?? 0,
+        percentUsed: usage?.seats?.percentage ?? 0,
+      };
       return {
         tenantId: getTenantId(),
         period: {
@@ -667,13 +679,8 @@ export const subscriptionApi = {
         },
         users: {
           admins: { total: 0, active: 0 },
-          psychologists: {
-            total: usage?.seats?.used ?? 0,
-            active: usage?.seats?.used ?? 0,
-            inactive: 0,
-            limit: usage?.seats?.limit ?? 0,
-            percentUsed: usage?.seats?.percentage ?? 0,
-          },
+          professionals,
+          psychologists: professionals,
           assistants: {
             total: 0,
             active: 0,

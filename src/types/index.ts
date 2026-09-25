@@ -5,6 +5,9 @@
 export enum UserRole {
   CLIENTE = 'CLIENTE',
   PSICOLOGO = 'PSICOLOGO',
+  ADMIN = 'ADMIN',
+  PROFESIONAL = 'PROFESIONAL',
+  ASISTENTE = 'ASISTENTE',
   SOPORTE = 'SOPORTE',
   PACIENTE = 'PACIENTE',
 }
@@ -163,6 +166,14 @@ export interface UsageMetrics {
       total: number;
       active: number;
     };
+    professionals: {
+      total: number;
+      active: number;
+      inactive: number;
+      limit: number;
+      percentUsed: number;
+    };
+    /** @deprecated Use professionals. */
     psychologists: {
       total: number;
       active: number; // Billable count
@@ -345,6 +356,7 @@ export interface User {
   professionalTitle?: string;
   licenseNumber?: string;
   professionalSpecialties?: Specialty[];
+  professionalProfile?: ProfessionalProfile;
   isActive: boolean;
   managedByProvider?: boolean;
   invitedAt?: string;
@@ -356,12 +368,29 @@ export interface User {
   updatedAt: string;
 }
 
+export interface ProfessionalProfile {
+  userId: string;
+  specialtyId: string;
+  specialty: Specialty;
+  professionalTitle?: string;
+  licenseNumber?: string;
+  bio?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserProfile extends User {
   professionalTitle?: string;
   bio?: string;
   specializations?: string[];
   licenseNumber?: string;
 }
+
+export type UserInput = Omit<Partial<User>, 'professionalProfile'> & {
+  specialtyId?: string;
+  professionalProfile?: Partial<ProfessionalProfile>;
+};
 
 // ==========================================
 // AUTHENTICATION

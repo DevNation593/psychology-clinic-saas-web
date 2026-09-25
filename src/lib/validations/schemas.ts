@@ -61,13 +61,21 @@ export const onboardingAdminSchema = z.object({
   path: ['confirmPassword'],
 });
 
-const inviteRoles = [UserRole.PSICOLOGO, UserRole.PACIENTE] as const;
+const professionalProfileInputSchema = z.object({
+  specialtyId: z.string().min(1),
+  professionalTitle: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  bio: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
 
 export const onboardingInviteSchema = z.object({
   email: z.string().email('Email inválido'),
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  role: z.enum(inviteRoles),
+  role: z.nativeEnum(UserRole),
+  specialtyId: z.string().optional(),
+  professionalProfile: professionalProfileInputSchema.optional(),
 });
 
 export type OnboardingTenantFormData = z.infer<typeof onboardingTenantSchema>;
@@ -171,8 +179,10 @@ export const userInviteSchema = z.object({
   email: z.string().email('Email inválido'),
   firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  role: z.enum(inviteRoles),
+  role: z.nativeEnum(UserRole),
   professionalTitle: z.string().optional(),
+  specialtyId: z.string().optional(),
+  professionalProfile: professionalProfileInputSchema.optional(),
 });
 
 export type UserInviteFormData = z.infer<typeof userInviteSchema>;

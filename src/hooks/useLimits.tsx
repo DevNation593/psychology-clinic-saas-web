@@ -14,7 +14,7 @@ import {
 import type { FeatureFlags } from '@/types';
 
 /**
- * Hook to check if a new psychologist can be invited
+ * Hook to check if a new professional can be invited
  * Opens SeatLimitModal if limit reached
  */
 export function useCanInviteUser() {
@@ -173,13 +173,17 @@ export function useUsageStats() {
     return null;
   }
 
+  const professionals = {
+    current: usage.users.professionals.active,
+    limit: subscription.plan.limits.maxPsychologists,
+    remaining: getRemainingSeats(usage),
+    percentage: (usage.users.professionals.active / subscription.plan.limits.maxPsychologists) * 100,
+  };
+
   return {
-    psychologists: {
-      current: usage.users.psychologists.active,
-      limit: subscription.plan.limits.maxPsychologists,
-      remaining: getRemainingSeats(usage),
-      percentage: (usage.users.psychologists.active / subscription.plan.limits.maxPsychologists) * 100,
-    },
+    professionals,
+    /** @deprecated Use professionals. */
+    psychologists: professionals,
     patients: {
       current: usage.patients.active,
       limit: subscription.plan.limits.maxPatients,

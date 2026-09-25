@@ -15,6 +15,7 @@ import { Invoice } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/authStore';
+import { isAdminRole } from '@/types/guards';
 
 const STATUS_LABELS: Record<Invoice['status'], string> = {
   PENDING: 'Pendiente',
@@ -63,7 +64,7 @@ export default function BillingPage() {
             Consulta los comprobantes electrónicos emitidos mediante Faktur.
           </p>
         </div>
-        {user?.role === 'CLIENTE' && (
+        {user && isAdminRole(user.role) && (
           <Button asChild variant="outline">
             <Link href="/admin/settings">
               <Settings className="h-4 w-4 mr-2" />
