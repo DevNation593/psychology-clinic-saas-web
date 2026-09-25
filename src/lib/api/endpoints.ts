@@ -36,6 +36,7 @@ import {
   TenantModule,
   Invoice,
   SpecialtyRecord,
+  UpdateSelfProfileInput,
 } from '@/types';
 
 // ==========================================
@@ -503,6 +504,11 @@ export const usersApi = {
   update: (userId: string, data: UserInput) =>
     apiClient
       .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId), data)
+      .then((raw) => normalizeUser(raw)),
+
+  updateSelf: (data: UpdateSelfProfileInput) =>
+    apiClient
+      .patch<User>(API_ENDPOINTS.USER_SELF_PROFILE(getTenantId()), data)
       .then((raw) => normalizeUser(raw)),
 
   delete: (userId: string) =>

@@ -36,7 +36,6 @@ import {
   Camera,
   Save,
   Award,
-  BookOpen,
   Calendar,
 } from 'lucide-react';
 
@@ -48,9 +47,7 @@ const profileSchema = z.object({
   lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
   phone: z.string().optional(),
   professionalTitle: z.string().optional(),
-  specialtyId: z.string().optional(),
   bio: z.string().optional(),
-  specializations: z.string().optional(), // comma-separated, we split it
   licenseNumber: z.string().optional(),
 });
 
@@ -98,9 +95,7 @@ export default function ProfilePage() {
       lastName: profile?.lastName || user?.lastName || '',
       phone: profile?.phone || user?.phone || '',
       professionalTitle: profile?.professionalProfile?.professionalTitle || profile?.professionalTitle || '',
-      specialtyId: profile?.professionalProfile?.specialtyId || '',
       bio: profile?.professionalProfile?.bio ?? profile?.bio ?? '',
-      specializations: (profile as any)?.specializations?.join(', ') || '',
       licenseNumber: profile?.professionalProfile?.licenseNumber || profile?.licenseNumber || '',
     },
     values: profile
@@ -109,9 +104,7 @@ export default function ProfilePage() {
           lastName: profile.lastName,
           phone: profile.phone || '',
           professionalTitle: profile.professionalProfile?.professionalTitle || profile.professionalTitle || '',
-          specialtyId: profile.professionalProfile?.specialtyId || '',
           bio: profile.professionalProfile?.bio ?? profile.bio ?? '',
-          specializations: (profile as any)?.specializations?.join(', ') || '',
           licenseNumber: profile.professionalProfile?.licenseNumber || profile.licenseNumber || '',
         }
       : undefined,
@@ -127,27 +120,21 @@ export default function ProfilePage() {
   });
 
   const onSubmitProfile = (data: ProfileFormData) => {
-    const { specializations, specialtyId, ...rest } = data;
     const currentProfessionalProfile = profile?.professionalProfile ?? user?.professionalProfile;
-    const currentSpecialtyId = specialtyId || currentProfessionalProfile?.specialtyId;
     updateProfile.mutate({
-      ...rest,
-      ...(currentSpecialtyId ? { specialtyId: currentSpecialtyId } : {}),
-      ...(currentProfessionalProfile && currentSpecialtyId
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      ...(currentProfessionalProfile
         ? {
             professionalProfile: {
-              specialtyId: currentSpecialtyId,
-              professionalTitle: rest.professionalTitle,
-              licenseNumber: rest.licenseNumber,
-              bio: rest.bio,
-              isActive: currentProfessionalProfile.isActive,
+              professionalTitle: data.professionalTitle,
+              licenseNumber: data.licenseNumber,
+              bio: data.bio,
             },
           }
         : {}),
-      specializations: specializations
-        ? specializations.split(',').map((s) => s.trim()).filter(Boolean)
-        : [],
-    } as any);
+    });
   };
 
   const onSubmitPassword = (data: ChangePasswordFormData) => {
@@ -340,21 +327,6 @@ export default function ProfilePage() {
                     placeholder="Ej: 12345678"
                   />
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="specializations">
-                  <BookOpen className="h-4 w-4 inline mr-1" />
-                  Especializaciones
-                </Label>
-                <Input
-                  id="specializations"
-                  {...register('specializations')}
-                  placeholder="Ansiedad, Depresión, Terapia de pareja (separadas por coma)"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Separa las especializaciones con comas.
-                </p>
               </div>
 
               <div>

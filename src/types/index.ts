@@ -383,9 +383,14 @@ export interface ProfessionalProfile {
 export interface UserProfile extends User {
   professionalTitle?: string;
   bio?: string;
-  specializations?: string[];
   licenseNumber?: string;
 }
+
+export type UpdateSelfProfileInput = Partial<Pick<User, 'firstName' | 'lastName' | 'phone'>> & {
+  professionalProfile?: Partial<
+    Pick<ProfessionalProfile, 'professionalTitle' | 'licenseNumber' | 'bio'>
+  >;
+};
 
 export type UserInput = Omit<Partial<User>, 'professionalProfile'> & {
   specialtyId?: string;

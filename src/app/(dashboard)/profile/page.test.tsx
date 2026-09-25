@@ -42,18 +42,17 @@ describe('ProfilePage submit', () => {
     state.profile = professional;
   });
 
-  it('sends an edited biography in the professional profile with its specialty', async () => {
+  it('sends only supported self-update fields for the professional profile', async () => {
     render(<ProfilePage />);
     fireEvent.change(screen.getByLabelText('Biografía'), { target: { value: 'Nueva biografía clínica' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar Cambios' }));
 
     await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
-    expect(state.mutate.mock.calls[0][0]).toMatchObject({
-      specialtyId: 'specialty-1',
-      professionalTitle: 'Psicóloga',
-      licenseNumber: 'LIC-1',
+    expect(state.mutate.mock.calls[0][0]).toEqual({
+      firstName: 'Ana',
+      lastName: 'Vega',
+      phone: '',
       professionalProfile: {
-        specialtyId: 'specialty-1',
         professionalTitle: 'Psicóloga',
         licenseNumber: 'LIC-1',
         bio: 'Nueva biografía clínica',
@@ -68,7 +67,10 @@ describe('ProfilePage submit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar Cambios' }));
 
     await waitFor(() => expect(state.mutate).toHaveBeenCalledOnce());
-    expect(state.mutate.mock.calls[0][0]).toMatchObject({ firstName: 'María' });
-    expect(state.mutate.mock.calls[0][0]).not.toHaveProperty('professionalProfile');
+    expect(state.mutate.mock.calls[0][0]).toEqual({
+      firstName: 'María',
+      lastName: 'Vega',
+      phone: '',
+    });
   });
 });
