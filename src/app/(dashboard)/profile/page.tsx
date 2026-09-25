@@ -99,7 +99,7 @@ export default function ProfilePage() {
       phone: profile?.phone || user?.phone || '',
       professionalTitle: profile?.professionalProfile?.professionalTitle || profile?.professionalTitle || '',
       specialtyId: profile?.professionalProfile?.specialtyId || '',
-      bio: profile?.professionalProfile?.bio || profile?.bio || '',
+      bio: profile?.professionalProfile?.bio ?? profile?.bio ?? '',
       specializations: (profile as any)?.specializations?.join(', ') || '',
       licenseNumber: profile?.professionalProfile?.licenseNumber || profile?.licenseNumber || '',
     },
@@ -110,7 +110,7 @@ export default function ProfilePage() {
           phone: profile.phone || '',
           professionalTitle: profile.professionalProfile?.professionalTitle || profile.professionalTitle || '',
           specialtyId: profile.professionalProfile?.specialtyId || '',
-          bio: profile.professionalProfile?.bio || profile.bio || '',
+          bio: profile.professionalProfile?.bio ?? profile.bio ?? '',
           specializations: (profile as any)?.specializations?.join(', ') || '',
           licenseNumber: profile.professionalProfile?.licenseNumber || profile.licenseNumber || '',
         }
@@ -128,9 +128,22 @@ export default function ProfilePage() {
 
   const onSubmitProfile = (data: ProfileFormData) => {
     const { specializations, specialtyId, ...rest } = data;
+    const currentProfessionalProfile = profile?.professionalProfile ?? user?.professionalProfile;
+    const currentSpecialtyId = specialtyId || currentProfessionalProfile?.specialtyId;
     updateProfile.mutate({
       ...rest,
-      ...(specialtyId ? { specialtyId } : {}),
+      ...(currentSpecialtyId ? { specialtyId: currentSpecialtyId } : {}),
+      ...(currentProfessionalProfile && currentSpecialtyId
+        ? {
+            professionalProfile: {
+              specialtyId: currentSpecialtyId,
+              professionalTitle: rest.professionalTitle,
+              licenseNumber: rest.licenseNumber,
+              bio: rest.bio,
+              isActive: currentProfessionalProfile.isActive,
+            },
+          }
+        : {}),
       specializations: specializations
         ? specializations.split(',').map((s) => s.trim()).filter(Boolean)
         : [],
