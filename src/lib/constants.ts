@@ -52,6 +52,8 @@ export const ROUTES = {
 // ==========================================
 
 export const API_ENDPOINTS = {
+  SPECIALTY_CATALOG: '/specialties',
+  CLINIC_ONBOARDING: '/onboarding/tenants',
   // Auth (public, no tenantId)
   LOGIN: '/auth/login',
   REFRESH: '/auth/refresh',
@@ -143,6 +145,7 @@ export const STORAGE_KEYS = {
 // ==========================================
 
 export const QUERY_KEYS = {
+  SPECIALTY_CATALOG: ['specialties', 'catalog'],
   // Auth
   ME: ['me'],
   

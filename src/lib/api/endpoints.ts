@@ -33,7 +33,11 @@ import {
   WorkingHours,
   ReminderRule,
   Specialty,
+  SpecialtyCatalogItem,
+  SpecialtySelectionResult,
   TenantModule,
+  ClinicOnboardingResult,
+  CreateClinicOnboardingInput,
   Invoice,
   SpecialtyRecord,
   UpdateSelfProfileInput,
@@ -122,9 +126,19 @@ function normalizeSubscription(raw: any): Subscription {
     throw new Error('Subscription data is missing');
   }
 
+  const specialtyPricing =
+    raw.includedSpecialties != null && raw.specialtyPrice != null && Array.isArray(raw.specialties)
+      ? {
+          includedSpecialties: Number(raw.includedSpecialties),
+          selectedSpecialties: raw.specialties.length,
+          specialtyUnitPrice: Number(raw.specialtyPrice),
+          ...(typeof raw.currency === 'string' ? { currency: raw.currency } : {}),
+        }
+      : undefined;
+
   // Already normalized shape.
   if (raw.plan && raw.plan.limits) {
-    return raw as Subscription;
+    return { ...raw, ...(specialtyPricing ? { specialtyPricing } : {}) } as Subscription;
   }
 
   const planType = mapPlanType(raw.planType);
@@ -186,6 +200,7 @@ function normalizeSubscription(raw: any): Subscription {
     cancelAtPeriodEnd: !!raw.cancelAt,
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),
+    ...(specialtyPricing ? { specialtyPricing } : {}),
   };
 }
 
@@ -352,23 +367,42 @@ export const tenantsApi = {
       .then((raw) => normalizeSubscription(raw)),
 };
 
-export const specialtiesApi = {
+export const specialtyCatalogApi = {
+  list: () => apiClient.get<SpecialtyCatalogItem[]>(API_ENDPOINTS.SPECIALTY_CATALOG),
+};
+
+export const tenantSpecialtiesApi = {
   list: (tenantId?: string) =>
     apiClient.get<Specialty[]>(API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId())),
+  replace: (specialtyCodes: string[], tenantId?: string) =>
+    apiClient.put<SpecialtySelectionResult>(
+      API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId()),
+      { specialtyCodes },
+    ),
+};
 
-  modules: (tenantId?: string) =>
+export const tenantModulesApi = {
+  list: (tenantId?: string) =>
     apiClient.get<TenantModule[]>(API_ENDPOINTS.TENANT_MODULES(tenantId ?? getTenantId())),
-
-  setModuleEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
+  setEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
     apiClient.patch<TenantModule>(
       API_ENDPOINTS.TENANT_MODULE(tenantId ?? getTenantId(), moduleKey),
       { enabled },
     ),
+};
+
+export const onboardingApi = {
+  createClinic: (input: CreateClinicOnboardingInput) =>
+    apiClient.post<ClinicOnboardingResult>(API_ENDPOINTS.CLINIC_ONBOARDING, input),
+};
+
+export const specialtiesApi = {
+  list: (tenantId?: string) => tenantSpecialtiesApi.list(tenantId),
+  modules: (tenantId?: string) => tenantModulesApi.list(tenantId),
+  setModuleEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
+    tenantModulesApi.setEnabled(moduleKey, enabled, tenantId),
   setForTenant: (specialtyCodes: string[], tenantId?: string) =>
-    apiClient.post(
-      API_ENDPOINTS.TENANT_SPECIALTIES_UPDATE(tenantId ?? getTenantId()),
-      { specialtyCodes },
-    ),
+    tenantSpecialtiesApi.replace(specialtyCodes, tenantId),
 };
 
 export const tenantSettingsApi = {
