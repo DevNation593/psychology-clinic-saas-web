@@ -152,6 +152,16 @@ describe('specialty query hooks', () => {
     untouched.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(false));
   });
 
+  it('invalidates the patient page specialty key without invalidating the public catalog', async () => {
+    const { client, wrapper } = createWrapper();
+    client.setQueryData(['specialties'], [{ code: 'PSYCHOLOGY' }]);
+    client.setQueryData(['specialties', 'catalog'], [{ code: 'NUTRITION' }]);
+    const { result } = renderHook(() => useReplaceTenantSpecialties(), { wrapper });
+    await act(async () => { await result.current.mutateAsync(['PSYCHOLOGY']); });
+    expect(client.getQueryState(['specialties'])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['specialties', 'catalog'])?.isInvalidated).toBe(false);
+  });
+
   it('invalidates scoped and legacy modules after toggling one', async () => {
     const { client, wrapper } = createWrapper();
     client.setQueryData(['tenant', 'modules', 'tenant-1'], [{ moduleKey: 'psychology.records', enabled: true }]);

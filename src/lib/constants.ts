@@ -193,6 +193,7 @@ export const QUERY_KEYS = {
   TENANT_SPECIALTIES: ['tenant', 'specialties'],
   TENANT_SPECIALTIES_SCOPED: (tenantId: string) => ['tenant', 'specialties', tenantId],
   LEGACY_TENANT_SPECIALTIES: ['tenant-specialties'],
+  LEGACY_PATIENT_SPECIALTIES: ['specialties'],
   TENANT_MODULES: ['tenant', 'modules'],
   TENANT_MODULES_SCOPED: (tenantId: string) => ['tenant', 'modules', tenantId],
 } as const;

@@ -46,6 +46,7 @@ export function useReplaceTenantSpecialties() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TENANT_SPECIALTIES_SCOPED(selection.tenantId), exact: true }),
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.LEGACY_TENANT_SPECIALTIES, exact: true }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.LEGACY_PATIENT_SPECIALTIES, exact: true }),
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TENANT_MODULES_SCOPED(selection.tenantId), exact: true }),
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TENANT_MODULES, exact: true }),
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION, exact: true }),
