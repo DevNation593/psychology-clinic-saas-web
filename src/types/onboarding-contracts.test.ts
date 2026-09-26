@@ -6,10 +6,12 @@ import type {
   SpecialtyCatalogItem,
   SpecialtyPricingSummary,
   SpecialtySelectionResult,
+  TenantSpecialty,
   TenantModule,
   TenantModuleSelection,
 } from './index';
 import type { ClinicOnboardingFormData, TenantTeamMemberFormData } from '@/lib/validations/schemas';
+import { tenantSpecialtiesApi } from '@/lib/api/endpoints';
 
 describe('specialty onboarding wire contracts', () => {
   it('keeps the public catalog and selection modules distinct from database rows', () => {
@@ -23,6 +25,8 @@ describe('specialty onboarding wire contracts', () => {
     expectTypeOf<TenantModuleSelection>().toEqualTypeOf<{ moduleKey: string; enabled: boolean }>();
     expectTypeOf<TenantModule>().toHaveProperty('tenantId');
     expectTypeOf<SpecialtySelectionResult['modules'][number]>().toEqualTypeOf<TenantModuleSelection>();
+    expectTypeOf<TenantSpecialty['description']>().toEqualTypeOf<string | null>();
+    expectTypeOf<Awaited<ReturnType<typeof tenantSpecialtiesApi.list>>>().toEqualTypeOf<TenantSpecialty[]>();
   });
 
   it('keeps the complete numeric pricing summary and safe onboarding projections', () => {

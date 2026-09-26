@@ -50,6 +50,14 @@ describe('specialty API boundaries', () => {
     expect(http.patch).toHaveBeenCalledWith('/tenants/tenant-1/modules/psychology.records', { enabled: false });
   });
 
+  it('encodes a module key as one URL segment', async () => {
+    await tenantModulesApi.setEnabled('psychology/forms draft?', true);
+    expect(http.patch).toHaveBeenCalledWith(
+      '/tenants/tenant-1/modules/psychology%2Fforms%20draft%3F',
+      { enabled: true },
+    );
+  });
+
   it('delegates the legacy replacement facade to the canonical PUT', async () => {
     await specialtiesApi.setForTenant(['NUTRITION'], 'tenant-2');
     expect(http.put).toHaveBeenCalledWith('/tenants/tenant-2/specialties', { specialtyCodes: ['NUTRITION'] });
@@ -84,26 +92,93 @@ describe('specialty query hooks', () => {
     const modules = renderHook(() => useTenantModules(), { wrapper });
     await waitFor(() => expect(catalog.result.current.isSuccess && tenantSpecialties.result.current.isSuccess && modules.result.current.isSuccess).toBe(true));
     expect(client.getQueryData(QUERY_KEYS.SPECIALTY_CATALOG)).toEqual([]);
-    expect(client.getQueryData(QUERY_KEYS.TENANT_SPECIALTIES)).toEqual([]);
-    expect(client.getQueryData(QUERY_KEYS.TENANT_MODULES)).toEqual([]);
+    expect(client.getQueryData(['tenant', 'specialties', 'tenant-1'])).toEqual([]);
+    expect(client.getQueryData(['tenant', 'modules', 'tenant-1'])).toEqual([]);
   });
 
-  it('invalidates specialties, modules, subscription, usage and tenant after replacement', async () => {
+  it('keeps tenant A data isolated when auth changes to tenant B', async () => {
+    const specialtyA = { id: 'sA', code: 'A', name: 'Specialty A', description: null, isActive: true, modules: [{ id: 'smA', specialtyId: 'sA', moduleKey: 'a.records' }] };
+    const specialtyB = { id: 'sB', code: 'B', name: 'Specialty B', description: 'B description', isActive: true, modules: [{ id: 'smB', specialtyId: 'sB', moduleKey: 'b.records' }] };
+    const moduleA = { id: 'tmA', tenantId: 'tenant-1', moduleKey: 'a.records', enabled: true, limits: null, createdAt: '2026-09-26T00:00:00.000Z', updatedAt: '2026-09-26T00:00:00.000Z' };
+    const moduleB = { id: 'tmB', tenantId: 'tenant-2', moduleKey: 'b.records', enabled: false, limits: null, createdAt: '2026-09-26T00:00:00.000Z', updatedAt: '2026-09-26T00:00:00.000Z' };
+    http.get.mockImplementation((url: string) => Promise.resolve(
+      url.endsWith('/specialties')
+        ? [url.includes('tenant-1') ? specialtyA : specialtyB]
+        : [url.includes('tenant-1') ? moduleA : moduleB],
+    ));
     const { client, wrapper } = createWrapper();
-    const keys = [QUERY_KEYS.TENANT_SPECIALTIES, QUERY_KEYS.TENANT_MODULES, QUERY_KEYS.SUBSCRIPTION, QUERY_KEYS.SUBSCRIPTION_USAGE, QUERY_KEYS.TENANT];
-    keys.forEach((key) => client.setQueryData(key, { prior: true }));
+    const specialties = renderHook(() => useTenantSpecialties(), { wrapper });
+    const modules = renderHook(() => useTenantModules(), { wrapper });
+    await waitFor(() => expect(specialties.result.current.data).toEqual([specialtyA]));
+    await waitFor(() => expect(modules.result.current.data).toEqual([moduleA]));
+
+    act(() => useAuthStore.setState({ tenant: { id: 'tenant-2' } as ReturnType<typeof useAuthStore.getState>['tenant'] }));
+    await waitFor(() => expect(specialties.result.current.data).toEqual([specialtyB]));
+    await waitFor(() => expect(modules.result.current.data).toEqual([moduleB]));
+    expect(client.getQueryData(['tenant', 'specialties', 'tenant-1'])).toEqual([specialtyA]);
+    expect(client.getQueryData(['tenant', 'specialties', 'tenant-2'])).toEqual([specialtyB]);
+    expect(client.getQueryData(['tenant', 'modules', 'tenant-1'])).toEqual([moduleA]);
+    expect(client.getQueryData(['tenant', 'modules', 'tenant-2'])).toEqual([moduleB]);
+    expect(http.get).toHaveBeenCalledWith('/tenants/tenant-2/specialties');
+    expect(http.get).toHaveBeenCalledWith('/tenants/tenant-2/modules');
+  });
+
+  it('disables tenant queries without a tenant and never calls HTTP', async () => {
+    useAuthStore.setState({ tenant: null, user: null });
+    const { wrapper } = createWrapper();
+    const specialties = renderHook(() => useTenantSpecialties(), { wrapper });
+    const modules = renderHook(() => useTenantModules(), { wrapper });
+    expect(specialties.result.current.fetchStatus).toBe('idle');
+    expect(modules.result.current.fetchStatus).toBe('idle');
+    expect(http.get).not.toHaveBeenCalled();
+  });
+
+  it('invalidates exact tenant A resources and legacy readers after replacement', async () => {
+    const { client, wrapper } = createWrapper();
+    const invalidated = [
+      ['tenant', 'specialties', 'tenant-1'], ['tenant', 'modules', 'tenant-1'],
+      ['tenant-specialties'], ['tenant', 'modules'],
+      ['subscription'], ['subscription', 'usage', 'current'], ['tenant'],
+    ];
+    const untouched = [
+      ['tenant', 'specialties', 'tenant-2'], ['tenant', 'modules', 'tenant-2'],
+      ['subscription', 'unrelated'], ['tenant', 'settings'],
+    ];
+    [...invalidated, ...untouched].forEach((key) => client.setQueryData(key, { prior: true }));
     const { result } = renderHook(() => useReplaceTenantSpecialties(), { wrapper });
     await act(async () => { await result.current.mutateAsync(['PSYCHOLOGY']); });
     expect(http.put).toHaveBeenCalledWith('/tenants/tenant-1/specialties', { specialtyCodes: ['PSYCHOLOGY'] });
-    keys.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(true));
+    invalidated.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(true));
+    untouched.forEach((key) => expect(client.getQueryState(key)?.isInvalidated).toBe(false));
   });
 
-  it('invalidates modules after toggling one', async () => {
+  it('invalidates scoped and legacy modules after toggling one', async () => {
     const { client, wrapper } = createWrapper();
-    client.setQueryData(QUERY_KEYS.TENANT_MODULES, [{ moduleKey: 'psychology.records', enabled: true }]);
+    client.setQueryData(['tenant', 'modules', 'tenant-1'], [{ moduleKey: 'psychology.records', enabled: true }]);
+    client.setQueryData(['tenant', 'modules', 'tenant-2'], []);
+    client.setQueryData(['tenant', 'modules'], []);
     const { result } = renderHook(() => useSetTenantModule(), { wrapper });
     await act(async () => { await result.current.mutateAsync({ moduleKey: 'psychology.records', enabled: false }); });
     expect(http.patch).toHaveBeenCalledWith('/tenants/tenant-1/modules/psychology.records', { enabled: false });
-    expect(client.getQueryState(QUERY_KEYS.TENANT_MODULES)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['tenant', 'modules', 'tenant-1'])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['tenant', 'modules'])?.isInvalidated).toBe(true);
+    expect(client.getQueryState(['tenant', 'modules', 'tenant-2'])?.isInvalidated).toBe(false);
+  });
+
+  it('rejects mutations without a tenant and leaves caches untouched', async () => {
+    const { client, wrapper } = createWrapper();
+    client.setQueryData(['tenant', 'specialties', 'tenant-1'], [{ code: 'A' }]);
+    client.setQueryData(['tenant', 'modules', 'tenant-1'], [{ moduleKey: 'x', enabled: true }]);
+    const replace = renderHook(() => useReplaceTenantSpecialties(), { wrapper });
+    const toggle = renderHook(() => useSetTenantModule(), { wrapper });
+    act(() => useAuthStore.setState({ tenant: null, user: null }));
+    await act(async () => {
+      await expect(replace.result.current.mutateAsync(['PSYCHOLOGY'])).rejects.toThrow('No tenant');
+      await expect(toggle.result.current.mutateAsync({ moduleKey: 'x', enabled: false })).rejects.toThrow('No tenant');
+    });
+    expect(http.put).not.toHaveBeenCalled();
+    expect(http.patch).not.toHaveBeenCalled();
+    expect(client.getQueryState(['tenant', 'specialties', 'tenant-1'])?.isInvalidated).toBe(false);
+    expect(client.getQueryState(['tenant', 'modules', 'tenant-1'])?.isInvalidated).toBe(false);
   });
 });

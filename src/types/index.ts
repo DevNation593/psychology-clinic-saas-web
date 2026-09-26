@@ -268,6 +268,12 @@ export interface Specialty {
   modules?: SpecialtyModule[];
 }
 
+/** Full tenant specialty row returned by GET /tenants/:id/specialties. */
+export interface TenantSpecialty extends Omit<Specialty, 'description' | 'modules'> {
+  description: string | null;
+  modules: SpecialtyModule[];
+}
+
 export interface SpecialtyModule {
   id: string;
   specialtyId: string;

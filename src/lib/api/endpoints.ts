@@ -32,7 +32,7 @@ import {
   TenantSettings,
   WorkingHours,
   ReminderRule,
-  Specialty,
+  TenantSpecialty,
   SpecialtyCatalogItem,
   SpecialtySelectionResult,
   TenantModule,
@@ -373,7 +373,7 @@ export const specialtyCatalogApi = {
 
 export const tenantSpecialtiesApi = {
   list: (tenantId?: string) =>
-    apiClient.get<Specialty[]>(API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId())),
+    apiClient.get<TenantSpecialty[]>(API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId())),
   replace: (specialtyCodes: string[], tenantId?: string) =>
     apiClient.put<SpecialtySelectionResult>(
       API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId()),

@@ -72,7 +72,7 @@ export const API_ENDPOINTS = {
   TENANT_SPECIALTIES: (tenantId: string) => `/tenants/${tenantId}/specialties`,
   TENANT_MODULES: (tenantId: string) => `/tenants/${tenantId}/modules`,
   TENANT_MODULE: (tenantId: string, moduleKey: string) =>
-    `/tenants/${tenantId}/modules/${moduleKey}`,
+    `/tenants/${tenantId}/modules/${encodeURIComponent(moduleKey)}`,
   TENANT_SPECIALTIES_UPDATE: (tenantId: string) => `/tenants/${tenantId}/specialties`,
 
   // Users (tenant-scoped)
@@ -191,7 +191,10 @@ export const QUERY_KEYS = {
   TENANT: ['tenant'],
   TENANT_SETTINGS: ['tenant', 'settings'],
   TENANT_SPECIALTIES: ['tenant', 'specialties'],
+  TENANT_SPECIALTIES_SCOPED: (tenantId: string) => ['tenant', 'specialties', tenantId],
+  LEGACY_TENANT_SPECIALTIES: ['tenant-specialties'],
   TENANT_MODULES: ['tenant', 'modules'],
+  TENANT_MODULES_SCOPED: (tenantId: string) => ['tenant', 'modules', tenantId],
 } as const;
 
 // ==========================================
