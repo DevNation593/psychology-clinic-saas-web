@@ -101,6 +101,7 @@ async function reachConfirmation(names = ['Psicología']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  replace.mockReset();
   sessionStorage.clear();
   vi.mocked(specialtyCatalogApi.list).mockResolvedValue(catalog);
   vi.mocked(onboardingApi.createClinic).mockResolvedValue(created);
@@ -270,7 +271,7 @@ describe('OnboardingWizard', () => {
       return tenant;
     });
     replace.mockImplementation(() => {
-      expect(sessionStorage.getItem(markerKey)).toBeNull();
+      expect(JSON.parse(sessionStorage.getItem(markerKey) ?? '{}')).toEqual({ tenantId: 'tenant-1', adminEmail: 'server-canonical@example.com' });
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
     });
     renderWizard();
@@ -280,6 +281,7 @@ describe('OnboardingWizard', () => {
     expect(onboardingApi.createClinic).toHaveBeenCalledTimes(1);
     resolveCreate(created);
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(sessionStorage.getItem(markerKey)).toBeNull());
     expect(apiClient.setTokens).toHaveBeenCalledWith('access', 'refresh');
     expect(tenantsApi.get).toHaveBeenCalledWith('tenant-1');
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
@@ -301,6 +303,23 @@ describe('OnboardingWizard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Descartar registro anterior y crear otro consultorio' }));
     expect(sessionStorage.getItem(markerKey)).toBeNull();
     expect(await screen.findByLabelText('Nombre del consultorio')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['empty tenant', '{"tenantId":"","adminEmail":"ana@example.com"}'],
+    ['empty email', '{"tenantId":"tenant-1","adminEmail":""}'],
+    ['non-email', '{"tenantId":"tenant-1","adminEmail":"not-an-email"}'],
+    ['unnormalized email', '{"tenantId":"tenant-1","adminEmail":" ANA@Example.com "}'],
+    ['extra data', '{"tenantId":"tenant-1","adminEmail":"ana@example.com","adminPassword":"Secret123"}'],
+    ['wrong types', '{"tenantId":17,"adminEmail":["ana@example.com"]}'],
+    ['malformed JSON', '{not json'],
+  ])('deletes an invalid recovery marker (%s) and permits a fresh form', async (_name, raw) => {
+    sessionStorage.setItem(markerKey, raw);
+    renderWizard();
+    expect(await screen.findByLabelText('Nombre del consultorio')).toBeInTheDocument();
+    await waitFor(() => expect(sessionStorage.getItem(markerKey)).toBeNull());
+    fillClinic();
+    expect(await screen.findByRole('heading', { name: 'Especialidades' })).toBeInTheDocument();
   });
 
   it('persists a late create response after unmount but never starts login', async () => {
@@ -343,6 +362,23 @@ describe('OnboardingWizard', () => {
     view.unmount();
     expect(apiClient.clearAuthData).not.toHaveBeenCalled();
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('keeps recovery and clears auth if dashboard navigation throws', async () => {
+    replace.mockImplementation(() => { throw new Error('navigation failed'); });
+    const view = renderWizard();
+    await reachConfirmation();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear consultorio' }));
+    expect(await screen.findByRole('heading', { name: 'Consultorio creado' })).toBeInTheDocument();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(apiClient.clearAuthData).toHaveBeenCalled();
+    expect(JSON.parse(sessionStorage.getItem(markerKey) ?? '{}')).toEqual({ tenantId: 'tenant-1', adminEmail: 'server-canonical@example.com' });
+    view.unmount();
+    renderWizard();
+    expect(await screen.findByRole('heading', { name: 'Consultorio creado' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Crear consultorio' })).not.toBeInTheDocument();
+    expect(onboardingApi.createClinic).toHaveBeenCalledTimes(1);
   });
 
   it('treats a storage failure after POST success as created, never as a retryable create failure', async () => {
@@ -449,12 +485,13 @@ describe('OnboardingWizard', () => {
     await waitFor(() => expect(onboardingApi.createClinic).toHaveBeenCalledTimes(2));
   });
 
-  it('orients duplicate-email responses toward login or changing the email', async () => {
+  it('gives neutral login guidance for a generic HTTP 409 without claiming the email is occupied', async () => {
     vi.mocked(onboardingApi.createClinic).mockRejectedValueOnce({ message: 'El correo electrónico ya está en uso', status: 409 });
     renderWizard();
     await reachConfirmation();
     fireEvent.click(screen.getByRole('button', { name: 'Crear consultorio' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('correo ya está en uso');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Conflicto al crear el consultorio. Puede que ya exista; inicia sesión o revisa los datos.');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('correo ya está en uso');
     expect(screen.getByRole('link', { name: 'Ir a iniciar sesión' })).toHaveAttribute('href', '/login');
     expect(screen.queryByRole('heading', { name: 'Consultorio creado' })).not.toBeInTheDocument();
     expect(authApi.login).not.toHaveBeenCalled();

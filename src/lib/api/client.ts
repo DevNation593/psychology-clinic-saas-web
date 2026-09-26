@@ -120,14 +120,19 @@ class ApiClient {
 
   private normalizeError(error: AxiosError): ApiError {
     if (error.response) {
-      const data = (error.response.data ?? {}) as any;
-      return {
-        message: data.message || 'Ocurrió un error',
+      const body: unknown = error.response.data;
+      const data = body && typeof body === 'object' && !Array.isArray(body)
+        ? body as Record<string, unknown> : {};
+      const normalized: ApiError = {
+        message: typeof data.message === 'string' && data.message.trim() ? data.message : 'Ocurrió un error',
         status: error.response.status,
-        code: data.code,
-        field: data.field,
-        details: data.details,
       };
+      if (typeof data.code === 'string') normalized.code = data.code;
+      if (typeof data.field === 'string') normalized.field = data.field;
+      if (data.details && typeof data.details === 'object' && !Array.isArray(data.details)) {
+        normalized.details = data.details as Record<string, unknown>;
+      }
+      return normalized;
     }
 
     if (error.request) {

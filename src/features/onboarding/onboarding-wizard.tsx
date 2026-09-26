@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, type FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useSpecialtyCatalog } from '@/hooks/useSpecialties';
 import { authApi, onboardingApi, tenantsApi } from '@/lib/api/endpoints';
 import { apiClient } from '@/lib/api/client';
@@ -39,9 +40,14 @@ function readMarker(raw: string | null): RecoveryMarker | null {
   if (!raw) return null;
   try {
     const value: unknown = JSON.parse(raw);
-    if (value && typeof value === 'object' && 'tenantId' in value && 'adminEmail' in value &&
-      typeof value.tenantId === 'string' && typeof value.adminEmail === 'string') {
-      return { tenantId: value.tenantId, adminEmail: value.adminEmail };
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const marker = value as Record<string, unknown>;
+      const email = z.string().trim().toLowerCase().email().safeParse(marker.adminEmail);
+      if (Object.keys(marker).length === 2 &&
+        typeof marker.tenantId === 'string' && marker.tenantId.length > 0 && marker.tenantId === marker.tenantId.trim() &&
+        email.success && email.data === marker.adminEmail) {
+        return { tenantId: marker.tenantId, adminEmail: email.data };
+      }
     }
   } catch { /* Ignore a corrupt marker; the user can start a new registration. */ }
   return null;
@@ -82,7 +88,8 @@ export function OnboardingWizard() {
   const created = useRef(false);
   const mounted = useRef(true);
   const temporaryTokens = useRef(false);
-  const recovery = readMarker(useSyncExternalStore(subscribeMarker, markerSnapshot, () => null));
+  const rawMarker = useSyncExternalStore(subscribeMarker, markerSnapshot, () => null);
+  const recovery = readMarker(rawMarker);
   const { register, watch, getValues, setValue, unregister, trigger, setError, reset, formState: { errors } } = useForm<ClinicOnboardingFormData>({
     resolver: zodResolver(clinicOnboardingSchema),
     shouldUnregister: false,
@@ -105,6 +112,10 @@ export function OnboardingWizard() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (rawMarker && !recovery) clearMarker();
+  }, [rawMarker, recovery]);
 
   useEffect(() => {
     if (!catalog.data || created.current || !selected.length) return;
@@ -204,8 +215,8 @@ export function OnboardingWizard() {
       if (tenant.id !== result.tenant.id) throw new Error('Tenant mismatch');
       setAuth(session.user, tenant);
       temporaryTokens.current = false;
-      clearMarker();
       router.replace('/dashboard');
+      clearMarker();
     } catch {
       if (!mounted.current) return;
       useAuthStore.getState().clearAuth();
@@ -248,7 +259,7 @@ export function OnboardingWizard() {
       </div>}
       {step === 3 && <div className="space-y-4"><p>Revisa estos datos antes de crear tu consultorio.</p><dl className="grid gap-3 sm:grid-cols-2">
         <div><dt className="font-semibold">Consultorio</dt><dd>{getValues('clinicName').trim()}</dd></div><div><dt className="font-semibold">Contacto</dt><dd>{getValues('contactEmail').trim()}</dd></div><div><dt className="font-semibold">Especialidades</dt><dd>{selectedCatalog.map((item) => item.name).join(', ')}</dd></div><div><dt className="font-semibold">Administrador</dt><dd>{getValues('adminFirstName').trim()} {getValues('adminLastName').trim()}</dd><dd>{getValues('adminEmail').trim()}</dd></div><div><dt className="font-semibold">Atención clínica</dt><dd>{providesCare ? `Atiende pacientes: ${selectedCatalog.find((item) => item.code === getValues('adminSpecialtyCode'))?.name ?? ''}` : 'No atiende pacientes'}</dd></div>
-      </dl>{(submission === 'create-error' || submission === 'create-conflict') && <div role="alert" className="space-y-2 text-sm text-destructive"><p>{submission === 'create-conflict' ? 'Este correo ya está en uso. Inicia sesión o cambia el correo del administrador.' : 'No se pudo crear el consultorio. Es posible que ya se haya creado; compruébalo antes de reintentar.'}</p><p>Correo: {retryEmail}</p><Link href="/login" className="underline">Ir a iniciar sesión</Link></div>}{submission === 'created' && <p role="status">Consultorio creado. Iniciando sesión…</p>}</div>}
+      </dl>{(submission === 'create-error' || submission === 'create-conflict') && <div role="alert" className="space-y-2 text-sm text-destructive"><p>{submission === 'create-conflict' ? 'Conflicto al crear el consultorio. Puede que ya exista; inicia sesión o revisa los datos.' : 'No se pudo crear el consultorio. Es posible que ya se haya creado; compruébalo antes de reintentar.'}</p><p>Correo: {retryEmail}</p><Link href="/login" className="underline">Ir a iniciar sesión</Link></div>}{submission === 'created' && <p role="status">Consultorio creado. Iniciando sesión…</p>}</div>}
       {!created.current && <div className="flex justify-between gap-3 pt-4">{step > 0 ? <Button type="button" variant="outline" disabled={submission === 'creating'} onClick={() => setStep((step - 1) as Step)}>Atrás</Button> : <span />}{step < 3 ? <Button type="button" onClick={() => void next()}>Continuar</Button> : <Button type="button" loading={submission === 'creating'} onClick={() => void submit()}>{submission === 'create-error' || submission === 'create-conflict' ? 'Reintentar creación' : 'Crear consultorio'}</Button>}</div>}
     </CardContent></>}</Card>
   </div></main>;

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from './client';
 
 const interceptor = vi.hoisted(() => ({
@@ -25,6 +25,13 @@ vi.mock('axios', () => ({
 }));
 
 describe('ApiClient error normalization', () => {
+  beforeEach(() => {
+    interceptor.responseData = {
+      statusCode: 409, message: 'El correo electrónico ya está en uso',
+      code: 'EMAIL_CONFLICT', field: 'adminEmail', details: { existing: true },
+    };
+  });
+
   it('preserves HTTP status without leaking the raw Axios response', async () => {
     try {
       await apiClient.post('/onboarding/tenants', {});
@@ -45,5 +52,26 @@ describe('ApiClient error normalization', () => {
     await expect(apiClient.post('/onboarding/tenants', {})).rejects.toMatchObject({
       status: 409, message: 'Ocurrió un error',
     });
+  });
+
+  it.each([
+    ['string body', 'raw server text'],
+    ['array body', [{ message: 'fake' }]],
+    ['hostile object', { message: { secret: 'password' }, code: 409, field: ['adminEmail'], details: ['not a record'] }],
+    ['null fields', { message: null, code: null, field: null, details: 'not a record' }],
+  ])('normalizes %s without false field types or raw transport data', async (_name, body) => {
+    interceptor.responseData = body;
+    try {
+      await apiClient.post('/onboarding/tenants', {});
+      throw new Error('Expected 409');
+    } catch (error) {
+      expect(error).toMatchObject({ status: 409, message: 'Ocurrió un error' });
+      expect(error).not.toHaveProperty('code');
+      expect(error).not.toHaveProperty('field');
+      expect(error).not.toHaveProperty('details');
+      expect(error).not.toHaveProperty('response');
+      expect(error).not.toHaveProperty('config');
+      expect(error).not.toHaveProperty('request');
+    }
   });
 });
