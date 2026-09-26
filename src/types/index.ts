@@ -688,6 +688,7 @@ export interface PaginatedResponse<T> {
 
 export interface ApiError {
   message: string;
+  status?: number;
   code?: string;
   field?: string;
   details?: Record<string, any>;
