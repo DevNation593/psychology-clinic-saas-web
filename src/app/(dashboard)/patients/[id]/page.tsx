@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient } from '@/hooks/usePatients';
 import { usePatientClinicalNotes, useCreateClinicalNote, useDeleteClinicalNote } from '@/hooks/useClinicalNotes';
@@ -9,8 +8,7 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { usePatientSessionPlan, useCreateSessionPlan, useUpdateSessionPlan } from '@/hooks/useSessionPlans';
 import { usePatientSpecialtyRecords, useCreateSpecialtyRecord } from '@/hooks/useSpecialtyRecords';
-import { specialtiesApi } from '@/lib/api/endpoints';
-import { QUERY_KEYS } from '@/lib/constants';
+import { useTenantModules, useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
 import { canAccessClinicalNotes, canEditAppointment, canDeletePatient } from '@/types/guards';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
@@ -625,14 +623,8 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
 
-  const { data: specialties = [] } = useQuery({
-    queryKey: ['specialties'],
-    queryFn: () => specialtiesApi.list(),
-  });
-  const { data: enabledModules = [] } = useQuery({
-    queryKey: QUERY_KEYS.TENANT_MODULES,
-    queryFn: () => specialtiesApi.modules(),
-  });
+  const { data: specialties = [] } = useTenantSpecialties();
+  const { data: enabledModules = [] } = useTenantModules();
 
   const enabledKeys = new Set(enabledModules.filter((module) => module.enabled).map((module) => module.moduleKey));
   const moduleOptions = specialties.flatMap((specialty) =>
