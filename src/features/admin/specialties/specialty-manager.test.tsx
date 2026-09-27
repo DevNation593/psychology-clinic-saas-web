@@ -357,6 +357,79 @@ describe('SpecialtyManager', () => {
     expect(await screen.findByText(/1 módulo habilitado para este consultorio/)).toBeInTheDocument();
   });
 
+  it('does not render module switches until the loading query has returned server state', async () => {
+    const modules = deferred<TenantModule[]>();
+    vi.mocked(tenantModulesApi.list).mockReturnValue(modules.promise);
+    renderManager();
+
+    await waitFor(() => expect(tenantModulesApi.list).toHaveBeenCalledWith('tenant-1'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.queryByRole('checkbox', { name: 'psychology.assessments' })).not.toBeInTheDocument();
+
+    await act(async () => modules.resolve([psychologyModule]));
+    expect(await screen.findByRole('checkbox', { name: 'psychology.assessments' })).toBeChecked();
+  });
+
+  it('keeps module switches unknown after a load error until retry returns server state', async () => {
+    vi.mocked(tenantModulesApi.list).mockRejectedValueOnce(new Error('Módulos no disponibles.'));
+    renderManager();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Módulos no disponibles.');
+    expect(screen.queryByRole('checkbox', { name: 'psychology.assessments' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar módulos' }));
+    expect(await screen.findByRole('checkbox', { name: 'psychology.assessments' })).toBeChecked();
+  });
+
+  it('ignores tenant A save completion after tenant B has initialized its draft', async () => {
+    const pendingSave = deferred<SpecialtySelectionResult>();
+    vi.mocked(tenantSpecialtiesApi.replace).mockReturnValue(pendingSave.promise);
+    vi.mocked(tenantSpecialtiesApi.list).mockImplementation(async (requestedTenantId) =>
+      requestedTenantId === 'tenant-2' ? [nutritionSelection] : [psychologySelection]);
+    renderManager();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
+    await waitFor(() => expect(tenantSpecialtiesApi.replace).toHaveBeenCalledWith(
+      ['PSYCHOLOGY', 'NUTRITION'],
+      'tenant-1',
+    ));
+
+    act(() => {
+      useAuthStore.setState({
+        tenant: {
+          ...useAuthStore.getState().tenant!,
+          id: 'tenant-2',
+          subscription: {
+            specialtyPricing: {
+              includedSpecialties: 0,
+              selectedSpecialties: 1,
+              specialtyUnitPrice: 9.25,
+              currency: 'USD',
+            },
+          },
+        } as Tenant,
+      });
+    });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'true'));
+    await act(async () => pendingSave.resolve({
+      ...canonicalResult,
+      tenantId: 'tenant-1',
+      specialties: [psychology],
+      pricing: { ...canonicalResult.pricing, specialtyAddonsPrice: 47.25, totalMonthly: 137.25 },
+    }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText('Estimado mensual: $9.25 USD / mes')).toBeInTheDocument();
+      expect(screen.queryByText(/47.25 USD/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Psicología/ })).toBeEnabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Psicología/ }));
+    expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('keeps specialty and module controls read-only without admin authority', async () => {
     useAuthStore.setState({ user: { role: UserRole.PROFESIONAL } as User });
     renderManager();

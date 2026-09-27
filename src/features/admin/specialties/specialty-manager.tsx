@@ -50,6 +50,11 @@ function sameCodes(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((code) => rightSet.has(code));
 }
 
+function getActiveTenantId(): string | null {
+  const state = useAuthStore.getState();
+  return state.tenant?.id ?? state.user?.tenantId ?? null;
+}
+
 export function SpecialtyManager() {
   const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
   const tenant = useAuthStore((state) => state.tenant);
@@ -124,9 +129,15 @@ export function SpecialtyManager() {
     if (!tenantId || !draftIsReady || selectedCodes.length === 0) return;
     try {
       const result = await replaceSpecialties.mutateAsync(selectedCodes);
+      if (getActiveTenantId() !== tenantId || result.tenantId !== tenantId) return;
+
       const canonicalCodes = result.specialties.map((specialty) => specialty.code);
-      setDraft({ tenantId, codes: canonicalCodes, baselineCodes: canonicalCodes });
-      setSavedPricing({ tenantId, codes: canonicalCodes, pricing: result.pricing });
+      setDraft((current) => getActiveTenantId() === tenantId && current?.tenantId === tenantId
+        ? { tenantId, codes: canonicalCodes, baselineCodes: canonicalCodes }
+        : current);
+      setSavedPricing((current) => getActiveTenantId() === tenantId
+        ? { tenantId, codes: canonicalCodes, pricing: result.pricing }
+        : current);
     } catch {
       // The mutation error is rendered below; retaining the draft keeps the attempted selection visible.
     }
@@ -134,6 +145,7 @@ export function SpecialtyManager() {
 
   const catalog = catalogQuery.data ?? [];
   const modules = tenantModulesQuery.data ?? [];
+  const moduleStateKnown = tenantModulesQuery.isSuccess && !tenantModulesQuery.isError;
   const enabledModulesCount = modules.filter((module) => module.enabled).length;
   const canEdit = canConfigure && draftIsReady;
 
@@ -308,7 +320,7 @@ export function SpecialtyManager() {
           )}
           {selectedModuleKeys.length === 0 ? (
             <p className="text-sm text-muted-foreground">Selecciona una especialidad para ver sus módulos.</p>
-          ) : selectedModuleKeys.map((moduleKey) => {
+          ) : moduleStateKnown ? selectedModuleKeys.map((moduleKey) => {
             const tenantModule = modules.find((item) => item.moduleKey === moduleKey);
             const specialtyCode = specialtyCodeByModuleKey.get(moduleKey);
             const requiresSavedSpecialty = specialtyCode !== undefined && !persistedCodeSet.has(specialtyCode);
@@ -326,7 +338,7 @@ export function SpecialtyManager() {
                 />
               </label>
             );
-          })}
+          }) : null}
         </CardContent>
       </Card>
     </div>
