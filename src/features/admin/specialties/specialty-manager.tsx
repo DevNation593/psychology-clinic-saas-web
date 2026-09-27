@@ -19,6 +19,7 @@ import { UserRole, type SpecialtyPricingSummary } from '@/types';
 interface SpecialtyDraft {
   tenantId: string;
   codes: string[];
+  baselineCodes: string[];
 }
 
 interface SavedPricing {
@@ -45,7 +46,8 @@ function formatMoney(amount: number, currency: string): string {
 }
 
 function sameCodes(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((code, index) => code === right[index]);
+  const rightSet = new Set(right);
+  return left.length === right.length && left.every((code) => rightSet.has(code));
 }
 
 export function SpecialtyManager() {
@@ -64,9 +66,18 @@ export function SpecialtyManager() {
   useEffect(() => {
     if (!tenantId || !catalogQuery.data || !tenantSpecialtiesQuery.data) return;
 
-    setDraft((current) => current?.tenantId === tenantId
-      ? current
-      : { tenantId, codes: tenantSpecialtiesQuery.data.map((specialty) => specialty.code) });
+    const serverCodes = tenantSpecialtiesQuery.data.map((specialty) => specialty.code);
+    setDraft((current) => {
+      if (current?.tenantId !== tenantId) {
+        return { tenantId, codes: serverCodes, baselineCodes: serverCodes };
+      }
+      const isClean = sameCodes(current.codes, current.baselineCodes);
+      return {
+        tenantId,
+        codes: isClean ? serverCodes : current.codes,
+        baselineCodes: serverCodes,
+      };
+    });
   }, [catalogQuery.data, tenantId, tenantSpecialtiesQuery.data]);
 
   const draftIsReady = Boolean(
@@ -80,6 +91,12 @@ export function SpecialtyManager() {
       .flatMap((specialty) => specialty.modules.map((module) => module.moduleKey));
     return [...new Set(keys)];
   }, [catalogQuery.data, selectedCodeSet]);
+  const persistedCodes = draft?.tenantId === tenantId ? draft.baselineCodes : EMPTY_CODES;
+  const persistedCodeSet = useMemo(() => new Set(persistedCodes), [persistedCodes]);
+  const specialtyCodeByModuleKey = useMemo(() => new Map(
+    (catalogQuery.data ?? [])
+      .flatMap((specialty) => specialty.modules.map((module) => [module.moduleKey, specialty.code] as const)),
+  ), [catalogQuery.data]);
 
   const pricingMetadata = tenant?.subscription?.specialtyPricing;
   const authoritativePricing = savedPricing?.tenantId === tenantId && sameCodes(savedPricing.codes, selectedCodes)
@@ -108,7 +125,7 @@ export function SpecialtyManager() {
     try {
       const result = await replaceSpecialties.mutateAsync(selectedCodes);
       const canonicalCodes = result.specialties.map((specialty) => specialty.code);
-      setDraft({ tenantId, codes: canonicalCodes });
+      setDraft({ tenantId, codes: canonicalCodes, baselineCodes: canonicalCodes });
       setSavedPricing({ tenantId, codes: canonicalCodes, pricing: result.pricing });
     } catch {
       // The mutation error is rendered below; retaining the draft keeps the attempted selection visible.
@@ -117,6 +134,7 @@ export function SpecialtyManager() {
 
   const catalog = catalogQuery.data ?? [];
   const modules = tenantModulesQuery.data ?? [];
+  const enabledModulesCount = modules.filter((module) => module.enabled).length;
   const canEdit = canConfigure && draftIsReady;
 
   return (
@@ -225,8 +243,8 @@ export function SpecialtyManager() {
 
           {displayedAddonsPrice !== null && displayedCurrency && draftIsReady && (
             <p aria-live="polite" className="text-sm text-muted-foreground">
-              {authoritativePricing ? 'Precio por especialidades:' : 'Estimado:'}{' '}
-              {formatMoney(displayedAddonsPrice, displayedCurrency)}
+              {authoritativePricing ? 'Precio mensual por especialidades:' : 'Estimado mensual:'}{' '}
+              {formatMoney(displayedAddonsPrice, displayedCurrency)} / mes
             </p>
           )}
 
@@ -257,22 +275,52 @@ export function SpecialtyManager() {
         <CardHeader>
           <CardTitle>Módulos clínicos</CardTitle>
           <CardDescription>
-            {modules.filter((module) => module.enabled).length} módulos habilitados para este consultorio.
+            {tenantModulesQuery.isLoading
+              ? 'Cargando módulos habilitados…'
+              : tenantModulesQuery.isError
+                ? 'No se pudo confirmar cuántos módulos están habilitados.'
+                : `${enabledModulesCount} módulo${enabledModulesCount === 1 ? '' : 's'} habilitado${enabledModulesCount === 1 ? '' : 's'} para este consultorio.`}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          {tenantModulesQuery.isLoading && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Cargando módulos del consultorio…
+            </p>
+          )}
+          {tenantModulesQuery.isError && (
+            <Alert variant="destructive" title="No se pudieron cargar los módulos">
+              {errorMessage(tenantModulesQuery.error, 'No se pudo consultar el estado de los módulos.')}
+              <div className="mt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => void tenantModulesQuery.refetch()}>
+                  Reintentar módulos
+                </Button>
+              </div>
+            </Alert>
+          )}
+          {selectedModuleKeys.some((moduleKey) => {
+            const specialtyCode = specialtyCodeByModuleKey.get(moduleKey);
+            return specialtyCode !== undefined && !persistedCodeSet.has(specialtyCode);
+          }) && (
+            <p id="module-needs-save-guidance" className="text-sm text-muted-foreground">
+              Guarda las especialidades antes de activar sus módulos.
+            </p>
+          )}
           {selectedModuleKeys.length === 0 ? (
             <p className="text-sm text-muted-foreground">Selecciona una especialidad para ver sus módulos.</p>
           ) : selectedModuleKeys.map((moduleKey) => {
             const tenantModule = modules.find((item) => item.moduleKey === moduleKey);
+            const specialtyCode = specialtyCodeByModuleKey.get(moduleKey);
+            const requiresSavedSpecialty = specialtyCode !== undefined && !persistedCodeSet.has(specialtyCode);
             return (
               <label key={moduleKey} className="flex items-center justify-between gap-4 rounded-lg border p-3">
                 <span className="text-sm font-medium">{moduleKey}</span>
                 <input
                   type="checkbox"
                   aria-label={moduleKey}
+                  aria-describedby={requiresSavedSpecialty ? 'module-needs-save-guidance' : undefined}
                   checked={tenantModule?.enabled ?? false}
-                  disabled={!canConfigure || !draftIsReady || tenantModulesQuery.isLoading || tenantModulesQuery.isError || setModuleEnabled.isPending}
+                  disabled={!canConfigure || !draftIsReady || requiresSavedSpecialty || tenantModulesQuery.isLoading || tenantModulesQuery.isError || setModuleEnabled.isPending}
                   onChange={(event) => setModuleEnabled.mutate({ moduleKey, enabled: event.currentTarget.checked })}
                   className="h-4 w-4 accent-primary"
                 />

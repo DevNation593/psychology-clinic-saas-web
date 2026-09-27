@@ -10,6 +10,12 @@ import { usePatientSessionPlan, useCreateSessionPlan, useUpdateSessionPlan } fro
 import { usePatientSpecialtyRecords, useCreateSpecialtyRecord } from '@/hooks/useSpecialtyRecords';
 import { useTenantModules, useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
+import {
+  SPECIALTY_FIELD_LABELS,
+  SPECIALTY_MODULE_FIELDS,
+  SpecialtyRecordEntryForm,
+  type SpecialtyRecordModuleOption,
+} from '@/features/patients/specialty-record-entry-form';
 import { canAccessClinicalNotes, canEditAppointment, canDeletePatient } from '@/types/guards';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
@@ -583,51 +589,27 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
 // ==========================================
 // SPECIALTY RECORDS TAB
 // ==========================================
-const SPECIALTY_FIELD_LABELS: Record<string, string> = {
-  testName: 'Nombre de prueba',
-  score: 'Puntaje',
-  interpretation: 'Interpretación',
-  weightKg: 'Peso (kg)',
-  heightCm: 'Altura (cm)',
-  bmi: 'IMC',
-  dietaryGoals: 'Objetivos alimenticios',
-  dailyCalories: 'Calorías diarias',
-  meals: 'Comidas sugeridas',
-  painLevel: 'Nivel de dolor (0-10)',
-  mobility: 'Movilidad',
-  progress: 'Evolución',
-  exercises: 'Ejercicios',
-  frequency: 'Frecuencia',
-  repetitions: 'Repeticiones',
-  procedure: 'Procedimiento',
-  tooth: 'Pieza dental',
-  treatmentStatus: 'Estado del tratamiento',
-  findings: 'Hallazgos',
-  surfaces: 'Superficies',
-};
-
-const SPECIALTY_MODULE_FIELDS: Record<string, string[]> = {
-  'psychology.assessments': ['testName', 'score', 'interpretation'],
-  'nutrition.assessments': ['weightKg', 'heightCm', 'bmi'],
-  'nutrition.diet-plans': ['dailyCalories', 'meals', 'dietaryGoals'],
-  'physiotherapy.evolution': ['painLevel', 'mobility', 'progress'],
-  'physiotherapy.exercise-plans': ['exercises', 'frequency', 'repetitions'],
-  'dentistry.treatments': ['procedure', 'tooth', 'treatmentStatus'],
-  'dentistry.odontogram': ['findings', 'surfaces'],
-};
-
 function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
   const { data: records = [], isLoading } = usePatientSpecialtyRecords(patientId);
   const createRecord = useCreateSpecialtyRecord(patientId);
-  const [selectedModule, setSelectedModule] = useState('');
-  const [formData, setFormData] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState('');
-
-  const { data: specialties = [] } = useTenantSpecialties();
-  const { data: enabledModules = [] } = useTenantModules();
+  const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
+  const specialtiesQuery = useTenantSpecialties();
+  const modulesQuery = useTenantModules();
+  const specialties = specialtiesQuery.data ?? [];
+  const enabledModules = modulesQuery.data ?? [];
+  const configurationStatus = specialtiesQuery.isError || modulesQuery.isError
+    ? 'error'
+    : !tenantId || specialtiesQuery.isPending || modulesQuery.isPending
+      ? 'loading'
+      : 'ready';
+  const configurationError = [specialtiesQuery.error, modulesQuery.error]
+    .map((error) => error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : undefined)
+    .find(Boolean);
 
   const enabledKeys = new Set(enabledModules.filter((module) => module.enabled).map((module) => module.moduleKey));
-  const moduleOptions = specialties.flatMap((specialty) =>
+  const moduleOptions: SpecialtyRecordModuleOption[] = specialties.flatMap((specialty) =>
     (specialty.modules || [])
       .filter((module) => enabledKeys.has(module.moduleKey) && SPECIALTY_MODULE_FIELDS[module.moduleKey])
       .map((module) => ({
@@ -636,95 +618,18 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
         moduleKey: module.moduleKey,
       })),
   );
-  const selectedOption = moduleOptions.find((option) => option.moduleKey === selectedModule);
-  const fields = selectedModule ? SPECIALTY_MODULE_FIELDS[selectedModule] || [] : [];
-
-  const handleModuleChange = (moduleKey: string) => {
-    setSelectedModule(moduleKey);
-    setFormData({});
-  };
-
-  const handleSubmit = () => {
-    if (!selectedOption) return;
-    createRecord.mutate(
-      {
-        specialtyCode: selectedOption.code,
-        moduleKey: selectedOption.moduleKey,
-        data: Object.fromEntries(fields.map((field) => [field, formData[field] || ''])),
-        notes: notes.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          setFormData({});
-          setNotes('');
-        },
-      },
-    );
-  };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Registrar evolución especializada</CardTitle>
-          <CardDescription>
-            Guarda evaluaciones, planes y evoluciones según la especialidad habilitada.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="specialty-module">Módulo</Label>
-            <select
-              id="specialty-module"
-              value={selectedModule}
-              onChange={(event) => handleModuleChange(event.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
-            >
-              <option value="">Selecciona un módulo</option>
-              {moduleOptions.map((option) => (
-                <option key={option.moduleKey} value={option.moduleKey}>
-                  {option.name} · {option.moduleKey.split('.')[1]}
-                </option>
-              ))}
-            </select>
-          </div>
-          {selectedModule && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {fields.map((field) => (
-                  <div key={field}>
-                    <Label htmlFor={`specialty-${field}`}>{SPECIALTY_FIELD_LABELS[field] || field}</Label>
-                    <Input
-                      id={`specialty-${field}`}
-                      required
-                      value={formData[field] || ''}
-                      onChange={(event) => setFormData({ ...formData, [field]: event.target.value })}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <Label htmlFor="specialty-notes">Notas adicionales</Label>
-                <Textarea
-                  id="specialty-notes"
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  rows={3}
-                  placeholder="Indicaciones, observaciones o seguimiento..."
-                />
-              </div>
-              <Button onClick={handleSubmit} disabled={createRecord.isPending} loading={createRecord.isPending}>
-                Guardar registro
-              </Button>
-            </>
-          )}
-          {moduleOptions.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No hay módulos especializados habilitados para este consultorio.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <SpecialtyRecordEntryForm
+        tenantId={tenantId}
+        patientId={patientId}
+        configurationStatus={configurationStatus}
+        configurationError={configurationError}
+        moduleOptions={moduleOptions}
+        isSaving={createRecord.isPending}
+        onSubmit={(payload) => createRecord.mutateAsync(payload)}
+      />
 
       <div className="space-y-3">
         <h3 className="text-lg font-semibold">Historial especializado</h3>

@@ -184,6 +184,53 @@ describe('SpecialtyManager', () => {
     expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('reconciles a clean draft to a same-tenant server refetch', async () => {
+    const { client } = renderManager();
+    await screen.findByRole('button', { name: /Psicología/ });
+    vi.mocked(tenantSpecialtiesApi.list).mockResolvedValue([psychologySelection, nutritionSelection]);
+
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['tenant', 'specialties', 'tenant-1'], exact: true });
+    });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('treats a draft toggled back to server state as clean before the next refetch', async () => {
+    const { client } = renderManager();
+    fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Psicología/ }));
+    expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true');
+
+    vi.mocked(tenantSpecialtiesApi.list).mockResolvedValue([nutritionSelection]);
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: ['tenant', 'specialties', 'tenant-1'], exact: true });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  it('discards tenant A draft state and initializes from tenant B selection after a tenant switch', async () => {
+    vi.mocked(tenantSpecialtiesApi.list).mockImplementation(async (requestedTenantId) =>
+      requestedTenantId === 'tenant-2' ? [nutritionSelection] : [psychologySelection]);
+    renderManager();
+    fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
+    expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'false');
+
+    act(() => {
+      useAuthStore.setState({ tenant: { ...useAuthStore.getState().tenant!, id: 'tenant-2' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'true');
+    });
+    expect(tenantSpecialtiesApi.list).toHaveBeenCalledWith('tenant-2');
+  });
+
   it('prevents saving an empty specialty selection', async () => {
     renderManager();
     fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
@@ -198,7 +245,7 @@ describe('SpecialtyManager', () => {
     renderManager();
     fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
 
-    expect(screen.getByText('Estimado: $15.50 USD')).toBeInTheDocument();
+    expect(screen.getByText('Estimado mensual: $15.50 USD / mes')).toBeInTheDocument();
   });
 
   it('keeps the attempted selection and server message when the API blocks removal', async () => {
@@ -228,7 +275,7 @@ describe('SpecialtyManager', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
 
-    expect(await screen.findByText('Precio por especialidades: $47.25 USD')).toBeInTheDocument();
+    expect(await screen.findByText('Precio mensual por especialidades: $47.25 USD / mes')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: /Nutrición/ })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -248,6 +295,25 @@ describe('SpecialtyManager', () => {
     ));
   });
 
+  it('requires a specialty to be saved before enabling one of its module switches', async () => {
+    vi.mocked(tenantSpecialtiesApi.replace).mockResolvedValue({
+      ...canonicalResult,
+      specialties: [psychology, nutrition],
+      pricing: { ...canonicalResult.pricing, selectedSpecialties: 2, billableSpecialties: 1 },
+    });
+    renderManager();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
+    const nutritionSwitch = await screen.findByRole('checkbox', { name: 'nutrition.assessments' });
+    expect(nutritionSwitch).toBeDisabled();
+    expect(nutritionSwitch).toHaveAccessibleDescription('Guarda las especialidades antes de activar sus módulos.');
+    fireEvent.click(nutritionSwitch);
+    expect(tenantModulesApi.setEnabled).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'nutrition.assessments' })).toBeEnabled());
+  });
+
   it('disables a pending module switch and restores server state after an error', async () => {
     const pending = deferred<TenantModule>();
     vi.mocked(tenantModulesApi.setEnabled).mockReturnValue(pending.promise);
@@ -265,6 +331,30 @@ describe('SpecialtyManager', () => {
     await act(async () => pending.reject({ message: 'No se pudo actualizar el módulo.' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo actualizar el módulo.');
     expect(screen.getByRole('checkbox', { name: 'psychology.assessments' })).toBeChecked();
+  });
+
+  it('shows module loading without treating unknown module state as zero', async () => {
+    const modules = deferred<TenantModule[]>();
+    vi.mocked(tenantModulesApi.list).mockReturnValue(modules.promise);
+    renderManager();
+
+    await waitFor(() => expect(tenantModulesApi.list).toHaveBeenCalledWith('tenant-1'));
+    expect(screen.getByText('Cargando módulos del consultorio…')).toBeInTheDocument();
+    expect(screen.queryByText(/0 módulos habilitados/)).not.toBeInTheDocument();
+
+    await act(async () => modules.resolve([psychologyModule]));
+    expect(await screen.findByText(/1 módulo habilitado para este consultorio/)).toBeInTheDocument();
+  });
+
+  it('shows a retry action and no authoritative count after module loading fails', async () => {
+    vi.mocked(tenantModulesApi.list).mockRejectedValueOnce(new Error('No se pudieron consultar los módulos.'));
+    renderManager();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron consultar los módulos.');
+    expect(screen.queryByText(/0 módulos habilitados/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar módulos' }));
+
+    expect(await screen.findByText(/1 módulo habilitado para este consultorio/)).toBeInTheDocument();
   });
 
   it('keeps specialty and module controls read-only without admin authority', async () => {
