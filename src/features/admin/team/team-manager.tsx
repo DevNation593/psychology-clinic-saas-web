@@ -116,7 +116,7 @@ export function TeamManager() {
   }, [tenantId]);
 
   const users = (usersQuery.data?.users ?? []).filter((user) => TEAM_USER_ROLES.has(user.role));
-  const usage = usageQuery.data as UsageMetrics | undefined;
+  const usage = usageQuery.isError ? undefined : usageQuery.data as UsageMetrics | undefined;
   const usageBelongsToTenant = !!tenantId && usage?.tenantId === tenantId;
   const profileLimit = usageBelongsToTenant ? usage.users.professionals.limit : undefined;
   const activeProfiles = usageBelongsToTenant

@@ -233,6 +233,46 @@ describe('TeamManager', () => {
     expect(screen.queryByText(/perfiles clínicos activos$/)).not.toBeInTheDocument();
   });
 
+  it.each([
+    {
+      resultKind: 'complete array',
+      users: [
+        makeUser({ id: 'active-after-usage-error' }),
+        makeUser({ id: 'inactive-after-usage-error', professionalProfile: { ...makeUser().professionalProfile!, isActive: false } }),
+      ],
+      expectedLocalCount: '1 perfiles clínicos activos',
+    },
+    {
+      resultKind: 'paginated page',
+      users: { data: [makeUser({ id: 'page-user' })], total: 40, page: 1, limit: 1 },
+      expectedLocalCount: null,
+    },
+  ])('ignores cached usage after a failed refetch with a $resultKind user result', async ({ users, expectedLocalCount }) => {
+    api.getUsage.mockResolvedValueOnce(makeUsage({ active: 4, limit: 8 }));
+    const { client } = renderManager(users);
+    expect(await screen.findByText('4 de 8 perfiles clínicos activos')).toBeInTheDocument();
+
+    api.getUsage.mockRejectedValueOnce(new Error('Usage refresh failed'));
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['subscription', 'usage'] });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Reintentar uso de perfiles clínicos' })).toBeInTheDocument();
+    });
+    expect(api.getUsage).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('4 de 8 perfiles clínicos activos')).not.toBeInTheDocument();
+    expect(screen.queryByText(/de 8 perfiles clínicos activos/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar uso de perfiles clínicos' })).toBeInTheDocument();
+    if (expectedLocalCount) {
+      expect(screen.getByText(expectedLocalCount)).toBeInTheDocument();
+      expect(screen.getByText(/no se pudo confirmar el uso ni el límite/i)).toBeInTheDocument();
+    } else {
+      expect(screen.getByText('No se pudo consultar el uso de perfiles clínicos.')).toBeInTheDocument();
+      expect(screen.queryByText(/perfiles clínicos activos/)).not.toBeInTheDocument();
+    }
+  });
+
   it('creates and edits through the narrow clients and invalidates users, subscription, and usage', async () => {
     const user = makeUser({ id: 'edit-1', firstName: 'Luis', lastName: 'Paz' });
     const { client } = renderManager([user]);
