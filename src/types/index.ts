@@ -419,10 +419,7 @@ export interface User {
   updatedAt: string;
 }
 
-export type TenantTeamRole =
-  | UserRole.ADMIN | UserRole.CLIENTE
-  | UserRole.PROFESIONAL | UserRole.PSICOLOGO
-  | UserRole.ASISTENTE;
+export type TenantTeamRole = UserRole.ADMIN | UserRole.PROFESIONAL | UserRole.ASISTENTE;
 
 export interface TenantTeamProfessionalProfileInput {
   specialtyId: string;
@@ -441,6 +438,16 @@ export interface CreateTenantUserInput {
   role: TenantTeamRole;
   professionalProfile?: TenantTeamProfessionalProfileInput;
 }
+
+export type UpdateTenantUserInput = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  role?: TenantTeamRole;
+  isActive?: boolean;
+  professionalProfile?: TenantTeamProfessionalProfileInput | null;
+};
 
 export interface ProfessionalProfile {
   userId: string;
@@ -464,11 +471,6 @@ export type UpdateSelfProfileInput = Partial<Pick<User, 'firstName' | 'lastName'
   professionalProfile?: Partial<
     Pick<ProfessionalProfile, 'professionalTitle' | 'licenseNumber' | 'bio'>
   >;
-};
-
-export type UserInput = Omit<Partial<User>, 'professionalProfile'> & {
-  specialtyId?: string;
-  professionalProfile?: Partial<ProfessionalProfile>;
 };
 
 // ==========================================

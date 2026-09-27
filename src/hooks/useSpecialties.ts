@@ -18,12 +18,12 @@ export function useSpecialtyCatalog() {
   return useQuery({ queryKey: QUERY_KEYS.SPECIALTY_CATALOG, queryFn: specialtyCatalogApi.list });
 }
 
-export function useTenantSpecialties() {
+export function useTenantSpecialties(enabled = true) {
   const tenantId = useTenantId();
   return useQuery({
     queryKey: QUERY_KEYS.TENANT_SPECIALTIES_SCOPED(tenantId ?? ''),
     queryFn: () => tenantSpecialtiesApi.list(requireTenantId(tenantId)),
-    enabled: !!tenantId,
+    enabled: !!tenantId && enabled,
   });
 }
 

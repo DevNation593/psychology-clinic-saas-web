@@ -151,6 +151,7 @@ export const QUERY_KEYS = {
   
   // Users
   USERS: ['users'],
+  USERS_SCOPED: (tenantId: string) => ['users', 'tenant', tenantId],
   USER_DETAIL: (id: string) => ['users', id],
   
   // Patients
@@ -181,7 +182,9 @@ export const QUERY_KEYS = {
   // Subscription
   PLANS: ['plans'],
   SUBSCRIPTION: ['subscription'],
+  SUBSCRIPTION_SCOPED: (tenantId: string) => ['subscription', 'tenant', tenantId],
   SUBSCRIPTION_USAGE: ['subscription', 'usage'],
+  SUBSCRIPTION_USAGE_SCOPED: (tenantId: string, period: string) => ['subscription', 'usage', tenantId, period],
   
   // Storage
   STORAGE_FILES: ['storage', 'files'],

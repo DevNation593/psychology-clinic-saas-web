@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/types';
-import { clinicOnboardingSchema, tenantTeamMemberSchema } from './schemas';
+import { clinicOnboardingSchema, tenantTeamMemberSchema, tenantTeamMemberUpdateSchema } from './schemas';
 
 const clinic = (overrides: Record<string, unknown> = {}) => ({
   clinicName: 'Centro Integral',
@@ -59,11 +59,11 @@ describe('clinicOnboardingSchema', () => {
 });
 
 describe('tenantTeamMemberSchema', () => {
-  it.each([UserRole.ADMIN, UserRole.CLIENTE, UserRole.ASISTENTE])('accepts %s without a profile', (role) => {
+  it.each([UserRole.ADMIN, UserRole.ASISTENTE])('accepts %s without a profile', (role) => {
     expect(tenantTeamMemberSchema.safeParse(member({ role })).success).toBe(true);
   });
 
-  it.each([UserRole.PROFESIONAL, UserRole.PSICOLOGO])('requires one specialty profile for %s', (role) => {
+  it.each([UserRole.PROFESIONAL])('requires one specialty profile for %s', (role) => {
     expect(tenantTeamMemberSchema.safeParse(member({ role })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ role, professionalProfile: { specialtyId: 'specialty-1', isActive: true } })).success).toBe(true);
     expect(tenantTeamMemberSchema.safeParse(member({ role, professionalProfile: { specialtyId: '' } })).success).toBe(false);
@@ -77,10 +77,88 @@ describe('tenantTeamMemberSchema', () => {
 
   it('rejects unsupported roles, missing passwords, and tenant/provider fields', () => {
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.SOPORTE })).success).toBe(false);
+    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.CLIENTE })).success).toBe(false);
+    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.PSICOLOGO })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ password: undefined })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ password: 'short' })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ tenantId: 'other-tenant' })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ managedByProvider: true })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.PROFESIONAL, specialtyIds: ['s1', 's2'], professionalProfile: { specialtyId: 's1' } })).success).toBe(false);
+  });
+
+  it('normalizes create identity and profile metadata through the shared contract', () => {
+    const result = tenantTeamMemberSchema.parse(member({
+      email: ' Ana@Example.com ',
+      firstName: ' Ana ',
+      lastName: ' Vega ',
+      phone: ' +593 99 ',
+      role: UserRole.PROFESIONAL,
+      professionalProfile: {
+        specialtyId: ' specialty-1 ',
+        professionalTitle: ' Psicóloga ',
+        licenseNumber: ' LIC-8 ',
+        bio: ' Clínica ',
+        isActive: true,
+      },
+    }));
+
+    expect(result).toEqual({
+      email: 'ana@example.com',
+      password: 'Secret123',
+      firstName: 'Ana',
+      lastName: 'Vega',
+      phone: '+593 99',
+      role: UserRole.PROFESIONAL,
+      professionalProfile: {
+        specialtyId: 'specialty-1',
+        professionalTitle: 'Psicóloga',
+        licenseNumber: 'LIC-8',
+        bio: 'Clínica',
+        isActive: true,
+      },
+    });
+  });
+});
+
+describe('tenantTeamMemberUpdateSchema', () => {
+  it('validates edits without requiring or accepting a password', () => {
+    const result = tenantTeamMemberUpdateSchema.safeParse({
+      email: ' Ana@Example.com ',
+      firstName: ' Ana ',
+      lastName: ' Vega ',
+      role: UserRole.ADMIN,
+    });
+
+    expect(result).toMatchObject({
+      success: true,
+      data: {
+        email: 'ana@example.com',
+        firstName: 'Ana',
+        lastName: 'Vega',
+        role: UserRole.ADMIN,
+      },
+    });
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      ...member(),
+      role: UserRole.ADMIN,
+    }).success).toBe(false);
+  });
+
+  it('requires a profile for professionals and rejects forbidden transport metadata', () => {
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.PROFESIONAL,
+    }).success).toBe(false);
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.ASISTENTE,
+      professionalProfile: { specialtyId: 'specialty-1' },
+    }).success).toBe(false);
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.ADMIN,
+      tenantId: 'tenant-other',
+    }).success).toBe(false);
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.ADMIN,
+      managedByProvider: true,
+    }).success).toBe(false);
   });
 });

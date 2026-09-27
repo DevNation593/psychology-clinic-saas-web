@@ -3,7 +3,8 @@ import { API_ENDPOINTS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import {
   User,
-  UserInput,
+  CreateTenantUserInput,
+  UpdateTenantUserInput,
   Patient,
   PatientDetail,
   Appointment,
@@ -47,9 +48,9 @@ import {
 // HELPER: Get tenantId from auth store
 // ==========================================
 
-function getTenantId(): string {
+function getTenantId(tenantIdOverride?: string): string {
   const state = useAuthStore.getState();
-  const tenantId = state.tenant?.id || state.user?.tenantId;
+  const tenantId = tenantIdOverride || state.tenant?.id || state.user?.tenantId;
   if (!tenantId) {
     throw new Error('No tenant ID available. User must be authenticated.');
   }
@@ -512,9 +513,9 @@ export const specialtyRecordsApi = {
 // ==========================================
 
 export const usersApi = {
-  list: (params?: { role?: string; isActive?: boolean; page?: number; limit?: number }) =>
+  list: (params?: { role?: string; isActive?: boolean; page?: number; limit?: number }, tenantId?: string) =>
     apiClient
-      .get<PaginatedResponse<User> | User[]>(API_ENDPOINTS.USERS(getTenantId()), { params })
+      .get<PaginatedResponse<User> | User[]>(API_ENDPOINTS.USERS(getTenantId(tenantId)), { params })
       .then((raw) =>
         Array.isArray(raw)
           ? raw.map(normalizeUser)
@@ -529,15 +530,15 @@ export const usersApi = {
       .get<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId))
       .then((raw) => normalizeUser(raw)),
 
-  create: (data: UserInput) =>
+  create: (data: CreateTenantUserInput, tenantId?: string) =>
     apiClient
-      .post<User>(API_ENDPOINTS.USERS(getTenantId()), data)
+      .post<User>(API_ENDPOINTS.USERS(getTenantId(tenantId)), data)
       .then((raw) => normalizeUser(raw)),
 
 
-  update: (userId: string, data: UserInput) =>
+  update: (userId: string, data: UpdateTenantUserInput, tenantId?: string) =>
     apiClient
-      .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId), data)
+      .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(tenantId), userId), data)
       .then((raw) => normalizeUser(raw)),
 
   updateSelf: (data: UpdateSelfProfileInput) =>
@@ -545,8 +546,8 @@ export const usersApi = {
       .patch<User>(API_ENDPOINTS.USER_SELF_PROFILE(getTenantId()), data)
       .then((raw) => normalizeUser(raw)),
 
-  delete: (userId: string) =>
-    apiClient.delete<void>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId)),
+  delete: (userId: string, tenantId?: string) =>
+    apiClient.delete<void>(API_ENDPOINTS.USER_DETAIL(getTenantId(tenantId), userId)),
 
   activate: (userId: string, password: string) =>
     apiClient.post<void>(API_ENDPOINTS.USER_ACTIVATE(getTenantId(), userId), { password }),
@@ -686,14 +687,14 @@ export const notificationsApi = {
 // ==========================================
 
 export const subscriptionApi = {
-  getCurrent: () =>
-    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION(getTenantId())).then((raw) => {
+  getCurrent: (tenantId?: string) =>
+    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION(getTenantId(tenantId))).then((raw) => {
       // API may return { subscription, tenant } or a direct subscription object.
       return normalizeSubscription(raw.subscription ?? raw);
     }),
 
-  getUsage: (params?: { period?: 'current' | 'previous' | string }) =>
-    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION_USAGE(getTenantId()), { params }).then((raw) => {
+  getUsage: (params?: { period?: 'current' | 'previous' | string }, tenantId?: string) =>
+    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION_USAGE(getTenantId(tenantId)), { params }).then((raw) => {
       // API shape: { period, usage, activity, warnings }
       if (raw?.users && raw?.patients && raw?.storage) {
         const professionals = raw.users.professionals ?? raw.users.psychologists;
@@ -712,7 +713,7 @@ export const subscriptionApi = {
         percentUsed: usage?.seats?.percentage ?? 0,
       };
       return {
-        tenantId: getTenantId(),
+        tenantId: getTenantId(tenantId),
         period: {
           start: raw?.period?.start ?? new Date().toISOString(),
           end: raw?.period?.end ?? new Date().toISOString(),

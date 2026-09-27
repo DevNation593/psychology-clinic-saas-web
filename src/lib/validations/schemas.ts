@@ -124,26 +124,39 @@ const teamProfileSchema = z.object({
   isActive: z.boolean().optional(),
 }).strict();
 
-export const tenantTeamMemberSchema = z.object({
+const tenantTeamMemberFields = {
   email: onboardingEmail,
-  password: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
   firstName: z.string().trim().min(1, 'Ingresa el nombre'),
   lastName: z.string().trim().min(1, 'Ingresa el apellido'),
   phone: z.string().trim().optional(),
   role: z.union([
-    z.literal(UserRole.ADMIN), z.literal(UserRole.CLIENTE),
-    z.literal(UserRole.PROFESIONAL), z.literal(UserRole.PSICOLOGO),
+    z.literal(UserRole.ADMIN),
+    z.literal(UserRole.PROFESIONAL),
     z.literal(UserRole.ASISTENTE),
   ]),
   professionalProfile: teamProfileSchema.optional(),
-}).strict().superRefine((data, context) => {
+};
+
+function refineTenantTeamMember(
+  data: { role: UserRole; professionalProfile?: { specialtyId: string } },
+  context: z.RefinementCtx,
+) {
   if ([UserRole.PROFESIONAL, UserRole.PSICOLOGO].includes(data.role) && !data.professionalProfile) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['professionalProfile'], message: 'Selecciona una especialidad' });
   }
   if (data.role === UserRole.ASISTENTE && data.professionalProfile) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['professionalProfile'], message: 'El asistente no puede tener perfil clínico' });
   }
-});
+}
+
+export const tenantTeamMemberSchema = z.object({
+  ...tenantTeamMemberFields,
+  password: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
+}).strict().superRefine(refineTenantTeamMember);
+
+export const tenantTeamMemberUpdateSchema = z.object(tenantTeamMemberFields)
+  .strict()
+  .superRefine(refineTenantTeamMember);
 
 export type TenantTeamMemberFormData = z.infer<typeof tenantTeamMemberSchema>;
 
