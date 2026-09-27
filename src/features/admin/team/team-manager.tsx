@@ -28,6 +28,14 @@ type ActionError = {
   message: string;
 };
 
+const TEAM_USER_ROLES = new Set<UserRole>([
+  UserRole.ADMIN,
+  UserRole.CLIENTE,
+  UserRole.PROFESIONAL,
+  UserRole.PSICOLOGO,
+  UserRole.ASISTENTE,
+]);
+
 function messageFrom(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null) {
     const response = 'response' in error ? error.response : undefined;
@@ -107,7 +115,7 @@ export function TeamManager() {
     setActionError(null);
   }, [tenantId]);
 
-  const users = usersQuery.data?.users ?? [];
+  const users = (usersQuery.data?.users ?? []).filter((user) => TEAM_USER_ROLES.has(user.role));
   const usage = usageQuery.data as UsageMetrics | undefined;
   const usageBelongsToTenant = !!tenantId && usage?.tenantId === tenantId;
   const profileLimit = usageBelongsToTenant ? usage.users.professionals.limit : undefined;
@@ -256,12 +264,25 @@ export function TeamManager() {
       )}
 
       <Alert
-        variant={profileLimit !== undefined && activeProfiles !== null && activeProfiles >= profileLimit ? 'warning' : 'default'}
+        variant={usageQuery.isError || (profileLimit !== undefined && activeProfiles !== null && activeProfiles >= profileLimit)
+          ? 'warning'
+          : 'default'}
         title="Uso de perfiles clínicos"
         description={usageDescription}
       >
+        {usageQuery.isError && activeProfiles !== null && (
+          <p role="status" className="text-sm text-destructive">
+            No se pudo confirmar el uso ni el límite de perfiles clínicos con el servidor. El número mostrado es solo un conteo local de la lista completa.
+          </p>
+        )}
         {usageQuery.isError && (
-          <Button type="button" size="sm" variant="outline" onClick={() => void usageQuery.refetch()}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-label="Reintentar uso de perfiles clínicos"
+            onClick={() => void usageQuery.refetch()}
+          >
             Reintentar uso
           </Button>
         )}

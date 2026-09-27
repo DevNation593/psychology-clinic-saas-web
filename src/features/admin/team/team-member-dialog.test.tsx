@@ -69,6 +69,9 @@ describe('TeamMemberDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Crear miembro' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Selecciona una especialidad');
+    const specialty = screen.getByLabelText('Especialidad');
+    expect(specialty.getAttribute('aria-describedby')?.split(' ')).toContain('team-member-specialty-error');
+    expect(document.getElementById('team-member-specialty-error')).toHaveTextContent('Selecciona una especialidad');
     expect(onSubmit).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText('Especialidad'), { target: { value: psychology.id } });
@@ -143,6 +146,27 @@ describe('TeamMemberDialog', () => {
     expect(screen.getByLabelText('Correo electrónico')).toHaveValue('ana@example.com');
     expect(screen.getByLabelText('Nombre')).toHaveValue('Ana');
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it('associates identity validation messages with their fields and describes the optional phone field', async () => {
+    renderDialog();
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'ana@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear miembro' }));
+
+    const identityErrors = [
+      ['Nombre', 'team-member-first-name-error', 'Ingresa el nombre'],
+      ['Apellido', 'team-member-last-name-error', 'Ingresa el apellido'],
+      ['Contraseña', 'team-member-password-error', 'La contraseña debe tener al menos 8 caracteres'],
+    ] as const;
+    for (const [label, errorId, message] of identityErrors) {
+      const field = screen.getByLabelText(label);
+      expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(errorId);
+      expect(document.getElementById(errorId)).toHaveTextContent(message);
+    }
+
+    const phone = screen.getByLabelText('Teléfono');
+    expect(phone.getAttribute('aria-describedby')?.split(' ')).toContain('team-member-phone-description');
+    expect(document.getElementById('team-member-phone-description')).toHaveTextContent('Opcional');
   });
 
   it('edits legacy professionals using a canonical role without a password or tenant field', async () => {

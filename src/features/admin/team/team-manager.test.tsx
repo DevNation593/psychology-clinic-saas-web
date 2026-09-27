@@ -146,6 +146,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('TeamManager', () => {
+  it.each(['array', 'paginated'])('shows only team-role users and their actions for a %s response', async (shape) => {
+    const rows = [
+      makeUser({ id: 'legacy-admin', firstName: 'Legacy', lastName: 'Admin', role: UserRole.CLIENTE, professionalProfile: undefined }),
+      makeUser({ id: 'legacy-professional', firstName: 'Legacy', lastName: 'Professional', role: UserRole.PSICOLOGO }),
+      makeUser({ id: 'assistant', firstName: 'Team', lastName: 'Assistant', role: UserRole.ASISTENTE, professionalProfile: undefined }),
+      makeUser({ id: 'patient', firstName: 'Patient', lastName: 'Outside', role: UserRole.PACIENTE }),
+      makeUser({ id: 'support', firstName: 'Support', lastName: 'Outside', role: UserRole.SOPORTE }),
+    ];
+    const response = shape === 'array'
+      ? rows
+      : { data: rows, total: rows.length, page: 1, limit: rows.length };
+    renderManager(response);
+
+    expect(await screen.findByText('Legacy Admin')).toBeInTheDocument();
+    expect(screen.getByText('Legacy Professional')).toBeInTheDocument();
+    expect(screen.getByText('Team Assistant')).toBeInTheDocument();
+    expect(screen.queryByText('Patient Outside')).not.toBeInTheDocument();
+    expect(screen.queryByText('Support Outside')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Editar Patient Outside' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Desactivar cuenta de Support Outside' })).not.toBeInTheDocument();
+  });
+
   it('renders array and paginated user results with separate account and clinical states', async () => {
     const manager = makeUser({
       firstName: 'Ana', lastName: 'Vega', role: UserRole.CLIENTE,
@@ -193,9 +215,14 @@ describe('TeamManager', () => {
       makeUser({ id: 'active-professional' }),
       makeUser({ id: 'inactive-professional', professionalProfile: { ...makeUser().professionalProfile!, isActive: false } }),
       makeUser({ id: 'assistant', role: UserRole.ASISTENTE, professionalProfile: undefined }),
+      makeUser({ id: 'patient-with-profile', role: UserRole.PACIENTE }),
+      makeUser({ id: 'support-with-profile', role: UserRole.SOPORTE }),
     ]);
 
     expect(await screen.findByText('1 perfiles clínicos activos')).toBeInTheDocument();
+    expect(screen.getByText(/no se pudo confirmar el uso ni el límite/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar uso de perfiles clínicos' })).toBeInTheDocument();
+    expect(screen.queryByText(/1 de \d+ perfiles clínicos activos/)).not.toBeInTheDocument();
     unmount();
 
     api.getUsage.mockRejectedValueOnce(new Error('Usage unavailable'));

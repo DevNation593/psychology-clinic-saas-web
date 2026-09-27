@@ -426,7 +426,7 @@ export interface TenantTeamProfessionalProfileInput {
   professionalTitle?: string;
   licenseNumber?: string;
   bio?: string;
-  isActive?: boolean;
+  isActive: boolean;
 }
 
 export interface CreateTenantUserInput {

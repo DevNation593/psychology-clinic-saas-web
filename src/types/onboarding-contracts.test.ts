@@ -7,6 +7,7 @@ import type {
   SpecialtyPricingSummary,
   SpecialtySelectionResult,
   TenantSpecialty,
+  TenantTeamProfessionalProfileInput,
   TenantModule,
   TenantModuleSelection,
   UpdateTenantUserInput,
@@ -55,6 +56,8 @@ describe('specialty onboarding wire contracts', () => {
   });
 
   it('keeps team user transports narrow and role creation canonical', () => {
+    expectTypeOf<Pick<TenantTeamProfessionalProfileInput, 'isActive'>>().toEqualTypeOf<{ isActive: boolean }>();
+    expectTypeOf<Omit<TenantTeamProfessionalProfileInput, 'isActive'>>().not.toExtend<TenantTeamProfessionalProfileInput>();
     expectTypeOf<CreateTenantUserInput>().toEqualTypeOf<{
       email: string;
       password: string;
@@ -67,7 +70,7 @@ describe('specialty onboarding wire contracts', () => {
         professionalTitle?: string;
         licenseNumber?: string;
         bio?: string;
-        isActive?: boolean;
+        isActive: boolean;
       };
     }>();
     expectTypeOf<UpdateTenantUserInput>().toEqualTypeOf<{
@@ -82,7 +85,7 @@ describe('specialty onboarding wire contracts', () => {
         professionalTitle?: string;
         licenseNumber?: string;
         bio?: string;
-        isActive?: boolean;
+        isActive: boolean;
       } | null;
     }>();
 

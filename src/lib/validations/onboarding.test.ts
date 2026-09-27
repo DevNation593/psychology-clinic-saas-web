@@ -75,6 +75,21 @@ describe('tenantTeamMemberSchema', () => {
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.ASISTENTE, professionalProfile })).success).toBe(false);
   });
 
+  it('requires clinical-profile activity metadata for create and update profiles', () => {
+    const profileWithoutActivity = { specialtyId: 'specialty-1' };
+    expect(tenantTeamMemberSchema.safeParse(member({
+      role: UserRole.ADMIN,
+      professionalProfile: profileWithoutActivity,
+    })).success).toBe(false);
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      email: 'member@example.com',
+      firstName: 'Luis',
+      lastName: 'Paz',
+      role: UserRole.ADMIN,
+      professionalProfile: profileWithoutActivity,
+    }).success).toBe(false);
+  });
+
   it('rejects unsupported roles, missing passwords, and tenant/provider fields', () => {
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.SOPORTE })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.CLIENTE })).success).toBe(false);

@@ -350,9 +350,9 @@ export function TeamMemberDialog({
               aria-invalid={!!fieldErrors.email}
               aria-describedby={fieldErrors.email ? 'team-member-email-error' : undefined}
               error={fieldErrors.email}
+              errorId="team-member-email-error"
               disabled={isSaving}
             />
-            {fieldErrors.email && <span id="team-member-email-error" className="sr-only">{fieldErrors.email}</span>}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -364,7 +364,9 @@ export function TeamMemberDialog({
                 value={values.firstName}
                 onChange={changeField('firstName')}
                 aria-invalid={!!fieldErrors.firstName}
+                aria-describedby={fieldErrors.firstName ? 'team-member-first-name-error' : undefined}
                 error={fieldErrors.firstName}
+                errorId="team-member-first-name-error"
                 disabled={isSaving}
               />
             </div>
@@ -376,7 +378,9 @@ export function TeamMemberDialog({
                 value={values.lastName}
                 onChange={changeField('lastName')}
                 aria-invalid={!!fieldErrors.lastName}
+                aria-describedby={fieldErrors.lastName ? 'team-member-last-name-error' : undefined}
                 error={fieldErrors.lastName}
+                errorId="team-member-last-name-error"
                 disabled={isSaving}
               />
             </div>
@@ -392,7 +396,9 @@ export function TeamMemberDialog({
                 value={values.password}
                 onChange={changeField('password')}
                 aria-invalid={!!fieldErrors.password}
+                aria-describedby={fieldErrors.password ? 'team-member-password-error' : undefined}
                 error={fieldErrors.password}
+                errorId="team-member-password-error"
                 disabled={isSaving}
               />
             </div>
@@ -407,9 +413,14 @@ export function TeamMemberDialog({
               value={values.phone}
               onChange={changeField('phone')}
               aria-invalid={!!fieldErrors.phone}
+              aria-describedby={fieldErrors.phone
+                ? 'team-member-phone-description team-member-phone-error'
+                : 'team-member-phone-description'}
               error={fieldErrors.phone}
+              errorId="team-member-phone-error"
               disabled={isSaving}
             />
+            <p id="team-member-phone-description" className="text-xs text-muted-foreground">Opcional</p>
           </div>
 
           <div className="space-y-2">
@@ -471,7 +482,9 @@ export function TeamMemberDialog({
                   onChange={(event) => setValue('specialtyId', event.target.value)}
                   disabled={isSaving || specialtiesLoading}
                   aria-invalid={!!fieldErrors.specialtyId}
-                  aria-describedby="team-member-specialty-description"
+                  aria-describedby={fieldErrors.specialtyId
+                    ? 'team-member-specialty-description team-member-specialty-error'
+                    : 'team-member-specialty-description'}
                 >
                   <option value="">Selecciona una especialidad</option>
                   {profileOptions.map((specialty) => (
@@ -487,7 +500,11 @@ export function TeamMemberDialog({
                       ? 'El consultorio no tiene especialidades habilitadas.'
                       : 'Selecciona exactamente una especialidad habilitada.'}
                 </p>
-                {fieldErrors.specialtyId && <p className="text-sm text-destructive" role="alert">{fieldErrors.specialtyId}</p>}
+                {fieldErrors.specialtyId && (
+                  <p id="team-member-specialty-error" className="text-sm text-destructive" role="alert">
+                    {fieldErrors.specialtyId}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

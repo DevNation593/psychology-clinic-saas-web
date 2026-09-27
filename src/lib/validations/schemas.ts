@@ -121,7 +121,7 @@ const teamProfileSchema = z.object({
   professionalTitle: z.string().trim().optional(),
   licenseNumber: z.string().trim().optional(),
   bio: z.string().trim().optional(),
-  isActive: z.boolean().optional(),
+  isActive: z.boolean(),
 }).strict();
 
 const tenantTeamMemberFields = {
