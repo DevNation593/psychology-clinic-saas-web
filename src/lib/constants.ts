@@ -52,6 +52,8 @@ export const ROUTES = {
 // ==========================================
 
 export const API_ENDPOINTS = {
+  SPECIALTY_CATALOG: '/specialties',
+  CLINIC_ONBOARDING: '/onboarding/tenants',
   // Auth (public, no tenantId)
   LOGIN: '/auth/login',
   REFRESH: '/auth/refresh',
@@ -70,7 +72,7 @@ export const API_ENDPOINTS = {
   TENANT_SPECIALTIES: (tenantId: string) => `/tenants/${tenantId}/specialties`,
   TENANT_MODULES: (tenantId: string) => `/tenants/${tenantId}/modules`,
   TENANT_MODULE: (tenantId: string, moduleKey: string) =>
-    `/tenants/${tenantId}/modules/${moduleKey}`,
+    `/tenants/${tenantId}/modules/${encodeURIComponent(moduleKey)}`,
   TENANT_SPECIALTIES_UPDATE: (tenantId: string) => `/tenants/${tenantId}/specialties`,
 
   // Users (tenant-scoped)
@@ -143,11 +145,13 @@ export const STORAGE_KEYS = {
 // ==========================================
 
 export const QUERY_KEYS = {
+  SPECIALTY_CATALOG: ['specialties', 'catalog'],
   // Auth
   ME: ['me'],
   
   // Users
   USERS: ['users'],
+  USERS_SCOPED: (tenantId: string) => ['users', 'tenant', tenantId],
   USER_DETAIL: (id: string) => ['users', id],
   
   // Patients
@@ -178,7 +182,9 @@ export const QUERY_KEYS = {
   // Subscription
   PLANS: ['plans'],
   SUBSCRIPTION: ['subscription'],
+  SUBSCRIPTION_SCOPED: (tenantId: string) => ['subscription', 'tenant', tenantId],
   SUBSCRIPTION_USAGE: ['subscription', 'usage'],
+  SUBSCRIPTION_USAGE_SCOPED: (tenantId: string, period: string) => ['subscription', 'usage', tenantId, period],
   
   // Storage
   STORAGE_FILES: ['storage', 'files'],
@@ -188,7 +194,11 @@ export const QUERY_KEYS = {
   TENANT: ['tenant'],
   TENANT_SETTINGS: ['tenant', 'settings'],
   TENANT_SPECIALTIES: ['tenant', 'specialties'],
+  TENANT_SPECIALTIES_SCOPED: (tenantId: string) => ['tenant', 'specialties', tenantId],
+  LEGACY_TENANT_SPECIALTIES: ['tenant-specialties'],
+  LEGACY_PATIENT_SPECIALTIES: ['specialties'],
   TENANT_MODULES: ['tenant', 'modules'],
+  TENANT_MODULES_SCOPED: (tenantId: string) => ['tenant', 'modules', tenantId],
 } as const;
 
 // ==========================================

@@ -153,6 +153,12 @@ export interface Subscription {
   cancelAtPeriodEnd: boolean;
   createdAt: string;
   updatedAt: string;
+  specialtyPricing?: {
+    includedSpecialties: number;
+    selectedSpecialties: number;
+    specialtyUnitPrice: number;
+    currency?: string;
+  };
 }
 
 export interface UsageMetrics {
@@ -262,10 +268,55 @@ export interface Specialty {
   modules?: SpecialtyModule[];
 }
 
+/** Full tenant specialty row returned by GET /tenants/:id/specialties. */
+export interface TenantSpecialty extends Omit<Specialty, 'description' | 'modules'> {
+  description: string | null;
+  modules: SpecialtyModule[];
+}
+
 export interface SpecialtyModule {
   id: string;
   specialtyId: string;
   moduleKey: string;
+}
+
+/** Public catalog projection; the API does not send the internal active flag. */
+export interface SpecialtyCatalogModule {
+  id: string;
+  moduleKey: string;
+}
+
+export interface SpecialtyCatalogItem {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  modules: SpecialtyCatalogModule[];
+}
+
+export interface SpecialtyPricingSummary {
+  includedSpecialties: number;
+  selectedSpecialties: number;
+  billableSpecialties: number;
+  specialtyUnitPrice: number;
+  basePlanPrice: number;
+  featureAddonsPrice: number;
+  specialtyAddonsPrice: number;
+  totalMonthly: number;
+  currency: string;
+}
+
+/** State in a selection result; GET /modules returns full TenantModule rows. */
+export interface TenantModuleSelection {
+  moduleKey: string;
+  enabled: boolean;
+}
+
+export interface SpecialtySelectionResult {
+  tenantId: string;
+  specialties: SpecialtyCatalogItem[];
+  modules: TenantModuleSelection[];
+  pricing: SpecialtyPricingSummary;
 }
 
 export interface TenantModule {
@@ -368,6 +419,36 @@ export interface User {
   updatedAt: string;
 }
 
+export type TenantTeamRole = UserRole.ADMIN | UserRole.PROFESIONAL | UserRole.ASISTENTE;
+
+export interface TenantTeamProfessionalProfileInput {
+  specialtyId: string;
+  professionalTitle?: string;
+  licenseNumber?: string;
+  bio?: string;
+  isActive: boolean;
+}
+
+export interface CreateTenantUserInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role: TenantTeamRole;
+  professionalProfile?: TenantTeamProfessionalProfileInput;
+}
+
+export type UpdateTenantUserInput = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  role?: TenantTeamRole;
+  isActive?: boolean;
+  professionalProfile?: TenantTeamProfessionalProfileInput | null;
+};
+
 export interface ProfessionalProfile {
   userId: string;
   specialtyId: string;
@@ -390,11 +471,6 @@ export type UpdateSelfProfileInput = Partial<Pick<User, 'firstName' | 'lastName'
   professionalProfile?: Partial<
     Pick<ProfessionalProfile, 'professionalTitle' | 'licenseNumber' | 'bio'>
   >;
-};
-
-export type UserInput = Omit<Partial<User>, 'professionalProfile'> & {
-  specialtyId?: string;
-  professionalProfile?: Partial<ProfessionalProfile>;
 };
 
 // ==========================================
@@ -614,6 +690,7 @@ export interface PaginatedResponse<T> {
 
 export interface ApiError {
   message: string;
+  status?: number;
   code?: string;
   field?: string;
   details?: Record<string, any>;
@@ -622,6 +699,56 @@ export interface ApiError {
 // ==========================================
 // ONBOARDING
 // ==========================================
+
+export interface CreateClinicOnboardingInput {
+  clinicName: string;
+  contactEmail: string;
+  contactPhone?: string;
+  address?: string;
+  timezone: string;
+  locale: string;
+  specialtyCodes: string[];
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+  adminPassword: string;
+  adminProvidesCare: boolean;
+  adminSpecialtyCode?: string;
+  adminProfessionalTitle?: string;
+  adminLicenseNumber?: string;
+  adminBio?: string;
+}
+
+export interface ClinicOnboardingTenant {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  tenantType: TenantType.CLINIC;
+  onboardingCompleted: boolean;
+}
+
+export interface ClinicOnboardingAdmin {
+  id: string;
+  tenantId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole.ADMIN;
+  professionalProfile: {
+    isActive: boolean;
+    specialty: Pick<SpecialtyCatalogItem, 'id' | 'code' | 'name'>;
+  } | null;
+}
+
+export interface ClinicOnboardingResult {
+  tenant: ClinicOnboardingTenant;
+  admin: ClinicOnboardingAdmin;
+  specialties: SpecialtyCatalogItem[];
+  modules: TenantModuleSelection[];
+  pricing: SpecialtyPricingSummary;
+}
 
 export interface OnboardingTenantInput {
   clinicName: string;

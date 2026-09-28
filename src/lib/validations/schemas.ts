@@ -82,6 +82,84 @@ export type OnboardingTenantFormData = z.infer<typeof onboardingTenantSchema>;
 export type OnboardingAdminFormData = z.infer<typeof onboardingAdminSchema>;
 export type OnboardingInviteFormData = z.infer<typeof onboardingInviteSchema>;
 
+const onboardingEmail = z.string().trim().toLowerCase().email('Email inválido');
+const specialtyCode = z.string().trim().toUpperCase().min(1, 'Selecciona una especialidad');
+
+export const clinicOnboardingSchema = z.object({
+  clinicName: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
+  contactEmail: onboardingEmail,
+  contactPhone: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  timezone: z.string().trim().min(1, 'Selecciona una zona horaria'),
+  locale: z.string().trim().min(1, 'Selecciona un idioma'),
+  specialtyCodes: z.array(specialtyCode).min(1, 'Selecciona al menos una especialidad')
+    .transform((codes) => [...new Set(codes)]),
+  adminFirstName: z.string().trim().min(1, 'Ingresa el nombre'),
+  adminLastName: z.string().trim().min(1, 'Ingresa el apellido'),
+  adminEmail: onboardingEmail,
+  adminPassword: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
+  adminProvidesCare: z.boolean(),
+  adminSpecialtyCode: specialtyCode.optional(),
+  adminProfessionalTitle: z.string().trim().optional(),
+  adminLicenseNumber: z.string().trim().optional(),
+  adminBio: z.string().trim().optional(),
+}).strict().superRefine((data, context) => {
+  if (data.adminProvidesCare) {
+    if (!data.adminSpecialtyCode || !data.specialtyCodes.includes(data.adminSpecialtyCode)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminSpecialtyCode'], message: 'Selecciona una especialidad habilitada' });
+    }
+  } else if (data.adminSpecialtyCode !== undefined || data.adminProfessionalTitle !== undefined ||
+    data.adminLicenseNumber !== undefined || data.adminBio !== undefined) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminProvidesCare'], message: 'Los datos clínicos requieren atención a pacientes' });
+  }
+});
+
+export type ClinicOnboardingFormData = z.infer<typeof clinicOnboardingSchema>;
+
+const teamProfileSchema = z.object({
+  specialtyId: z.string().trim().min(1, 'Selecciona una especialidad'),
+  professionalTitle: z.string().trim().optional(),
+  licenseNumber: z.string().trim().optional(),
+  bio: z.string().trim().optional(),
+  isActive: z.boolean(),
+}).strict();
+
+const tenantTeamMemberFields = {
+  email: onboardingEmail,
+  firstName: z.string().trim().min(1, 'Ingresa el nombre'),
+  lastName: z.string().trim().min(1, 'Ingresa el apellido'),
+  phone: z.string().trim().optional(),
+  role: z.union([
+    z.literal(UserRole.ADMIN),
+    z.literal(UserRole.PROFESIONAL),
+    z.literal(UserRole.ASISTENTE),
+  ]),
+  professionalProfile: teamProfileSchema.optional(),
+};
+
+function refineTenantTeamMember(
+  data: { role: UserRole; professionalProfile?: { specialtyId: string } },
+  context: z.RefinementCtx,
+) {
+  if ([UserRole.PROFESIONAL, UserRole.PSICOLOGO].includes(data.role) && !data.professionalProfile) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['professionalProfile'], message: 'Selecciona una especialidad' });
+  }
+  if (data.role === UserRole.ASISTENTE && data.professionalProfile) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['professionalProfile'], message: 'El asistente no puede tener perfil clínico' });
+  }
+}
+
+export const tenantTeamMemberSchema = z.object({
+  ...tenantTeamMemberFields,
+  password: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
+}).strict().superRefine(refineTenantTeamMember);
+
+export const tenantTeamMemberUpdateSchema = z.object(tenantTeamMemberFields)
+  .strict()
+  .superRefine(refineTenantTeamMember);
+
+export type TenantTeamMemberFormData = z.infer<typeof tenantTeamMemberSchema>;
+
 // ==========================================
 // PATIENT SCHEMAS
 // ==========================================
