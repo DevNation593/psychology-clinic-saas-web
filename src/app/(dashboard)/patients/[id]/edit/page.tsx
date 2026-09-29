@@ -54,7 +54,7 @@ export default function EditPatientPage() {
         email: patient.email || '',
         phone: patient.phone || '',
         dateOfBirth: patient.dateOfBirth || '',
-        gender: patient.gender,
+        gender: patient.gender ?? undefined,
         address: patient.address || '',
         emergencyContactName: patient.emergencyContactName || '',
         emergencyContactPhone: patient.emergencyContactPhone || '',

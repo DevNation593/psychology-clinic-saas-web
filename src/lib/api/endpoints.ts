@@ -11,6 +11,7 @@ import {
   PatientTeamMember,
   EligiblePatientProfessional,
   Appointment,
+  AppointmentProfessional,
   AppointmentCreateInput,
   AppointmentUpdateInput,
   AppointmentFilters,
@@ -612,27 +613,39 @@ export const patientTeamApi = {
 
 export const appointmentsApi = {
   list: (params?: AppointmentFilters, tenantId?: string) =>
-    apiClient.get<PaginatedResponse<Appointment> | Appointment[]>(API_ENDPOINTS.APPOINTMENTS(getTenantId(tenantId)), { params })
+    apiClient.get<PaginatedResponse<AppointmentResponse> | AppointmentResponse[]>(
+      API_ENDPOINTS.APPOINTMENTS(getTenantId(tenantId)), { params: appointmentFilterParams(params) })
       .then((response) => Array.isArray(response)
         ? response.map(normalizeAppointment)
         : { ...response, data: response.data.map(normalizeAppointment) }),
 
   get: (appointmentId: string, tenantId?: string) =>
-    apiClient.get<Appointment>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(tenantId), appointmentId))
+    apiClient.get<AppointmentResponse>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(tenantId), appointmentId))
       .then(normalizeAppointment),
 
   create: (data: AppointmentCreateInput, tenantId?: string) =>
-    apiClient.post<Appointment>(API_ENDPOINTS.APPOINTMENTS(getTenantId(tenantId)), appointmentPayload(data))
+    apiClient.post<AppointmentResponse>(API_ENDPOINTS.APPOINTMENTS(getTenantId(tenantId)), appointmentPayload(data))
       .then(normalizeAppointment),
 
   update: (appointmentId: string, data: AppointmentUpdateInput, tenantId?: string) =>
-    apiClient.patch<Appointment>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(tenantId), appointmentId), appointmentPayload(data))
+    apiClient.patch<AppointmentResponse>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(tenantId), appointmentId), appointmentPayload(data))
       .then(normalizeAppointment),
 
   cancel: (appointmentId: string, reason: string, tenantId?: string) =>
-    apiClient.post<Appointment>(API_ENDPOINTS.APPOINTMENT_CANCEL(getTenantId(tenantId), appointmentId), { reason })
+    apiClient.post<AppointmentResponse>(API_ENDPOINTS.APPOINTMENT_CANCEL(getTenantId(tenantId), appointmentId), { reason })
       .then(normalizeAppointment),
 };
+
+const appointmentFilterFields = [
+  'professionalId', 'specialtyId', 'patientId', 'status', 'from', 'to',
+] as const;
+
+function appointmentFilterParams(filters?: AppointmentFilters): AppointmentFilters | undefined {
+  if (!filters) return undefined;
+  return Object.fromEntries(appointmentFilterFields
+    .filter((field) => field in filters)
+    .map((field) => [field, filters[field]]));
+}
 
 const appointmentFields = [
   'patientId', 'professionalId', 'specialtyId', 'title', 'description', 'startTime',
@@ -643,16 +656,17 @@ function appointmentPayload(data: AppointmentUpdateInput): AppointmentUpdateInpu
   return Object.fromEntries(appointmentFields.filter((field) => field in data).map((field) => [field, data[field]]));
 }
 
-function normalizeAppointment(raw: Appointment): Appointment {
+type AppointmentResponse = Omit<Appointment, 'professionalId' | 'professional' | 'psychologistId' | 'psychologist'> & {
+  professionalId?: string | null;
+  professional?: AppointmentProfessional | null;
+  psychologistId: string;
+  psychologist?: AppointmentProfessional | null;
+};
+
+function normalizeAppointment(raw: AppointmentResponse): Appointment {
   const professionalId = raw.professionalId || raw.psychologistId;
-  const candidate = raw.professional?.id === professionalId
-    ? raw.professional
-    : raw.psychologist?.id === professionalId
-      ? raw.psychologist
-      : raw.professional || raw.psychologist;
-  const professional = candidate && candidate.id !== professionalId
-    ? { ...candidate, id: professionalId }
-    : candidate;
+  const professional = [raw.professional, raw.psychologist]
+    .find((candidate) => candidate?.id === professionalId) ?? null;
   return {
     ...raw,
     professionalId,

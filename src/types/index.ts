@@ -503,6 +503,43 @@ export interface Patient {
   tenantId: string;
   firstName: string;
   lastName: string;
+  email: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  gender: Gender | null;
+  address: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  assignedPsychologistId: string | null;
+  assignedPsychologist?: PatientAssignee | null;
+  isActive: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PatientAssignee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl: string | null;
+  role: UserRole;
+  phone?: string | null;
+}
+
+export interface PatientDetail extends Patient {
+  _count: { appointments: number; clinicalNotes: number; tasks: number };
+  // Older patient detail components still read these optional display aliases.
+  appointmentsCount?: number;
+  tasksCount?: number;
+  lastAppointmentDate?: string;
+  nextAppointmentDate?: string;
+}
+
+export interface PatientInput {
+  firstName: string;
+  lastName: string;
   email?: string;
   phone?: string;
   dateOfBirth?: string;
@@ -510,27 +547,23 @@ export interface Patient {
   address?: string;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
-  assignedPsychologistId?: string;
-  assignedPsychologist?: User;
-  isActive: boolean;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-  updatedBy: string;
 }
 
-export interface PatientDetail extends Patient {
-  appointmentsCount: number;
-  tasksCount: number;
-  lastAppointmentDate?: string;
-  nextAppointmentDate?: string;
+export interface SpecialtySummary {
+  id: string;
+  code: string;
+  name: string;
 }
 
-export type PatientInput = Pick<Patient,
-  'firstName' | 'lastName' | 'email' | 'phone' | 'dateOfBirth' | 'gender' |
-  'address' | 'emergencyContactName' | 'emergencyContactPhone' | 'notes'
->;
+export interface TeamProfessional {
+  id: string;
+  firstName: string;
+  lastName: string;
+  professionalTitle: string | null;
+  licenseNumber: string | null;
+  specialty: SpecialtySummary | null;
+}
 
 export interface PatientTeamMember {
   id: string;
@@ -539,15 +572,28 @@ export interface PatientTeamMember {
   assignedAt: string;
   assignedBy: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
   isActive: boolean;
-  professional: Pick<User, 'id' | 'firstName' | 'lastName' | 'professionalTitle' | 'licenseNumber'> & {
-    specialty: Specialty | null;
-  };
+  professional: TeamProfessional;
 }
 
-export type EligiblePatientProfessional = Omit<PatientTeamMember['professional'], 'specialty'> & {
-  specialty: Specialty;
+export type EligiblePatientProfessional = Omit<TeamProfessional, 'specialty'> & {
+  specialty: SpecialtySummary;
   isAssigned: boolean;
 };
+
+export interface AppointmentProfessional {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface AppointmentPatient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+}
 
 // ==========================================
 // APPOINTMENT
@@ -557,30 +603,31 @@ export interface Appointment {
   id: string;
   tenantId: string;
   patientId: string;
-  patient: Patient;
+  patient: AppointmentPatient;
   professionalId: string;
-  professional: User;
-  specialtyId: string;
-  specialty: Specialty;
+  professional: AppointmentProfessional | null;
+  specialtyId: string | null;
+  specialty: SpecialtySummary | null;
   psychologistId: string;
-  psychologist: User;
+  psychologist: AppointmentProfessional | null;
   title: string;
-  description?: string;
+  description: string | null;
   startTime: string;
   endTime: string;
   duration: number;
   status: AppointmentStatus;
-  location?: string;
+  location: string | null;
   isOnline: boolean;
-  meetingUrl?: string;
+  meetingUrl: string | null;
   notes?: string;
-  cancelledAt?: string;
-  cancelledBy?: string;
-  cancellationReason?: string;
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancellationReason: string | null;
+  reminderSent24h: boolean;
+  reminderSent2h: boolean;
+  lastReminderSentAt: string | null;
   createdAt: string;
   updatedAt: string;
-  createdBy: string;
-  updatedBy: string;
 }
 
 export interface AppointmentCreateInput {
@@ -605,8 +652,6 @@ export interface AppointmentFilters {
   status?: AppointmentStatus;
   from?: string;
   to?: string;
-  page?: number;
-  limit?: number;
 }
 
 // ==========================================

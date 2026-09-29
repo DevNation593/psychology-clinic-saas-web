@@ -42,10 +42,12 @@ export function useCreatePatient() {
 export function useUpdatePatient(id: string) {
   const client = useQueryClient();
   return useTenantMutation({
-    mutationFn: (data: Partial<PatientInput>, tenantId: string) => patientsApi.update(id, data, tenantId),
-    onSuccess: async (_result, _data, scopedTenant) => {
+    captureResource: () => id,
+    mutationFn: (data: Partial<PatientInput>, tenantId: string, capturedId: string) =>
+      patientsApi.update(capturedId, data, tenantId),
+    onSuccess: async (_result, _data, scopedTenant, capturedId) => {
       await Promise.all([
-        client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DETAIL_SCOPED(scopedTenant, id), exact: true }),
+        client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DETAIL_SCOPED(scopedTenant, capturedId), exact: true }),
         invalidateScopedLists(client, 'patients', scopedTenant),
       ]);
       toast.success('Paciente actualizado exitosamente');

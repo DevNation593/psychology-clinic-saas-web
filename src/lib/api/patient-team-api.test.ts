@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
 import { appointmentsApi, extractArray, patientTeamApi, patientsApi } from './endpoints';
+import type { Appointment, AppointmentFilters, Patient, PatientTeamMember } from '@/types';
+import { AppointmentStatus } from '@/types';
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() }));
 vi.mock('./client', () => ({ apiClient: http }));
@@ -74,8 +76,8 @@ describe('appointment response boundary', () => {
       await appointmentsApi.cancel('appointment-1', 'reason', 'tenant-1')];
     for (const row of results) {
       expect(row).toMatchObject({ id: 'appointment-1', title: 'Consulta', patientId: 'patient-1',
-        professionalId: 'pro-1', professional: { id: 'pro-1' },
-        psychologistId: 'pro-1', psychologist: { id: 'pro-1' } });
+        professionalId: 'pro-1', professional: { id: 'pro-1', firstName: 'Ana' },
+        psychologistId: 'pro-1', psychologist: { id: 'pro-1', firstName: 'Ana' } });
     }
     expect(http.post).toHaveBeenCalledWith('/tenants/tenant-1/appointments', input);
   });
@@ -85,15 +87,76 @@ describe('appointment response boundary', () => {
       professional: { id: 'pro-2', firstName: 'Noa' } });
     await expect(appointmentsApi.get('appointment-1', 'tenant-1')).resolves.toMatchObject({
       professionalId: 'pro-2', psychologistId: 'pro-2',
-      professional: { id: 'pro-2' }, psychologist: { id: 'pro-2' }, title: 'Consulta',
+      professional: { id: 'pro-2', firstName: 'Noa' },
+      psychologist: { id: 'pro-2', firstName: 'Noa' }, title: 'Consulta',
     });
   });
 
-  it('aligns the fallback professional object with a canonical ID when aliases disagree', async () => {
+  it('does not relabel a stale legacy object as a different canonical professional', async () => {
     http.get.mockResolvedValue({ ...legacy, professionalId: 'pro-2' });
     await expect(appointmentsApi.get('appointment-1', 'tenant-1')).resolves.toMatchObject({
-      professionalId: 'pro-2', professional: { id: 'pro-2' },
-      psychologistId: 'pro-2', psychologist: { id: 'pro-2' },
+      professionalId: 'pro-2', professional: null,
+      psychologistId: 'pro-2', psychologist: null,
+    });
+  });
+
+  it('uses the matching legacy object when the canonical object is stale', async () => {
+    http.get.mockResolvedValue({ ...legacy, professionalId: 'pro-1',
+      professional: { id: 'pro-2', firstName: 'Wrong' } });
+    await expect(appointmentsApi.get('appointment-1', 'tenant-1')).resolves.toMatchObject({
+      professionalId: 'pro-1', professional: { id: 'pro-1', firstName: 'Ana' },
+      psychologistId: 'pro-1', psychologist: { id: 'pro-1', firstName: 'Ana' },
+    });
+  });
+
+  it('sends only supported appointment list filters', async () => {
+    const filters = { professionalId: 'pro-1', page: 2, limit: 20 } as AppointmentFilters;
+    await appointmentsApi.list(filters, 'tenant-1');
+    expect(http.get).toHaveBeenCalledWith('/tenants/tenant-1/appointments', {
+      params: { professionalId: 'pro-1' },
     });
   });
 });
+
+describe('response projections', () => {
+  it('accepts nullable patient, team and appointment fields without full user profiles', () => {
+    const patient = {
+      id: 'patient-1', tenantId: 'tenant-1', firstName: 'Ana', lastName: 'Paz',
+      email: null, phone: null, dateOfBirth: null, gender: null, address: null,
+      emergencyContactName: null, emergencyContactPhone: null, notes: null,
+      assignedPsychologistId: null, assignedPsychologist: null,
+      isActive: true, createdAt: '2026-09-01', updatedAt: '2026-09-01',
+    } satisfies Patient;
+    const team = {
+      id: 'assignment-1', patientId: 'patient-1', professionalId: 'pro-1',
+      assignedAt: '2026-09-01', assignedBy: null, isActive: false,
+      professional: { id: 'pro-1', firstName: 'Noa', lastName: 'Paz',
+        professionalTitle: null, licenseNumber: null, specialty: null },
+    } satisfies PatientTeamMember;
+    const appointment = {
+      id: 'appointment-1', tenantId: 'tenant-1', patientId: 'patient-1',
+      patient: { id: 'patient-1', firstName: 'Ana', lastName: 'Paz', email: null, phone: null },
+      professionalId: 'pro-1', professional: null, psychologistId: 'pro-1', psychologist: null,
+      specialtyId: null, specialty: null, title: 'Consulta', description: null,
+      startTime: '2026-10-01', endTime: '2026-10-01', duration: 60, status: AppointmentStatus.SCHEDULED,
+      location: null, isOnline: false, meetingUrl: null,
+      cancelledAt: null, cancelledBy: null, cancellationReason: null,
+      reminderSent24h: false, reminderSent2h: false, lastReminderSentAt: null,
+      createdAt: '2026-09-01', updatedAt: '2026-09-01',
+    } satisfies Appointment;
+    expect(patient.assignedPsychologist).toBeNull();
+    expect(team.professional.specialty).toBeNull();
+    expect(appointment.professional).toBeNull();
+  });
+});
+
+const unsupportedPageFilter: AppointmentFilters = {
+  // @ts-expect-error The API list DTO does not accept pagination.
+  page: 2,
+};
+const unsupportedLimitFilter: AppointmentFilters = {
+  // @ts-expect-error The API list DTO does not accept pagination.
+  limit: 20,
+};
+void unsupportedPageFilter;
+void unsupportedLimitFilter;

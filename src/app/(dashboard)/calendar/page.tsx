@@ -120,7 +120,9 @@ export default function CalendarPage() {
                 <div>
                   <p className="text-muted-foreground">Profesional</p>
                   <p className="font-medium">
-                    {selectedAppointment.psychologist.firstName} {selectedAppointment.psychologist.lastName}
+                    {selectedAppointment.psychologist
+                      ? `${selectedAppointment.psychologist.firstName} ${selectedAppointment.psychologist.lastName}`
+                      : 'Profesional no disponible'}
                   </p>
                 </div>
                 <div>

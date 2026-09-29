@@ -70,12 +70,13 @@ type AppointmentUpdateVariables = AppointmentUpdateInput & { previousPatientId?:
 export function useUpdateAppointment(id: string) {
   const client = useQueryClient();
   return useTenantMutation({
-    mutationFn: ({ previousPatientId: _previousPatientId, ...data }: AppointmentUpdateVariables, tenantId: string) =>
-      appointmentsApi.update(id, data, tenantId),
-    onSuccess: async (_appointment, variables, scopedTenant) => {
+    captureResource: () => id,
+    mutationFn: ({ previousPatientId: _previousPatientId, ...data }: AppointmentUpdateVariables, tenantId: string, capturedId: string) =>
+      appointmentsApi.update(capturedId, data, tenantId),
+    onSuccess: async (_appointment, variables, scopedTenant, capturedId) => {
       const patientIds = new Set([variables.previousPatientId, variables.patientId].filter((value): value is string => !!value));
       await Promise.all([
-        client.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENT_DETAIL_SCOPED(scopedTenant, id), exact: true }),
+        client.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENT_DETAIL_SCOPED(scopedTenant, capturedId), exact: true }),
         invalidateScopedLists(client, 'appointments', scopedTenant),
         ...[...patientIds].map((patientId) => client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_TEAM(scopedTenant, patientId), exact: true })),
       ]);

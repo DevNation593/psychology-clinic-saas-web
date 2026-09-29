@@ -28,14 +28,15 @@ export function useEligiblePatientProfessionals(patientId: string, specialtyId?:
 function useTeamMutation(patientId: string, action: 'assign' | 'remove') {
   const client = useQueryClient();
   return useTenantMutation({
-    mutationFn: (professionalId: string, tenantId: string) => {
-      if (!patientId) throw new Error('Patient ID is required.');
-      return patientTeamApi[action](tenantId, patientId, professionalId);
+    captureResource: () => patientId,
+    mutationFn: (professionalId: string, tenantId: string, capturedPatientId: string) => {
+      if (!capturedPatientId) throw new Error('Patient ID is required.');
+      return patientTeamApi[action](tenantId, capturedPatientId, professionalId);
     },
-    onSuccess: async (_result, _professionalId, scopedTenant) => {
+    onSuccess: async (_result, _professionalId, scopedTenant, capturedPatientId) => {
       await Promise.all([
-        client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_TEAM(scopedTenant, patientId), exact: true }),
-        client.invalidateQueries({ queryKey: ['patient-team', scopedTenant, patientId, 'eligible'] }),
+        client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_TEAM(scopedTenant, capturedPatientId), exact: true }),
+        client.invalidateQueries({ queryKey: ['patient-team', scopedTenant, capturedPatientId, 'eligible'] }),
         invalidateScopedLists(client, 'appointments', scopedTenant),
       ]);
     },

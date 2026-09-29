@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
-import { usePatients, usePatient, useCreatePatient } from './usePatients';
+import { usePatients, usePatient, useCreatePatient, useUpdatePatient } from './usePatients';
 import { useAppointments, useCreateAppointment, useUpdateAppointment, useCancelAppointment } from './useAppointments';
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() }));
@@ -72,12 +72,30 @@ describe('tenant-scoped existing hooks', () => {
     expect(http.post).not.toHaveBeenCalled();
   });
 
+  it('updates the patient captured at invocation after a hook ID change', async () => {
+    const { client, wrapper } = setup();
+    const first = ['patients', 'tenant', 'tenant-1', 'patient-1'];
+    const second = ['patients', 'tenant', 'tenant-1', 'patient-2'];
+    client.setQueryData(first, { firstName: 'Ana' });
+    client.setQueryData(second, { firstName: 'Noa' });
+    const hook = renderHook(({ id }) => useUpdatePatient(id), {
+      wrapper, initialProps: { id: 'patient-1' },
+    });
+    let pending!: Promise<unknown>;
+    act(() => { pending = hook.result.current.mutateAsync({ firstName: 'Eva' }); });
+    hook.rerender({ id: 'patient-2' });
+    await act(async () => { await pending; });
+    expect(http.patch).toHaveBeenCalledWith('/tenants/tenant-1/patients/patient-1', { firstName: 'Eva' });
+    expect(client.getQueryState(first)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(second)?.isInvalidated).toBe(false);
+  });
+
   it('create invalidates only tenant appointment lists and its patient team', async () => {
     const { client, wrapper } = setup();
     const keys = seed(client);
     const { result } = renderHook(() => useCreateAppointment(), { wrapper });
     await act(async () => { await result.current.mutateAsync({ patientId: 'patient-1', professionalId: 'pro-1', specialtyId: 'nutrition', title: 'Consulta', startTime: '2026-10-01T10:00', duration: 60, isOnline: false }); });
-    expect(result.current.variables).toMatchObject({ patientId: 'patient-1', professionalId: 'pro-1' });
+    await waitFor(() => expect(result.current.variables).toMatchObject({ patientId: 'patient-1', professionalId: 'pro-1' }));
     for (const index of [0, 1, 5]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(true);
     for (const index of [2, 3, 4, 6, 7]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(false);
   });
@@ -109,6 +127,35 @@ describe('tenant-scoped existing hooks', () => {
     for (const index of [0, 1, 3, 5, 6]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(true);
     for (const index of [2, 4, 7]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(false);
     expect(http.patch).toHaveBeenCalledWith('/tenants/tenant-1/appointments/appointment-1', { patientId: 'patient-2', professionalId: 'pro-2', specialtyId: 'nutrition' });
+  });
+
+  it('updates the invocation appointment after its hook ID and tenant change', async () => {
+    const { client, wrapper } = setup();
+    const keys = seed(client);
+    const otherDetail = ['appointments', 'tenant', 'tenant-1', 'appointment-2'];
+    client.setQueryData(otherDetail, { old: true });
+    let resolve!: (value: object) => void;
+    http.patch.mockImplementation(() => new Promise<object>((done) => { resolve = done; }));
+    const onSuccess = vi.fn();
+    const onSettled = vi.fn();
+    const hook = renderHook(({ id }) => useUpdateAppointment(id), {
+      wrapper, initialProps: { id: 'appointment-1' },
+    });
+    const update = { patientId: 'patient-2', previousPatientId: 'patient-1', title: 'Reasignada' };
+    let pending!: Promise<unknown>;
+    act(() => { pending = hook.result.current.mutateAsync(update, { onSuccess, onSettled }); });
+    hook.rerender({ id: 'appointment-2' });
+    act(() => tenant('tenant-2'));
+    await waitFor(() => expect(http.patch).toHaveBeenCalledWith('/tenants/tenant-1/appointments/appointment-1', {
+      patientId: 'patient-2', title: 'Reasignada',
+    }));
+    await act(async () => { resolve({ id: 'appointment-1', patientId: 'patient-2' }); await pending; });
+    for (const index of [0, 3, 5, 6]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(true);
+    for (const index of [2, 4, 7]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(false);
+    expect(client.getQueryState(otherDetail)?.isInvalidated).toBe(false);
+    expect(hook.result.current.variables).toEqual(update);
+    expect(onSuccess.mock.calls[0][1]).toEqual(update);
+    expect(onSettled.mock.calls[0][2]).toEqual(update);
   });
 
   it('cancel uses patientId in variables and invalidates its exact team and appointment detail', async () => {
