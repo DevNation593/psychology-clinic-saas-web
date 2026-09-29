@@ -527,6 +527,28 @@ export interface PatientDetail extends Patient {
   nextAppointmentDate?: string;
 }
 
+export type PatientInput = Pick<Patient,
+  'firstName' | 'lastName' | 'email' | 'phone' | 'dateOfBirth' | 'gender' |
+  'address' | 'emergencyContactName' | 'emergencyContactPhone' | 'notes'
+>;
+
+export interface PatientTeamMember {
+  id: string;
+  patientId: string;
+  professionalId: string;
+  assignedAt: string;
+  assignedBy: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
+  isActive: boolean;
+  professional: Pick<User, 'id' | 'firstName' | 'lastName' | 'professionalTitle' | 'licenseNumber'> & {
+    specialty: Specialty | null;
+  };
+}
+
+export type EligiblePatientProfessional = Omit<PatientTeamMember['professional'], 'specialty'> & {
+  specialty: Specialty;
+  isAssigned: boolean;
+};
+
 // ==========================================
 // APPOINTMENT
 // ==========================================
@@ -536,17 +558,25 @@ export interface Appointment {
   tenantId: string;
   patientId: string;
   patient: Patient;
+  professionalId: string;
+  professional: User;
+  specialtyId: string;
+  specialty: Specialty;
   psychologistId: string;
   psychologist: User;
   title: string;
   description?: string;
   startTime: string;
   endTime: string;
+  duration: number;
   status: AppointmentStatus;
   location?: string;
   isOnline: boolean;
   meetingUrl?: string;
   notes?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
+  cancellationReason?: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -555,7 +585,8 @@ export interface Appointment {
 
 export interface AppointmentCreateInput {
   patientId: string;
-  psychologistId: string;
+  professionalId: string;
+  specialtyId: string;
   title: string;
   description?: string;
   startTime: string;
@@ -563,6 +594,19 @@ export interface AppointmentCreateInput {
   isOnline: boolean;
   meetingUrl?: string;
   location?: string;
+}
+
+export type AppointmentUpdateInput = Partial<AppointmentCreateInput> & { status?: AppointmentStatus };
+
+export interface AppointmentFilters {
+  professionalId?: string;
+  specialtyId?: string;
+  patientId?: string;
+  status?: AppointmentStatus;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
 }
 
 // ==========================================

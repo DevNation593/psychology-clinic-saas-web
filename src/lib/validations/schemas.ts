@@ -177,14 +177,12 @@ export const patientSchema = z.object({
   address: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
-  assignedPsychologistId: z.preprocess(
-    (val) => (val === '' ? undefined : val),
-    z.string().optional(),
-  ),
   notes: z.string().optional(),
 });
 
-export type PatientFormData = z.infer<typeof patientSchema>;
+// Existing patient pages are migrated in Task 9. Their registered field is
+// accepted by the form type during transition, while patientSchema strips it.
+export type PatientFormData = z.infer<typeof patientSchema> & { assignedPsychologistId?: string };
 
 // ==========================================
 // APPOINTMENT SCHEMAS
@@ -192,7 +190,8 @@ export type PatientFormData = z.infer<typeof patientSchema>;
 
 export const appointmentSchema = z.object({
   patientId: z.string().min(1, 'Selecciona un paciente'),
-  psychologistId: z.string().min(1, 'Selecciona un psicólogo'),
+  professionalId: z.string().min(1, 'Selecciona un profesional'),
+  specialtyId: z.string().min(1, 'Selecciona una especialidad'),
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
   description: z.string().optional(),
   startTime: z.string().min(1, 'Selecciona fecha y hora de inicio'),
@@ -202,7 +201,8 @@ export const appointmentSchema = z.object({
   location: z.string().optional(),
 });
 
-export type AppointmentFormData = z.infer<typeof appointmentSchema>;
+// Task 10 replaces the old dialog; the runtime schema emits only canonical fields.
+export type AppointmentFormData = z.infer<typeof appointmentSchema> & { psychologistId?: string };
 
 // ==========================================
 // CLINICAL NOTE SCHEMAS

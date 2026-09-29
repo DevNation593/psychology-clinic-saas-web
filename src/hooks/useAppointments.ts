@@ -1,100 +1,103 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { appointmentsApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
-import { AppointmentCreateInput } from '@/types';
+import { AppointmentCreateInput, AppointmentStatus, AppointmentUpdateInput } from '@/types';
 import { toast } from 'sonner';
+import { invalidateScopedLists } from './queryInvalidation';
+import { requireTenantId, useTenantId } from './useTenantScope';
+import { useTenantMutation } from './useTenantMutation';
 
 export function useAppointments(params?: Parameters<typeof appointmentsApi.list>[0]) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: [...QUERY_KEYS.APPOINTMENTS, params],
-    queryFn: async () => {
-      const response = await appointmentsApi.list(params);
-      return extractArray(response);
-    },
+    queryKey: QUERY_KEYS.APPOINTMENTS_SCOPED(tenantId ?? '', params),
+    queryFn: async () => extractArray(await appointmentsApi.list(params, requireTenantId(tenantId))),
+    enabled: !!tenantId,
   });
 }
 
 export function useAppointment(id: string) {
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: QUERY_KEYS.APPOINTMENT_DETAIL(id),
-    queryFn: async () => {
-      const response = await appointmentsApi.get(id);
-      return response;
-    },
-    enabled: !!id,
+    queryKey: QUERY_KEYS.APPOINTMENT_DETAIL_SCOPED(tenantId ?? '', id),
+    queryFn: () => appointmentsApi.get(id, requireTenantId(tenantId)),
+    enabled: !!tenantId && !!id,
   });
 }
 
 export function useTodayAppointments() {
   const today = new Date().toISOString().split('T')[0];
-
+  const tenantId = useTenantId();
+  const params = { from: today, to: today };
   return useQuery({
-    queryKey: [...QUERY_KEYS.APPOINTMENTS, 'today'],
-    queryFn: async () => {
-      const response = await appointmentsApi.list({ from: today, to: today });
-      return extractArray(response);
-    },
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    queryKey: QUERY_KEYS.APPOINTMENTS_SCOPED(tenantId ?? '', params),
+    queryFn: async () => extractArray(await appointmentsApi.list(params, requireTenantId(tenantId))),
+    enabled: !!tenantId,
+    refetchInterval: 5 * 60 * 1000,
   });
 }
 
 export function useUpcomingAppointments() {
   const today = new Date().toISOString().split('T')[0];
-
+  const tenantId = useTenantId();
+  const params = { from: today, status: AppointmentStatus.SCHEDULED };
   return useQuery({
-    queryKey: [...QUERY_KEYS.APPOINTMENTS, 'upcoming'],
-    queryFn: async () => {
-      const response = await appointmentsApi.list({ from: today, status: 'SCHEDULED' });
-      return extractArray(response);
-    },
+    queryKey: QUERY_KEYS.APPOINTMENTS_SCOPED(tenantId ?? '', params),
+    queryFn: async () => extractArray(await appointmentsApi.list(params, requireTenantId(tenantId))),
+    enabled: !!tenantId,
   });
 }
 
 export function useCreateAppointment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: AppointmentCreateInput) => appointmentsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+  const client = useQueryClient();
+  return useTenantMutation({
+    mutationFn: (data: AppointmentCreateInput, tenantId: string) => appointmentsApi.create(data, tenantId),
+    onSuccess: async (_appointment, variables, scopedTenant) => {
+      await Promise.all([
+        invalidateScopedLists(client, 'appointments', scopedTenant),
+        client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_TEAM(scopedTenant, variables.patientId), exact: true }),
+      ]);
       toast.success('Cita creada exitosamente');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al crear cita');
-    },
+    onError: (error: Error) => toast.error(error.message || 'Error al crear cita'),
   });
 }
 
-export function useUpdateAppointment(id: string) {
-  const queryClient = useQueryClient();
+type AppointmentUpdateVariables = AppointmentUpdateInput & { previousPatientId?: string };
 
-  return useMutation({
-    mutationFn: (data: Partial<AppointmentCreateInput>) => appointmentsApi.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENT_DETAIL(id) });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+export function useUpdateAppointment(id: string) {
+  const client = useQueryClient();
+  return useTenantMutation({
+    mutationFn: ({ previousPatientId: _previousPatientId, ...data }: AppointmentUpdateVariables, tenantId: string) =>
+      appointmentsApi.update(id, data, tenantId),
+    onSuccess: async (_appointment, variables, scopedTenant) => {
+      const patientIds = new Set([variables.previousPatientId, variables.patientId].filter((value): value is string => !!value));
+      await Promise.all([
+        client.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENT_DETAIL_SCOPED(scopedTenant, id), exact: true }),
+        invalidateScopedLists(client, 'appointments', scopedTenant),
+        ...[...patientIds].map((patientId) => client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_TEAM(scopedTenant, patientId), exact: true })),
+      ]);
       toast.success('Cita actualizada');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar cita');
-    },
+    onError: (error: Error) => toast.error(error.message || 'Error al actualizar cita'),
   });
 }
 
 export function useCancelAppointment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
-      appointmentsApi.cancel(id, reason || 'Cancelada por el usuario'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+  const client = useQueryClient();
+  return useTenantMutation({
+    mutationFn: ({ id, reason }: { id: string; patientId: string; reason: string }, tenantId: string) =>
+      appointmentsApi.cancel(id, reason, tenantId),
+    onSuccess: async (_appointment, variables, scopedTenant) => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENT_DETAIL_SCOPED(scopedTenant, variables.id), exact: true }),
+        invalidateScopedLists(client, 'appointments', scopedTenant),
+        client.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_TEAM(scopedTenant, variables.patientId), exact: true }),
+      ]);
       toast.success('Cita cancelada');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al cancelar cita');
-    },
+    onError: (error: Error) => toast.error(error.message || 'Error al cancelar cita'),
   });
 }
