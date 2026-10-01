@@ -112,10 +112,21 @@
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
-.fc .fc-col-header-cell-cushion,
-.fc .fc-list-day-cushion {
+.fc .fc-col-header-cell-cushion {
   font-weight: 600;
   text-transform: capitalize;
+}
+.fc .fc-list-day-cushion {
+  font-weight: 600;
+}
+/* Long dates read as a sentence: only the first letter is capitalised. */
+.fc .fc-list-day-text,
+.fc .fc-list-day-side-text {
+  display: inline-block;
+}
+.fc .fc-list-day-text::first-letter,
+.fc .fc-list-day-side-text::first-letter {
+  text-transform: uppercase;
 }
 .fc .fc-timegrid-slot {
   height: 3rem;
