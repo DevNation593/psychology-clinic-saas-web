@@ -69,7 +69,15 @@ describe('patient detail treating-team wiring', () => {
 
     const tabs = screen.getByRole('navigation', { name: 'Tabs' });
     const tabButtons = Array.from(tabs.querySelectorAll('button')).map((button) => button.textContent?.trim());
-    expect(tabButtons.slice(0, 3)).toEqual(['General', 'Equipo tratante', 'Historia Clínica']);
+    expect(tabButtons).toEqual([
+      'General',
+      'Equipo tratante',
+      'Historia Clínica',
+      'Especialidades',
+      'Citas',
+      'Tareas',
+      'Plan de Sesión',
+    ]);
     expect(screen.queryByText('Psicólogo Asignado')).not.toBeInTheDocument();
     expect(screen.getByText('Información Personal')).toBeInTheDocument();
     expect(screen.getByText('Contacto de Emergencia')).toBeInTheDocument();
@@ -78,5 +86,6 @@ describe('patient detail treating-team wiring', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Equipo tratante' }));
     expect(await screen.findByRole('heading', { name: 'Equipo tratante' })).toBeInTheDocument();
+    expect(mocks.get).toHaveBeenCalledWith('/tenants/tenant-1/patients/patient-1/team');
   });
 });

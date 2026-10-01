@@ -21,7 +21,7 @@ export function useEligiblePatientProfessionals(patientId: string, specialtyId?:
   return useQuery({
     queryKey: QUERY_KEYS.PATIENT_TEAM_ELIGIBLE(tenantId ?? '', patientId, specialtyId),
     queryFn: () => patientTeamApi.listEligible(requireTenantId(tenantId), patientId, specialtyId),
-    enabled: !!tenantId && !!patientId,
+    enabled: !!tenantId && !!patientId && !!specialtyId?.trim(),
   });
 }
 

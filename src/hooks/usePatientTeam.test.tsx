@@ -56,6 +56,14 @@ describe('patient team query isolation', () => {
     expect(empty.result.current.fetchStatus).toBe('idle');
   });
 
+  it('does not request eligible professionals until a specialty is selected', () => {
+    const { wrapper } = setup();
+    const eligible = renderHook(() => useEligiblePatientProfessionals('patient-1', ''), { wrapper });
+
+    expect(eligible.result.current.fetchStatus).toBe('idle');
+    expect(http.get).not.toHaveBeenCalled();
+  });
+
   it.each(['assign', 'remove'] as const)('%s invalidates only its patient and tenant families', async (action) => {
     const { client, wrapper } = setup();
     const affected = [

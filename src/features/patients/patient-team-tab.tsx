@@ -63,13 +63,125 @@ function specialtyGroups(members: PatientTeamMember[]): Array<{ id: string; name
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
-export function PatientTeamTab({ patientId }: { patientId: string }) {
-  const actor = useAuthStore((state) => state.user);
-  const team = usePatientTeam(patientId);
+function PatientTeamCandidateControls({
+  patientId,
+  pending,
+  onAssign,
+}: {
+  patientId: string;
+  pending: boolean;
+  onAssign: (professionalId: string) => Promise<boolean>;
+}) {
   const specialties = useTenantSpecialties();
   const [specialtyId, setSpecialtyId] = useState('');
   const [professionalId, setProfessionalId] = useState('');
   const eligible = useEligiblePatientProfessionals(patientId, specialtyId);
+  const activeSpecialties = (specialties.data ?? []).filter((specialty) => specialty.isActive);
+  const candidates = eligible.data ?? [];
+
+  const handleAssign = async () => {
+    if (!professionalId || !specialtyId || pending) return;
+    if (await onAssign(professionalId)) setProfessionalId('');
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <div className="space-y-2">
+          <Label htmlFor="team-specialty">Especialidad</Label>
+          <select
+            id="team-specialty"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={specialtyId}
+            disabled={pending || specialties.isLoading || specialties.isError || activeSpecialties.length === 0}
+            onChange={(event) => {
+              setSpecialtyId(event.target.value);
+              setProfessionalId('');
+            }}
+          >
+            <option value="">Seleccionar especialidad</option>
+            {activeSpecialties.map((specialty) => (
+              <option key={specialty.id} value={specialty.id}>{specialty.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="team-professional">Profesional</Label>
+          <select
+            id="team-professional"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value={professionalId}
+            disabled={!specialtyId || pending || eligible.isLoading || eligible.isError || candidates.length === 0}
+            onChange={(event) => setProfessionalId(event.target.value)}
+          >
+            <option value="">Seleccionar profesional</option>
+            {candidates.map((professional) => (
+              <option key={professional.id} value={professional.id} disabled={professional.isAssigned}>
+                {fullName(professional)}{professional.isAssigned ? ' (ya asignado)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button
+          type="button"
+          aria-label="Agregar al equipo"
+          disabled={!specialtyId || !professionalId || pending}
+          onClick={() => void handleAssign()}
+        >
+          Agregar al equipo
+        </Button>
+      </div>
+
+      {specialties.isLoading && (
+        <p role="status" aria-label="Cargando especialidades">Cargando especialidades…</p>
+      )}
+      {specialties.isError && (
+        <div role="alert" className="space-y-2">
+          <p>No se pudieron cargar las especialidades.</p>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="Reintentar especialidades"
+            disabled={pending || specialties.isFetching}
+            onClick={() => void specialties.refetch()}
+          >
+            Reintentar especialidades
+          </Button>
+        </div>
+      )}
+      {specialties.isSuccess && activeSpecialties.length === 0 && (
+        <p>No hay especialidades disponibles.</p>
+      )}
+      {specialties.isSuccess && activeSpecialties.length > 0 && !specialtyId && (
+        <p>Selecciona una especialidad para ver profesionales.</p>
+      )}
+      {specialtyId && eligible.isLoading && (
+        <p role="status" aria-label="Cargando profesionales">Cargando profesionales…</p>
+      )}
+      {specialtyId && eligible.isError && (
+        <div role="alert" className="space-y-2">
+          <p>No se pudieron cargar los profesionales.</p>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="Reintentar profesionales"
+            disabled={pending || eligible.isFetching}
+            onClick={() => void eligible.refetch()}
+          >
+            Reintentar profesionales
+          </Button>
+        </div>
+      )}
+      {specialtyId && eligible.isSuccess && candidates.length === 0 && (
+        <p>No hay profesionales elegibles para esta especialidad.</p>
+      )}
+    </div>
+  );
+}
+
+export function PatientTeamTab({ patientId }: { patientId: string }) {
+  const actor = useAuthStore((state) => state.user);
+  const team = usePatientTeam(patientId);
   const assign = useAssignPatientProfessional(patientId);
   const remove = useRemovePatientProfessional(patientId);
   const [selectedMember, setSelectedMember] = useState<PatientTeamMember | null>(null);
@@ -82,15 +194,16 @@ export function PatientTeamTab({ patientId }: { patientId: string }) {
   const activeGroups = specialtyGroups(members.filter((member) => member.isActive));
   const inactiveGroups = specialtyGroups(members.filter((member) => !member.isActive));
 
-  const handleAssign = async () => {
-    if (!canAdd || !professionalId || !specialtyId || pending) return;
+  const handleAssign = async (professionalId: string): Promise<boolean> => {
+    if (!canAdd || !professionalId || pending) return false;
     setActionError(null);
     setBlockedAppointments(null);
     try {
       await assign.mutateAsync(professionalId);
-      setProfessionalId('');
+      return true;
     } catch {
       setActionError('No se pudo agregar al profesional. Inténtalo de nuevo.');
+      return false;
     }
   };
 
@@ -153,37 +266,12 @@ export function PatientTeamTab({ patientId }: { patientId: string }) {
         <CardHeader><CardTitle>Equipo tratante</CardTitle></CardHeader>
         <CardContent className="space-y-5">
           {canAdd && (
-            <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-              <div className="space-y-2">
-                <Label htmlFor="team-specialty">Especialidad</Label>
-                <select id="team-specialty" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={specialtyId} disabled={pending || specialties.isLoading}
-                  onChange={(event) => { setSpecialtyId(event.target.value); setProfessionalId(''); }}>
-                  <option value="">Seleccionar especialidad</option>
-                  {(specialties.data ?? []).filter((specialty) => specialty.isActive).map((specialty) => (
-                    <option key={specialty.id} value={specialty.id}>{specialty.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="team-professional">Profesional</Label>
-                <select id="team-professional" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={professionalId} disabled={!specialtyId || pending || eligible.isLoading}
-                  onChange={(event) => setProfessionalId(event.target.value)}>
-                  <option value="">Seleccionar profesional</option>
-                  {(specialtyId ? eligible.data ?? [] : []).map((professional) => (
-                    <option key={professional.id} value={professional.id} disabled={professional.isAssigned}>
-                      {fullName(professional)}{professional.isAssigned ? ' (ya asignado)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <Button type="button" aria-label="Agregar al equipo" disabled={!specialtyId || !professionalId || pending}
-                onClick={() => void handleAssign()}>Agregar al equipo</Button>
-            </div>
+            <PatientTeamCandidateControls
+              patientId={patientId}
+              pending={pending}
+              onAssign={handleAssign}
+            />
           )}
-          {specialties.isError && <p role="alert">No se pudieron cargar las especialidades.</p>}
-          {specialtyId && eligible.isError && <p role="alert">No se pudieron cargar los profesionales.</p>}
           {actionError && <div role="alert" className="space-y-2">
             <p>{actionError}</p>
             {blockedAppointments && blockedAppointments.length > 0 && (

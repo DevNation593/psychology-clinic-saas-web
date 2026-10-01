@@ -22,21 +22,33 @@ const candidate = (id: string, specialty = nutrition): EligiblePatientProfession
   id, firstName: id === 'admin-clinical' ? 'Admin' : 'Nutricionista', lastName: 'Uno',
   professionalTitle: 'Especialista', licenseNumber: null, specialty, isAssigned: false,
 });
+const enabledSpecialties = [
+  { ...psychology, description: null, isActive: true, modules: [] },
+  { ...nutrition, description: null, isActive: true, modules: [] },
+];
 
-function renderTeam({ role = UserRole.ADMIN, team = [], eligible = [], teamError }: {
+function renderTeam({
+  role = UserRole.ADMIN,
+  team = [],
+  eligible = [],
+  specialties = enabledSpecialties,
+  teamError,
+  specialtiesRequest,
+  eligibleRequest,
+}: {
   role?: UserRole;
   team?: PatientTeamMember[];
   eligible?: EligiblePatientProfessional[];
+  specialties?: typeof enabledSpecialties;
   teamError?: Error;
+  specialtiesRequest?: () => Promise<typeof enabledSpecialties>;
+  eligibleRequest?: () => Promise<EligiblePatientProfessional[]>;
 } = {}) {
   useAuthStore.setState({ user: actor(role), tenant: { id: 'tenant-1' } as ReturnType<typeof useAuthStore.getState>['tenant'] });
   http.get.mockImplementation((url: string) => {
     if (url.endsWith('/team')) return teamError ? Promise.reject(teamError) : Promise.resolve(team);
-    if (url.endsWith('/team/eligible')) return Promise.resolve(eligible);
-    if (url.includes('/specialties')) return Promise.resolve([
-      { ...psychology, description: null, isActive: true, modules: [] },
-      { ...nutrition, description: null, isActive: true, modules: [] },
-    ]);
+    if (url.endsWith('/team/eligible')) return eligibleRequest ? eligibleRequest() : Promise.resolve(eligible);
+    if (url.includes('/specialties')) return specialtiesRequest ? specialtiesRequest() : Promise.resolve(specialties);
     throw new Error(`Unexpected request: ${url}`);
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -47,6 +59,12 @@ async function openRemoval(name: string) {
   fireEvent.click(await screen.findByRole('button', { name: `Retirar ${name}` }));
   expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Retirar' }));
+}
+
+async function selectNutritionSpecialty() {
+  const select = await screen.findByLabelText('Especialidad');
+  await screen.findByRole('option', { name: 'Nutrición' });
+  fireEvent.change(select, { target: { value: 'nutrition' } });
 }
 
 beforeEach(() => {
@@ -71,22 +89,108 @@ describe('PatientTeamTab', () => {
 
   it('passes the selected specialty to eligible candidates and displays clinical administrators', async () => {
     renderTeam({ eligible: [candidate('admin-clinical'), candidate('nutrition-1')] });
-    fireEvent.change(await screen.findByLabelText('Especialidad'), { target: { value: 'nutrition' } });
+    await screen.findByLabelText('Especialidad');
+    expect(http.get.mock.calls.filter(([url]) => (url as string).endsWith('/team/eligible'))).toHaveLength(0);
+    await selectNutritionSpecialty();
     await waitFor(() => expect(http.get).toHaveBeenCalledWith(
       '/tenants/tenant-1/patients/patient-1/team/eligible', { params: { specialtyId: 'nutrition' } },
     ));
     expect(await screen.findByRole('option', { name: /Admin Uno/ })).toBeInTheDocument();
   });
 
+  it.each([
+    [UserRole.ADMIN, true, true],
+    [UserRole.CLIENTE, true, true],
+    [UserRole.ASISTENTE, true, true],
+    [UserRole.PROFESIONAL, true, false],
+    [UserRole.PSICOLOGO, true, false],
+    [UserRole.PACIENTE, false, false],
+    [UserRole.SOPORTE, false, false],
+  ] as const)('applies add/remove UI permissions for %s', async (role, canAdd, canRemove) => {
+    renderTeam({ role, team: [member('nutrition-1', nutrition)] });
+    await screen.findByText('Nutricionista Uno');
+
+    expect(!!screen.queryByRole('button', { name: 'Agregar al equipo' })).toBe(canAdd);
+    expect(!!screen.queryByRole('button', { name: 'Retirar Nutricionista Uno' })).toBe(canRemove);
+    if (!canAdd) {
+      expect(http.get.mock.calls.some(([url]) => (url as string).includes('/specialties'))).toBe(false);
+      expect(http.get.mock.calls.some(([url]) => (url as string).endsWith('/team/eligible'))).toBe(false);
+    }
+  });
+
+  it('shows specialty loading, empty, and safe error retry states', async () => {
+    const never = () => new Promise<typeof enabledSpecialties>(() => undefined);
+    const loading = renderTeam({ specialtiesRequest: never });
+    expect(await screen.findByRole('status', { name: 'Cargando especialidades' })).toBeInTheDocument();
+    loading.unmount();
+
+    renderTeam({ specialties: [] });
+    expect(await screen.findByText('No hay especialidades disponibles.')).toBeInTheDocument();
+  });
+
+  it('retries specialty errors without exposing the raw response', async () => {
+    const request = vi.fn().mockRejectedValue(new Error('raw specialty failure'));
+    renderTeam({ specialtiesRequest: request });
+
+    expect(await screen.findByText('No se pudieron cargar las especialidades.')).toBeInTheDocument();
+    expect(screen.queryByText(/raw specialty failure/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar especialidades' }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+  });
+
+  it('distinguishes unselected, loading, and empty professional states', async () => {
+    const request = vi.fn(() => new Promise<EligiblePatientProfessional[]>(() => undefined));
+    const loading = renderTeam({ eligibleRequest: request });
+    expect(await screen.findByText('Selecciona una especialidad para ver profesionales.')).toBeInTheDocument();
+    expect(request).not.toHaveBeenCalled();
+    await selectNutritionSpecialty();
+    expect(await screen.findByRole('status', { name: 'Cargando profesionales' })).toBeInTheDocument();
+    loading.unmount();
+
+    renderTeam({ eligible: [] });
+    await selectNutritionSpecialty();
+    expect(await screen.findByText('No hay profesionales elegibles para esta especialidad.')).toBeInTheDocument();
+  });
+
+  it('retries candidate errors without exposing the raw response', async () => {
+    const request = vi.fn().mockRejectedValue(new Error('raw candidate failure'));
+    renderTeam({ eligibleRequest: request });
+    await selectNutritionSpecialty();
+
+    expect(await screen.findByText('No se pudieron cargar los profesionales.')).toBeInTheDocument();
+    expect(screen.queryByText(/raw candidate failure/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar profesionales' }));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+  });
+
   it('allows professional referral but exposes no remove action', async () => {
     renderTeam({ role: UserRole.PROFESIONAL, team: [member('psych-1', psychology)], eligible: [candidate('nutrition-1')] });
-    fireEvent.change(await screen.findByLabelText('Especialidad'), { target: { value: 'nutrition' } });
+    await selectNutritionSpecialty();
     const professional = await screen.findByLabelText('Profesional');
     await screen.findByRole('option', { name: 'Nutricionista Uno' });
     fireEvent.change(professional, { target: { value: 'nutrition-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar al equipo' }));
     await waitFor(() => expect(http.put).toHaveBeenCalledWith('/tenants/tenant-1/patients/patient-1/team/nutrition-1'));
     expect(screen.queryByRole('button', { name: /Retirar/ })).not.toBeInTheDocument();
+  });
+
+  it('disables candidate controls while an assignment is pending', async () => {
+    let finish!: (value: PatientTeamMember) => void;
+    http.put.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    renderTeam({ team: [member('psych-1', psychology)], eligible: [candidate('nutrition-1')] });
+    await selectNutritionSpecialty();
+    const professional = await screen.findByLabelText('Profesional');
+    await screen.findByRole('option', { name: 'Nutricionista Uno' });
+    fireEvent.change(professional, { target: { value: 'nutrition-1' } });
+    const addButton = screen.getByRole('button', { name: 'Agregar al equipo' });
+    fireEvent.click(addButton);
+
+    await waitFor(() => expect(http.put).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText('Especialidad')).toBeDisabled();
+    expect(professional).toBeDisabled();
+    expect(addButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Retirar Psicóloga Uno' })).toBeDisabled();
+    await act(async () => finish(member('nutrition-1', nutrition)));
   });
 
   it.each([UserRole.ADMIN, UserRole.ASISTENTE, UserRole.CLIENTE])('%s confirms removal and keeps the row until server response', async (role) => {
@@ -114,7 +218,26 @@ describe('PatientTeamTab', () => {
     await openRemoval('Nutricionista Uno');
     expect(await screen.findByText('Consulta')).toBeInTheDocument();
     expect(screen.getByText('Nutricionista Uno')).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Abrir cita' })).toHaveAttribute('href', '/calendar?appointmentId=appointment%20%2F1');
+  });
+
+  it('keeps the row and closes confirmation after a generic removal error', async () => {
+    http.delete.mockRejectedValue({
+      message: 'raw private removal response',
+      details: { appointments: [
+        { id: 'private-appointment', startTime: '2026-10-01T15:00:00Z', title: 'Private title', status: 'SCHEDULED' },
+      ] },
+    });
+    renderTeam({ team: [member('nutrition-1', nutrition)] });
+    await openRemoval('Nutricionista Uno');
+
+    expect(await screen.findByText('No se pudo retirar al profesional. Inténtalo de nuevo.')).toBeInTheDocument();
+    expect(screen.getByText('Nutricionista Uno')).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByText('raw private removal response')).not.toBeInTheDocument();
+    expect(screen.queryByText('Private title')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Abrir cita' })).not.toBeInTheDocument();
   });
 
   it('does not render arbitrary malformed removal details', async () => {
@@ -135,10 +258,4 @@ describe('PatientTeamTab', () => {
     await waitFor(() => expect(http.get.mock.calls.filter(([url]) => (url as string).endsWith('/team'))).toHaveLength(2));
   });
 
-  it.each([UserRole.PSICOLOGO, UserRole.CLIENTE, UserRole.PACIENTE])('uses legacy role mapping for %s', async (role) => {
-    renderTeam({ role, team: [member('nutrition-1', nutrition)], eligible: [candidate('admin-clinical')] });
-    await screen.findByText('Nutricionista Uno');
-    expect(!!screen.queryByRole('button', { name: 'Agregar al equipo' })).toBe(role !== UserRole.PACIENTE);
-    expect(!!screen.queryByRole('button', { name: 'Retirar Nutricionista Uno' })).toBe(role === UserRole.CLIENTE);
-  });
 });
