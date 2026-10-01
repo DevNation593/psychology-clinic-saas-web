@@ -411,7 +411,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           <Lock className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-lg font-medium">Acceso restringido</p>
           <p className="text-sm text-muted-foreground">
-            Solo los psicólogos y administradores pueden ver la historia clínica.
+            Solo los profesionales y el titular de la cuenta pueden ver la historia clínica.
           </p>
         </CardContent>
       </Card>

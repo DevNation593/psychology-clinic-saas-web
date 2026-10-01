@@ -23,6 +23,8 @@ interface StatusConfig {
   action?: {
     label: string;
     onClick: () => void;
+    /** Billing/plan actions are only offered to the account holder. */
+    requiresAccountHolder: boolean;
   };
   variant: 'default' | 'destructive' | 'warning';
   className?: string;
@@ -69,6 +71,7 @@ export function SubscriptionStatusBanner() {
       action: {
         label: 'Actualizar Pago',
         onClick: handleUpdatePayment,
+        requiresAccountHolder: true,
       },
       variant: 'warning',
       className: 'border-orange-300 bg-orange-50',
@@ -81,6 +84,7 @@ export function SubscriptionStatusBanner() {
       action: {
         label: 'Actualizar Pago',
         onClick: handleUpdatePayment,
+        requiresAccountHolder: true,
       },
       variant: 'destructive',
       className: 'border-red-300 bg-red-50',
@@ -95,6 +99,7 @@ export function SubscriptionStatusBanner() {
       action: {
         label: 'Reactivar Suscripción',
         onClick: handleReactivate,
+        requiresAccountHolder: true,
       },
       variant: 'default',
       className: 'border-blue-300 bg-blue-50',
@@ -107,6 +112,7 @@ export function SubscriptionStatusBanner() {
       action: {
         label: 'Contactar Soporte',
         onClick: handleContactSupport,
+        requiresAccountHolder: false,
       },
       variant: 'default',
       className: 'border-gray-300 bg-gray-50',
@@ -119,6 +125,7 @@ export function SubscriptionStatusBanner() {
       action: {
         label: 'Contactar Soporte',
         onClick: handleContactSupport,
+        requiresAccountHolder: false,
       },
       variant: 'destructive',
       className: 'border-red-300 bg-red-50',
@@ -147,7 +154,7 @@ export function SubscriptionStatusBanner() {
             {!canManage && (status === 'PAST_DUE' || status === 'SUSPENDED' || status === 'CANCELED') && (
               <p className="self-center text-sm text-muted-foreground">Contacta al titular de la cuenta.</p>
             )}
-            {config.action && (canManage || config.action.onClick === handleContactSupport) && (
+            {config.action && (canManage || !config.action.requiresAccountHolder) && (
               <Button
                 onClick={config.action.onClick}
                 size="sm"

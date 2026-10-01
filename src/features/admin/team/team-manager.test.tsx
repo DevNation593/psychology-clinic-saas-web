@@ -336,16 +336,16 @@ describe('TeamManager', () => {
     expect(invalidate).toHaveBeenCalled();
   });
 
-  it('keeps the row and shows the API message when an edit is rejected with MASTER_IMMUTABLE', async () => {
+  it('surfaces an API rejection (MASTER_IMMUTABLE) and keeps the row', async () => {
     const user = makeUser({ id: 'pro-9', firstName: 'Elena', lastName: 'Ríos' });
     api.updateUser.mockRejectedValueOnce({
       code: 'MASTER_IMMUTABLE',
-      message: 'El rol y el estado del titular de la cuenta no se pueden modificar.',
+      message: 'El titular de la cuenta no puede cambiar de rol ni desactivarse.',
     });
     renderManager([user]);
     fireEvent.click(await screen.findByRole('button', { name: 'Desactivar atención clínica de Elena Ríos' }));
 
-    const message = await screen.findByText('El rol y el estado del titular de la cuenta no se pueden modificar.');
+    const message = await screen.findByText('El titular de la cuenta no puede cambiar de rol ni desactivarse.');
     expect(message.closest('[role="alert"]')).toBeInTheDocument();
     expect(screen.getByText('Elena Ríos')).toBeInTheDocument();
     expect(screen.getByText('Cuenta activa')).toBeInTheDocument();

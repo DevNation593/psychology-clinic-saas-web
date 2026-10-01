@@ -480,6 +480,6 @@ describe('SpecialtyManager', () => {
     expect(await screen.findByRole('button', { name: /Psicología/ })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Guardar especialidades' })).not.toBeInTheDocument();
     expect(await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeDisabled();
-    expect(screen.getByText('La selección de especialidades la administra el administrador del consultorio.')).toBeInTheDocument();
+    expect(screen.getByText('La selección de especialidades la administra el titular de la cuenta.')).toBeInTheDocument();
   });
 });

@@ -284,7 +284,7 @@ export function SpecialtyManager() {
 
           {!canConfigure && (
             <p className="text-sm text-muted-foreground">
-              La selección de especialidades la administra el administrador del consultorio.
+              La selección de especialidades la administra el titular de la cuenta.
             </p>
           )}
 
