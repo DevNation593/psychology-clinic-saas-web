@@ -3,11 +3,18 @@ import { API_ENDPOINTS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
 import {
   User,
-  UserInput,
+  CreateTenantUserInput,
+  UpdateTenantUserInput,
   Patient,
   PatientDetail,
+  PatientInput,
+  PatientTeamMember,
+  EligiblePatientProfessional,
   Appointment,
+  AppointmentProfessional,
   AppointmentCreateInput,
+  AppointmentUpdateInput,
+  AppointmentFilters,
   Task,
   ClinicalNote,
   SessionPlan,
@@ -32,8 +39,12 @@ import {
   TenantSettings,
   WorkingHours,
   ReminderRule,
-  Specialty,
+  TenantSpecialty,
+  SpecialtyCatalogItem,
+  SpecialtySelectionResult,
   TenantModule,
+  ClinicOnboardingResult,
+  CreateClinicOnboardingInput,
   Invoice,
   SpecialtyRecord,
   UpdateSelfProfileInput,
@@ -43,9 +54,11 @@ import {
 // HELPER: Get tenantId from auth store
 // ==========================================
 
-function getTenantId(): string {
+function getTenantId(tenantIdOverride?: string): string {
   const state = useAuthStore.getState();
-  const tenantId = state.tenant?.id || state.user?.tenantId;
+  const tenantId = tenantIdOverride === undefined
+    ? state.tenant?.id || state.user?.tenantId
+    : tenantIdOverride;
   if (!tenantId) {
     throw new Error('No tenant ID available. User must be authenticated.');
   }
@@ -122,9 +135,19 @@ function normalizeSubscription(raw: any): Subscription {
     throw new Error('Subscription data is missing');
   }
 
+  const specialtyPricing =
+    raw.includedSpecialties != null && raw.specialtyPrice != null && Array.isArray(raw.specialties)
+      ? {
+          includedSpecialties: Number(raw.includedSpecialties),
+          selectedSpecialties: raw.specialties.length,
+          specialtyUnitPrice: Number(raw.specialtyPrice),
+          ...(typeof raw.currency === 'string' ? { currency: raw.currency } : {}),
+        }
+      : undefined;
+
   // Already normalized shape.
   if (raw.plan && raw.plan.limits) {
-    return raw as Subscription;
+    return { ...raw, ...(specialtyPricing ? { specialtyPricing } : {}) } as Subscription;
   }
 
   const planType = mapPlanType(raw.planType);
@@ -186,6 +209,7 @@ function normalizeSubscription(raw: any): Subscription {
     cancelAtPeriodEnd: !!raw.cancelAt,
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),
+    ...(specialtyPricing ? { specialtyPricing } : {}),
   };
 }
 
@@ -352,23 +376,42 @@ export const tenantsApi = {
       .then((raw) => normalizeSubscription(raw)),
 };
 
-export const specialtiesApi = {
+export const specialtyCatalogApi = {
+  list: () => apiClient.get<SpecialtyCatalogItem[]>(API_ENDPOINTS.SPECIALTY_CATALOG),
+};
+
+export const tenantSpecialtiesApi = {
   list: (tenantId?: string) =>
-    apiClient.get<Specialty[]>(API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId())),
+    apiClient.get<TenantSpecialty[]>(API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId())),
+  replace: (specialtyCodes: string[], tenantId?: string) =>
+    apiClient.put<SpecialtySelectionResult>(
+      API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId()),
+      { specialtyCodes },
+    ),
+};
 
-  modules: (tenantId?: string) =>
+export const tenantModulesApi = {
+  list: (tenantId?: string) =>
     apiClient.get<TenantModule[]>(API_ENDPOINTS.TENANT_MODULES(tenantId ?? getTenantId())),
-
-  setModuleEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
+  setEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
     apiClient.patch<TenantModule>(
       API_ENDPOINTS.TENANT_MODULE(tenantId ?? getTenantId(), moduleKey),
       { enabled },
     ),
+};
+
+export const onboardingApi = {
+  createClinic: (input: CreateClinicOnboardingInput) =>
+    apiClient.post<ClinicOnboardingResult>(API_ENDPOINTS.CLINIC_ONBOARDING, input),
+};
+
+export const specialtiesApi = {
+  list: (tenantId?: string) => tenantSpecialtiesApi.list(tenantId),
+  modules: (tenantId?: string) => tenantModulesApi.list(tenantId),
+  setModuleEnabled: (moduleKey: string, enabled: boolean, tenantId?: string) =>
+    tenantModulesApi.setEnabled(moduleKey, enabled, tenantId),
   setForTenant: (specialtyCodes: string[], tenantId?: string) =>
-    apiClient.post(
-      API_ENDPOINTS.TENANT_SPECIALTIES_UPDATE(tenantId ?? getTenantId()),
-      { specialtyCodes },
-    ),
+    tenantSpecialtiesApi.replace(specialtyCodes, tenantId),
 };
 
 export const tenantSettingsApi = {
@@ -478,9 +521,9 @@ export const specialtyRecordsApi = {
 // ==========================================
 
 export const usersApi = {
-  list: (params?: { role?: string; isActive?: boolean; page?: number; limit?: number }) =>
+  list: (params?: { role?: string; isActive?: boolean; page?: number; limit?: number }, tenantId?: string) =>
     apiClient
-      .get<PaginatedResponse<User> | User[]>(API_ENDPOINTS.USERS(getTenantId()), { params })
+      .get<PaginatedResponse<User> | User[]>(API_ENDPOINTS.USERS(getTenantId(tenantId)), { params })
       .then((raw) =>
         Array.isArray(raw)
           ? raw.map(normalizeUser)
@@ -495,15 +538,15 @@ export const usersApi = {
       .get<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId))
       .then((raw) => normalizeUser(raw)),
 
-  create: (data: UserInput) =>
+  create: (data: CreateTenantUserInput, tenantId?: string) =>
     apiClient
-      .post<User>(API_ENDPOINTS.USERS(getTenantId()), data)
+      .post<User>(API_ENDPOINTS.USERS(getTenantId(tenantId)), data)
       .then((raw) => normalizeUser(raw)),
 
 
-  update: (userId: string, data: UserInput) =>
+  update: (userId: string, data: UpdateTenantUserInput, tenantId?: string) =>
     apiClient
-      .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId), data)
+      .patch<User>(API_ENDPOINTS.USER_DETAIL(getTenantId(tenantId), userId), data)
       .then((raw) => normalizeUser(raw)),
 
   updateSelf: (data: UpdateSelfProfileInput) =>
@@ -511,8 +554,8 @@ export const usersApi = {
       .patch<User>(API_ENDPOINTS.USER_SELF_PROFILE(getTenantId()), data)
       .then((raw) => normalizeUser(raw)),
 
-  delete: (userId: string) =>
-    apiClient.delete<void>(API_ENDPOINTS.USER_DETAIL(getTenantId(), userId)),
+  delete: (userId: string, tenantId?: string) =>
+    apiClient.delete<void>(API_ENDPOINTS.USER_DETAIL(getTenantId(tenantId), userId)),
 
   activate: (userId: string, password: string) =>
     apiClient.post<void>(API_ENDPOINTS.USER_ACTIVATE(getTenantId(), userId), { password }),
@@ -526,20 +569,42 @@ export const usersApi = {
 // ==========================================
 
 export const patientsApi = {
-  list: (params?: { search?: string; isActive?: boolean; page?: number; limit?: number }) =>
-    apiClient.get<PaginatedResponse<Patient>>(API_ENDPOINTS.PATIENTS(getTenantId()), { params }),
+  list: (params?: { search?: string; isActive?: boolean; page?: number; limit?: number }, tenantId?: string) =>
+    apiClient.get<PaginatedResponse<Patient>>(API_ENDPOINTS.PATIENTS(getTenantId(tenantId)), { params }),
 
-  get: (patientId: string) =>
-    apiClient.get<PatientDetail>(API_ENDPOINTS.PATIENT_DETAIL(getTenantId(), patientId)),
+  get: (patientId: string, tenantId?: string) =>
+    apiClient.get<PatientDetail>(API_ENDPOINTS.PATIENT_DETAIL(getTenantId(tenantId), patientId)),
 
-  create: (data: Partial<Patient>) =>
-    apiClient.post<Patient>(API_ENDPOINTS.PATIENTS(getTenantId()), data),
+  create: (data: Partial<PatientInput>, tenantId?: string) =>
+    apiClient.post<Patient>(API_ENDPOINTS.PATIENTS(getTenantId(tenantId)), patientPayload(data)),
 
-  update: (patientId: string, data: Partial<Patient>) =>
-    apiClient.patch<Patient>(API_ENDPOINTS.PATIENT_DETAIL(getTenantId(), patientId), data),
+  update: (patientId: string, data: Partial<PatientInput>, tenantId?: string) =>
+    apiClient.patch<Patient>(API_ENDPOINTS.PATIENT_DETAIL(getTenantId(tenantId), patientId), patientPayload(data)),
 
-  delete: (patientId: string) =>
-    apiClient.delete<void>(API_ENDPOINTS.PATIENT_DETAIL(getTenantId(), patientId)),
+  delete: (patientId: string, tenantId?: string) =>
+    apiClient.delete<void>(API_ENDPOINTS.PATIENT_DETAIL(getTenantId(tenantId), patientId)),
+};
+
+const patientFields = [
+  'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address',
+  'emergencyContactName', 'emergencyContactPhone', 'notes',
+] as const;
+
+function patientPayload(data: Partial<PatientInput>): Partial<PatientInput> {
+  return Object.fromEntries(patientFields.filter((field) => field in data).map((field) => [field, data[field]]));
+}
+
+export const patientTeamApi = {
+  list: (tenantId: string, patientId: string) =>
+    apiClient.get<PatientTeamMember[]>(API_ENDPOINTS.PATIENT_TEAM(tenantId, patientId)),
+  listEligible: (tenantId: string, patientId: string, specialtyId?: string) =>
+    specialtyId
+      ? apiClient.get<EligiblePatientProfessional[]>(API_ENDPOINTS.PATIENT_TEAM_ELIGIBLE(tenantId, patientId), { params: { specialtyId } })
+      : apiClient.get<EligiblePatientProfessional[]>(API_ENDPOINTS.PATIENT_TEAM_ELIGIBLE(tenantId, patientId)),
+  assign: (tenantId: string, patientId: string, professionalId: string) =>
+    apiClient.put<PatientTeamMember>(API_ENDPOINTS.PATIENT_TEAM_PROFESSIONAL(tenantId, patientId, professionalId)),
+  remove: (tenantId: string, patientId: string, professionalId: string) =>
+    apiClient.delete<PatientTeamMember>(API_ENDPOINTS.PATIENT_TEAM_PROFESSIONAL(tenantId, patientId, professionalId)),
 };
 
 // ==========================================
@@ -547,21 +612,69 @@ export const patientsApi = {
 // ==========================================
 
 export const appointmentsApi = {
-  list: (params?: { psychologistId?: string; patientId?: string; status?: string; from?: string; to?: string; page?: number; limit?: number }) =>
-    apiClient.get<PaginatedResponse<Appointment>>(API_ENDPOINTS.APPOINTMENTS(getTenantId()), { params }),
+  list: (params?: AppointmentFilters, tenantId?: string) =>
+    apiClient.get<PaginatedResponse<AppointmentResponse> | AppointmentResponse[]>(
+      API_ENDPOINTS.APPOINTMENTS(getTenantId(tenantId)), { params: appointmentFilterParams(params) })
+      .then((response) => Array.isArray(response)
+        ? response.map(normalizeAppointment)
+        : { ...response, data: response.data.map(normalizeAppointment) }),
 
-  get: (appointmentId: string) =>
-    apiClient.get<Appointment>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(), appointmentId)),
+  get: (appointmentId: string, tenantId?: string) =>
+    apiClient.get<AppointmentResponse>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(tenantId), appointmentId))
+      .then(normalizeAppointment),
 
-  create: (data: AppointmentCreateInput) =>
-    apiClient.post<Appointment>(API_ENDPOINTS.APPOINTMENTS(getTenantId()), data),
+  create: (data: AppointmentCreateInput, tenantId?: string) =>
+    apiClient.post<AppointmentResponse>(API_ENDPOINTS.APPOINTMENTS(getTenantId(tenantId)), appointmentPayload(data))
+      .then(normalizeAppointment),
 
-  update: (appointmentId: string, data: Partial<AppointmentCreateInput>) =>
-    apiClient.patch<Appointment>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(), appointmentId), data),
+  update: (appointmentId: string, data: AppointmentUpdateInput, tenantId?: string) =>
+    apiClient.patch<AppointmentResponse>(API_ENDPOINTS.APPOINTMENT_DETAIL(getTenantId(tenantId), appointmentId), appointmentPayload(data))
+      .then(normalizeAppointment),
 
-  cancel: (appointmentId: string, reason: string) =>
-    apiClient.post<Appointment>(API_ENDPOINTS.APPOINTMENT_CANCEL(getTenantId(), appointmentId), { reason }),
+  cancel: (appointmentId: string, reason: string, tenantId?: string) =>
+    apiClient.post<AppointmentResponse>(API_ENDPOINTS.APPOINTMENT_CANCEL(getTenantId(tenantId), appointmentId), { reason })
+      .then(normalizeAppointment),
 };
+
+const appointmentFilterFields = [
+  'professionalId', 'specialtyId', 'patientId', 'status', 'from', 'to',
+] as const;
+
+function appointmentFilterParams(filters?: AppointmentFilters): AppointmentFilters | undefined {
+  if (!filters) return undefined;
+  return Object.fromEntries(appointmentFilterFields
+    .filter((field) => field in filters)
+    .map((field) => [field, filters[field]]));
+}
+
+const appointmentFields = [
+  'patientId', 'professionalId', 'specialtyId', 'title', 'description', 'startTime',
+  'duration', 'isOnline', 'meetingUrl', 'location', 'status',
+] as const;
+
+function appointmentPayload(data: AppointmentUpdateInput): AppointmentUpdateInput {
+  return Object.fromEntries(appointmentFields.filter((field) => field in data).map((field) => [field, data[field]]));
+}
+
+type AppointmentResponse = Omit<Appointment, 'professionalId' | 'professional' | 'psychologistId' | 'psychologist'> & {
+  professionalId?: string | null;
+  professional?: AppointmentProfessional | null;
+  psychologistId: string;
+  psychologist?: AppointmentProfessional | null;
+};
+
+function normalizeAppointment(raw: AppointmentResponse): Appointment {
+  const professionalId = raw.professionalId || raw.psychologistId;
+  const professional = [raw.professional, raw.psychologist]
+    .find((candidate) => candidate?.id === professionalId) ?? null;
+  return {
+    ...raw,
+    professionalId,
+    professional,
+    psychologistId: professionalId,
+    psychologist: professional,
+  };
+}
 
 // ==========================================
 // CLINICAL NOTES API (tenant-scoped)
@@ -652,14 +765,14 @@ export const notificationsApi = {
 // ==========================================
 
 export const subscriptionApi = {
-  getCurrent: () =>
-    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION(getTenantId())).then((raw) => {
+  getCurrent: (tenantId?: string) =>
+    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION(getTenantId(tenantId))).then((raw) => {
       // API may return { subscription, tenant } or a direct subscription object.
       return normalizeSubscription(raw.subscription ?? raw);
     }),
 
-  getUsage: (params?: { period?: 'current' | 'previous' | string }) =>
-    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION_USAGE(getTenantId()), { params }).then((raw) => {
+  getUsage: (params?: { period?: 'current' | 'previous' | string }, tenantId?: string) =>
+    apiClient.get<any>(API_ENDPOINTS.SUBSCRIPTION_USAGE(getTenantId(tenantId)), { params }).then((raw) => {
       // API shape: { period, usage, activity, warnings }
       if (raw?.users && raw?.patients && raw?.storage) {
         const professionals = raw.users.professionals ?? raw.users.psychologists;
@@ -678,7 +791,7 @@ export const subscriptionApi = {
         percentUsed: usage?.seats?.percentage ?? 0,
       };
       return {
-        tenantId: getTenantId(),
+        tenantId: getTenantId(tenantId),
         period: {
           start: raw?.period?.start ?? new Date().toISOString(),
           end: raw?.period?.end ?? new Date().toISOString(),

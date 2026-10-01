@@ -5,6 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useTasks, useCreateTask, useDeleteTask } from '@/hooks/useTasks';
 import { tasksApi, usersApi, patientsApi, extractArray } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
+import { assignableUsers } from '@/features/tasks/task-assignees';
+import { toCanonicalRole } from '@/types/guards';
+import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { QUERY_KEYS, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/lib/constants';
 import { TaskStatus, TaskPriority, UserRole } from '@/types';
 import type { Task } from '@/types';
@@ -75,7 +78,7 @@ export default function TasksPage() {
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   // Fetch tasks
-  const { data: tasks, isLoading } = useTasks();
+  const { data: tasks, isLoading, error: tasksError } = useTasks();
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
 
   // Complete task mutation
@@ -128,6 +131,15 @@ export default function TasksPage() {
     new Date(task.dueDate) < new Date() &&
     task.status !== TaskStatus.COMPLETED &&
     task.status !== TaskStatus.CANCELLED);
+
+  if (isFeatureLockedError(tasksError)) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Tareas</h1>
+        <FeatureLockedNotice featureName="El módulo de tareas" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -494,6 +506,7 @@ function CreateTaskDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { mutate: createTask, isPending } = useCreateTask();
+  const actor = useAuthStore((state) => state.user);
 
   const { data: users } = useQuery({
     queryKey: [...QUERY_KEYS.USERS, 'active'],
@@ -522,6 +535,8 @@ function CreateTaskDialog({
     resolver: zodResolver(taskSchema),
     defaultValues: {
       priority: TaskPriority.MEDIUM,
+      // A professional's tasks are their own, so the assignee starts as themselves.
+      ...(actor && toCanonicalRole(actor.role) === UserRole.PROFESIONAL && { assignedToId: actor.id }),
     },
   });
 
@@ -574,7 +589,7 @@ function CreateTaskDialog({
                 {...register('assignedToId')}
               >
                 <option value="">Seleccionar usuario</option>
-                {users?.map((u) => (
+                {assignableUsers(users, actor).map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.firstName} {u.lastName} ({u.role})
                   </option>

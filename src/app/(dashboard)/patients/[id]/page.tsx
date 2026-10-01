@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient } from '@/hooks/usePatients';
 import { usePatientClinicalNotes, useCreateClinicalNote, useDeleteClinicalNote } from '@/hooks/useClinicalNotes';
@@ -9,15 +8,24 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { usePatientSessionPlan, useCreateSessionPlan, useUpdateSessionPlan } from '@/hooks/useSessionPlans';
 import { usePatientSpecialtyRecords, useCreateSpecialtyRecord } from '@/hooks/useSpecialtyRecords';
-import { specialtiesApi } from '@/lib/api/endpoints';
-import { QUERY_KEYS } from '@/lib/constants';
+import { useTenantModules, useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
-import { canAccessClinicalNotes, canEditAppointment, canDeletePatient } from '@/types/guards';
+import {
+  SPECIALTY_FIELD_LABELS,
+  SPECIALTY_MODULE_FIELDS,
+  SpecialtyRecordEntryForm,
+  type SpecialtyRecordModuleOption,
+} from '@/features/patients/specialty-record-entry-form';
+import { PatientTeamTab } from '@/features/patients/patient-team-tab';
+import { describeModule } from '@/features/admin/specialties/module-labels';
+import { canAccessClinicalNotes, canDeletePatient, isAdminRole } from '@/types/guards';
+import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
   AppointmentStatus,
   TaskStatus,
   TaskPriority,
+  type Appointment,
   type ClinicalNote,
   type Task,
 } from '@/types';
@@ -75,12 +83,13 @@ import {
   XCircle,
   Eye,
   Lock,
+  Users,
 } from 'lucide-react';
 
 // ==========================================
 // TAB TYPES
 // ==========================================
-type TabId = 'overview' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
+type TabId = 'overview' | 'team' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
 
 interface Tab {
   id: TabId;
@@ -90,6 +99,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: 'overview', label: 'General', icon: UserIcon },
+  { id: 'team', label: 'Equipo tratante', icon: Users },
   { id: 'clinical', label: 'Historia Clínica', icon: FileText },
   { id: 'specialties', label: 'Especialidades', icon: ClipboardList },
   { id: 'appointments', label: 'Citas', icon: Calendar },
@@ -206,6 +216,7 @@ export default function PatientDetailPage() {
       {/* Tab Content */}
       <div>
         {activeTab === 'overview' && <OverviewTab patient={patient} />}
+        {activeTab === 'team' && <PatientTeamTab patientId={patientId} />}
         {activeTab === 'clinical' && <ClinicalHistoryTab patientId={patientId} />}
         {activeTab === 'specialties' && <SpecialtyRecordsTab patientId={patientId} />}
         {activeTab === 'appointments' && <AppointmentsTab patientId={patientId} />}
@@ -302,35 +313,6 @@ function OverviewTab({ patient }: { patient: any }) {
         </CardContent>
       </Card>
 
-      {/* Assigned Psychologist */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Psicólogo Asignado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {patient.assignedPsychologist ? (
-            <div className="flex items-center gap-3">
-              <Avatar
-                fallback={getInitials(
-                  patient.assignedPsychologist.firstName,
-                  patient.assignedPsychologist.lastName
-                )}
-              />
-              <div>
-                <p className="font-medium">
-                  {patient.assignedPsychologist.firstName} {patient.assignedPsychologist.lastName}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {patient.assignedPsychologist.email}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin psicólogo asignado</p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Notes */}
       {patient.notes && (
         <Card className="md:col-span-2">
@@ -382,7 +364,7 @@ function OverviewTab({ patient }: { patient: any }) {
 // ==========================================
 function ClinicalHistoryTab({ patientId }: { patientId: string }) {
   const user = useAuthStore((state) => state.user);
-  const { data: notes, isLoading } = usePatientClinicalNotes(patientId);
+  const { data: notes, isLoading, error: notesError } = usePatientClinicalNotes(patientId);
   const createNote = useCreateClinicalNote();
   const deleteNote = useDeleteClinicalNote();
 
@@ -429,6 +411,10 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
     );
   }
 
+  if (isFeatureLockedError(notesError)) {
+    return <FeatureLockedNotice featureName="El módulo de notas clínicas" />;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -469,13 +455,15 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
                     <Button variant="ghost" size="icon" onClick={() => setViewNote(note)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteNoteId(note.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {(isAdminRole(user.role) || note.psychologistId === user.id) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteNoteId(note.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -585,57 +573,27 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
 // ==========================================
 // SPECIALTY RECORDS TAB
 // ==========================================
-const SPECIALTY_FIELD_LABELS: Record<string, string> = {
-  testName: 'Nombre de prueba',
-  score: 'Puntaje',
-  interpretation: 'Interpretación',
-  weightKg: 'Peso (kg)',
-  heightCm: 'Altura (cm)',
-  bmi: 'IMC',
-  dietaryGoals: 'Objetivos alimenticios',
-  dailyCalories: 'Calorías diarias',
-  meals: 'Comidas sugeridas',
-  painLevel: 'Nivel de dolor (0-10)',
-  mobility: 'Movilidad',
-  progress: 'Evolución',
-  exercises: 'Ejercicios',
-  frequency: 'Frecuencia',
-  repetitions: 'Repeticiones',
-  procedure: 'Procedimiento',
-  tooth: 'Pieza dental',
-  treatmentStatus: 'Estado del tratamiento',
-  findings: 'Hallazgos',
-  surfaces: 'Superficies',
-};
-
-const SPECIALTY_MODULE_FIELDS: Record<string, string[]> = {
-  'psychology.assessments': ['testName', 'score', 'interpretation'],
-  'nutrition.assessments': ['weightKg', 'heightCm', 'bmi'],
-  'nutrition.diet-plans': ['dailyCalories', 'meals', 'dietaryGoals'],
-  'physiotherapy.evolution': ['painLevel', 'mobility', 'progress'],
-  'physiotherapy.exercise-plans': ['exercises', 'frequency', 'repetitions'],
-  'dentistry.treatments': ['procedure', 'tooth', 'treatmentStatus'],
-  'dentistry.odontogram': ['findings', 'surfaces'],
-};
-
 function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
   const { data: records = [], isLoading } = usePatientSpecialtyRecords(patientId);
   const createRecord = useCreateSpecialtyRecord(patientId);
-  const [selectedModule, setSelectedModule] = useState('');
-  const [formData, setFormData] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState('');
-
-  const { data: specialties = [] } = useQuery({
-    queryKey: ['specialties'],
-    queryFn: () => specialtiesApi.list(),
-  });
-  const { data: enabledModules = [] } = useQuery({
-    queryKey: QUERY_KEYS.TENANT_MODULES,
-    queryFn: () => specialtiesApi.modules(),
-  });
+  const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
+  const specialtiesQuery = useTenantSpecialties();
+  const modulesQuery = useTenantModules();
+  const specialties = specialtiesQuery.data ?? [];
+  const enabledModules = modulesQuery.data ?? [];
+  const configurationStatus = specialtiesQuery.isError || modulesQuery.isError
+    ? 'error'
+    : !tenantId || specialtiesQuery.isPending || modulesQuery.isPending
+      ? 'loading'
+      : 'ready';
+  const configurationError = [specialtiesQuery.error, modulesQuery.error]
+    .map((error) => error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : undefined)
+    .find(Boolean);
 
   const enabledKeys = new Set(enabledModules.filter((module) => module.enabled).map((module) => module.moduleKey));
-  const moduleOptions = specialties.flatMap((specialty) =>
+  const moduleOptions: SpecialtyRecordModuleOption[] = specialties.flatMap((specialty) =>
     (specialty.modules || [])
       .filter((module) => enabledKeys.has(module.moduleKey) && SPECIALTY_MODULE_FIELDS[module.moduleKey])
       .map((module) => ({
@@ -644,95 +602,18 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
         moduleKey: module.moduleKey,
       })),
   );
-  const selectedOption = moduleOptions.find((option) => option.moduleKey === selectedModule);
-  const fields = selectedModule ? SPECIALTY_MODULE_FIELDS[selectedModule] || [] : [];
-
-  const handleModuleChange = (moduleKey: string) => {
-    setSelectedModule(moduleKey);
-    setFormData({});
-  };
-
-  const handleSubmit = () => {
-    if (!selectedOption) return;
-    createRecord.mutate(
-      {
-        specialtyCode: selectedOption.code,
-        moduleKey: selectedOption.moduleKey,
-        data: Object.fromEntries(fields.map((field) => [field, formData[field] || ''])),
-        notes: notes.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          setFormData({});
-          setNotes('');
-        },
-      },
-    );
-  };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Registrar evolución especializada</CardTitle>
-          <CardDescription>
-            Guarda evaluaciones, planes y evoluciones según la especialidad habilitada.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="specialty-module">Módulo</Label>
-            <select
-              id="specialty-module"
-              value={selectedModule}
-              onChange={(event) => handleModuleChange(event.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
-            >
-              <option value="">Selecciona un módulo</option>
-              {moduleOptions.map((option) => (
-                <option key={option.moduleKey} value={option.moduleKey}>
-                  {option.name} · {option.moduleKey.split('.')[1]}
-                </option>
-              ))}
-            </select>
-          </div>
-          {selectedModule && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {fields.map((field) => (
-                  <div key={field}>
-                    <Label htmlFor={`specialty-${field}`}>{SPECIALTY_FIELD_LABELS[field] || field}</Label>
-                    <Input
-                      id={`specialty-${field}`}
-                      required
-                      value={formData[field] || ''}
-                      onChange={(event) => setFormData({ ...formData, [field]: event.target.value })}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <Label htmlFor="specialty-notes">Notas adicionales</Label>
-                <Textarea
-                  id="specialty-notes"
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  rows={3}
-                  placeholder="Indicaciones, observaciones o seguimiento..."
-                />
-              </div>
-              <Button onClick={handleSubmit} disabled={createRecord.isPending} loading={createRecord.isPending}>
-                Guardar registro
-              </Button>
-            </>
-          )}
-          {moduleOptions.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No hay módulos especializados habilitados para este consultorio.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <SpecialtyRecordEntryForm
+        tenantId={tenantId}
+        patientId={patientId}
+        configurationStatus={configurationStatus}
+        configurationError={configurationError}
+        moduleOptions={moduleOptions}
+        isSaving={createRecord.isPending}
+        onSubmit={(payload) => createRecord.mutateAsync(payload)}
+      />
 
       <div className="space-y-3">
         <h3 className="text-lg font-semibold">Historial especializado</h3>
@@ -746,8 +627,8 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
               <CardContent className="pt-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-medium">{record.specialty?.name || record.moduleKey}</p>
-                    <p className="text-sm text-muted-foreground">{record.moduleKey}</p>
+                    <p className="font-medium">{record.specialty?.name || describeModule(record.moduleKey).name}</p>
+                    <p className="text-sm text-muted-foreground">{describeModule(record.moduleKey).name}</p>
                     <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                       {Object.entries(record.data).map(([key, value]) => (
                         <div key={key}>
@@ -844,7 +725,7 @@ function AppointmentsTab({ patientId }: { patientId: string }) {
 // ==========================================
 function TasksTab({ patientId }: { patientId: string }) {
   const user = useAuthStore((state) => state.user);
-  const { data: tasks, isLoading } = useTasks({ patientId });
+  const { data: tasks, isLoading, error: tasksError } = useTasks({ patientId });
   const createTask = useCreateTask();
 
   const [showNewTask, setShowNewTask] = useState(false);
@@ -882,6 +763,10 @@ function TasksTab({ patientId }: { patientId: string }) {
         ))}
       </div>
     );
+  }
+
+  if (isFeatureLockedError(tasksError)) {
+    return <FeatureLockedNotice featureName="El módulo de tareas" />;
   }
 
   return (
@@ -1331,7 +1216,7 @@ function StatCard({
   );
 }
 
-function AppointmentCard({ appointment }: { appointment: any }) {
+function AppointmentCard({ appointment }: { appointment: Appointment }) {
   return (
     <Card>
       <CardContent className="py-3">
@@ -1349,10 +1234,16 @@ function AppointmentCard({ appointment }: { appointment: any }) {
                 {formatDate(appointment.startTime, 'HH:mm')} -{' '}
                 {formatDate(appointment.endTime, 'HH:mm')}
               </p>
-              {appointment.psychologist && (
+              {appointment.professional && (
                 <p className="text-xs text-muted-foreground">
-                  Dr. {appointment.psychologist.firstName} {appointment.psychologist.lastName}
+                  {appointment.professional.professionalTitle
+                    ? `${appointment.professional.professionalTitle} `
+                    : ''}
+                  {appointment.professional.firstName} {appointment.professional.lastName}
                 </p>
+              )}
+              {appointment.specialty && (
+                <p className="text-xs text-muted-foreground">{appointment.specialty.name}</p>
               )}
             </div>
           </div>

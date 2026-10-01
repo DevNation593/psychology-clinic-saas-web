@@ -11,6 +11,7 @@ import {
   UsageMetrics,
   PlanTier,
   TenantType,
+  Appointment,
 } from './index';
 
 export function isUserRole(value: string): value is UserRole {
@@ -31,12 +32,22 @@ export function toCanonicalRole(role: UserRole): UserRole {
   return role;
 }
 
+export function canAddPatientTeamMember(user: User): boolean {
+  const role = toCanonicalRole(user.role);
+  return role === UserRole.ADMIN || role === UserRole.ASISTENTE || role === UserRole.PROFESIONAL;
+}
+
+export function canRemovePatientTeamMember(user: User): boolean {
+  const role = toCanonicalRole(user.role);
+  return role === UserRole.ADMIN || role === UserRole.ASISTENTE;
+}
+
 export function hasActiveProfessionalProfile(user: User): boolean {
   return user.professionalProfile?.isActive === true;
 }
 
 export function canAccessClinicalNotes(user: User): boolean {
-  return [UserRole.CLIENTE, UserRole.PSICOLOGO, UserRole.SOPORTE].includes(user.role);
+  return isAdminRole(user.role) || isProfessionalRole(user.role) || user.role === UserRole.SOPORTE;
 }
 
 export function canManageUsers(user: User): boolean {
@@ -47,8 +58,13 @@ export function canManageSubscription(user: User): boolean {
   return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
 }
 
-export function canEditAppointment(user: User): boolean {
-  return user.role !== UserRole.PACIENTE; // All except patient
+export function canEditAppointment(
+  user: User,
+  appointment: Pick<Appointment, 'professionalId'>,
+): boolean {
+  const role = toCanonicalRole(user.role);
+  if (role === UserRole.ADMIN || role === UserRole.ASISTENTE) return true;
+  return role === UserRole.PROFESIONAL && appointment.professionalId === user.id;
 }
 
 export function canDeletePatient(user: User): boolean {
