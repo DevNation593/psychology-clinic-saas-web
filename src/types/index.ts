@@ -356,6 +356,13 @@ export interface Invoice {
   status: 'PENDING' | 'ISSUED' | 'FAILED' | 'VOIDED';
   issueDate: string;
   customerName: string;
+  customerEmail?: string;
+  customerTaxIdType?: string;
+  customerTaxId?: string;
+  customerAddress?: string | null;
+  patientId?: string | null;
+  /** Null for invoices issued before invoices were linked to patients. */
+  patient?: { id: string; firstName: string; lastName: string } | null;
   description: string;
   subtotal: number | string;
   tax: number | string;
@@ -514,6 +521,12 @@ export interface Patient {
   assignedPsychologist?: PatientAssignee | null;
   isActive: boolean;
   notes: string | null;
+  // Billing recipient for this patient's invoices; may be a third party.
+  billingName: string | null;
+  billingTaxIdType: string | null;
+  billingTaxId: string | null;
+  billingEmail: string | null;
+  billingAddress: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -548,6 +561,11 @@ export interface PatientInput {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   notes?: string;
+  billingName?: string | null;
+  billingTaxIdType?: string | null;
+  billingTaxId?: string | null;
+  billingEmail?: string | null;
+  billingAddress?: string | null;
 }
 
 export interface SpecialtySummary {
