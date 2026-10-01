@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeBaseUrl, resolveContactChannel, site } from './site';
+import { normalizeBaseUrl, planFullName, resolveContactChannel, site } from './site';
 
 describe('site content', () => {
   it('has exactly five frequently asked questions with text', () => {
@@ -16,11 +16,32 @@ describe('site content', () => {
     ]);
     expect(summary).toEqual([
       ['Prueba', 0, null, 1],
-      ['Personal Básico', 29, null, 1],
-      ['Personal Pro', 59, null, 1],
-      ['Clínica Básica', 99, 15, 3],
-      ['Clínica Pro', 199, 12, 10],
-      ['Enterprise', null, null, null],
+      ['Básico', 29, null, 1],
+      ['Pro', 59, null, 1],
+      ['Básico', 99, 15, 3],
+      ['Pro', 199, 12, 10],
+      ['Personalizado', null, null, null],
+    ]);
+  });
+
+  it('splits the plans into three individual and three business plans', () => {
+    const names = (audience: string) =>
+      site.plans.filter((plan) => plan.audience === audience).map((plan) => plan.name);
+    expect(names('individual')).toEqual(['Prueba', 'Básico', 'Pro']);
+    expect(names('business')).toEqual(['Básico', 'Pro', 'Personalizado']);
+  });
+
+  it('highlights exactly one plan per group', () => {
+    for (const audience of ['individual', 'business']) {
+      expect(site.plans.filter((plan) => plan.audience === audience && plan.highlighted)).toHaveLength(1);
+    }
+  });
+
+  it('gives every plan a distinct full name', () => {
+    const fullNames = site.plans.map(planFullName);
+    expect(fullNames).toEqual([
+      'Individual Prueba', 'Individual Básico', 'Individual Pro',
+      'Empresarial Básico', 'Empresarial Pro', 'Empresarial Personalizado',
     ]);
   });
 
