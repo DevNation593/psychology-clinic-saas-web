@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeTaxId, patientBillingErrors, type TaxIdType } from '@/features/billing/billing-customer';
 import { UserRole, Gender, TaskStatus, TaskPriority, AppointmentStatus } from '@/types';
 import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
 
@@ -178,6 +179,30 @@ export const patientSchema = z.object({
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   notes: z.string().optional(),
+  // Billing recipient: optional, but what is entered must be consistent.
+  billingName: z.string().optional(),
+  billingTaxIdType: z.string().optional(),
+  billingTaxId: z.string().optional().transform((value) => (value ? normalizeTaxId(value) : value)),
+  billingEmail: z.string().optional(),
+  billingAddress: z.string().optional(),
+}).superRefine((data, context) => {
+  const errors = patientBillingErrors({
+    name: data.billingName ?? '',
+    taxIdType: (data.billingTaxIdType ?? '') as TaxIdType | '',
+    taxId: data.billingTaxId ?? '',
+    email: data.billingEmail ?? '',
+    address: data.billingAddress ?? '',
+  });
+  const paths = {
+    name: 'billingName',
+    taxIdType: 'billingTaxIdType',
+    taxId: 'billingTaxId',
+    email: 'billingEmail',
+    address: 'billingAddress',
+  } as const;
+  for (const [field, message] of Object.entries(errors)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message, path: [paths[field as keyof typeof paths]] });
+  }
 });
 
 // Existing patient pages are migrated in Task 9. Their registered field is
