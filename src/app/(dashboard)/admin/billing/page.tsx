@@ -75,8 +75,13 @@ export default function BillingPage() {
   const [description, setDescription] = useState('');
   const [subtotal, setSubtotal] = useState('');
   const [taxRate, setTaxRate] = useState('0');
-  // One key per filled form: a retry or a double click must not create a second invoice.
+  // The key identifies one attempt at one form content. It survives only an unanswered
+  // request (so that retry cannot issue twice) and changes whenever the form changes or the
+  // server has answered, because the API replays whatever it stored under a key.
   const idempotencyKey = useRef(newKey());
+  const rotateKey = () => {
+    idempotencyKey.current = newKey();
+  };
   // `isPending` only updates on the next render; this blocks a second click in the same tick.
   const submitting = useRef(false);
   const invoicesQuery = useQuery({ queryKey: INVOICES_KEY, queryFn: () => billingApi.listInvoices() });
@@ -92,6 +97,7 @@ export default function BillingPage() {
   const customerIsValid = !!selectedPatient && Object.keys(customerErrors).length === 0;
 
   const selectPatient = (id: string) => {
+    rotateKey();
     setPatientId(id);
     const next = (patients.data ?? []).find((item) => item.id === id);
     // Always reload from the record so one patient's payer is never billed under another.
@@ -124,18 +130,26 @@ export default function BillingPage() {
         address: customer.address.trim(),
       },
     }),
-    onSuccess: () => {
+    onSuccess: (invoice) => {
+      if (invoice.status !== 'ISSUED') {
+        // The server stored the attempt but the document was not issued; keep the form.
+        rotateKey();
+        toast.error(`La factura no se emitió: ${invoice.errorMessage || 'inténtalo de nuevo.'}`);
+        queryClient.invalidateQueries({ queryKey: INVOICES_KEY });
+        return;
+      }
       setDescription('');
       setSubtotal('');
       setTaxRate('0');
       selectPatient('');
-      idempotencyKey.current = newKey();
       toast.success('Factura emitida');
       queryClient.invalidateQueries({ queryKey: INVOICES_KEY });
       // The patient record may now hold the saved payer.
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENTS });
     },
     onError: (error: unknown) => {
+      // Without a response the request may still have gone through, so the key is kept.
+      if ((error as { code?: string } | null)?.code !== 'NETWORK_ERROR') rotateKey();
       toast.error(issueErrorMessage(error));
       // A failed attempt is still recorded, so the history is refreshed too.
       queryClient.invalidateQueries({ queryKey: INVOICES_KEY });
@@ -220,7 +234,10 @@ export default function BillingPage() {
                 <BillingCustomerFields
                   idPrefix="invoice-customer"
                   value={customer}
-                  onChange={setCustomer}
+                  onChange={(next) => {
+                    rotateKey();
+                    setCustomer(next);
+                  }}
                   errors={customerErrors}
                   disabled={createInvoice.isPending}
                 />
@@ -229,7 +246,11 @@ export default function BillingPage() {
                     type="checkbox"
                     className="h-4 w-4 rounded border-input"
                     checked={saveToPatient}
-                    onChange={(event) => setSaveToPatient(event.target.checked)}
+                    disabled={createInvoice.isPending}
+                    onChange={(event) => {
+                      rotateKey();
+                      setSaveToPatient(event.target.checked);
+                    }}
                   />
                   Guardar en la ficha del paciente
                 </label>
@@ -243,7 +264,10 @@ export default function BillingPage() {
                   id="invoice-description"
                   required
                   value={description}
-                  onChange={(event) => setDescription(event.target.value)}
+                  onChange={(event) => {
+                    rotateKey();
+                    setDescription(event.target.value);
+                  }}
                   placeholder="Consulta general"
                 />
               </div>
@@ -257,7 +281,10 @@ export default function BillingPage() {
                   type="number"
                   inputMode="decimal"
                   value={subtotal}
-                  onChange={(event) => setSubtotal(event.target.value)}
+                  onChange={(event) => {
+                    rotateKey();
+                    setSubtotal(event.target.value);
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -270,7 +297,10 @@ export default function BillingPage() {
                   type="number"
                   inputMode="decimal"
                   value={taxRate}
-                  onChange={(event) => setTaxRate(event.target.value)}
+                  onChange={(event) => {
+                    rotateKey();
+                    setTaxRate(event.target.value);
+                  }}
                 />
               </div>
             </div>

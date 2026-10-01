@@ -160,25 +160,90 @@ describe('BillingPage issuing', () => {
     expect(api.createInvoice).toHaveBeenCalledTimes(1);
   });
 
-  it('reuses one idempotency key for a retry of the same form and a new one after success', async () => {
-    api.createInvoice.mockRejectedValueOnce(new Error('Faktur no disponible'));
+  const sentKeys = () => api.createInvoice.mock.calls.map(([body]) => body.idempotencyKey);
+
+  it('does not report success when the server answers with an invoice that was not issued', async () => {
+    api.createInvoice.mockResolvedValue(invoice({ status: 'FAILED', errorMessage: 'Faktur no disponible' }));
+    renderPage();
+    choosePatient('patient-2');
+    fillAmounts();
+    submit();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('La factura no se emitió: Faktur no disponible'));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Paciente')).toHaveValue('patient-2');
+    expect(screen.getByLabelText('Descripción')).toHaveValue('Consulta general');
+  });
+
+  it('uses a new key after the server rejects a request, so a retry is a real new attempt', async () => {
+    api.createInvoice.mockRejectedValueOnce({ status: 502, message: 'Faktur no disponible' });
     renderPage();
     choosePatient('patient-2');
     fillAmounts();
     submit();
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Faktur no disponible'));
     submit();
-    await waitFor(() => expect(api.createInvoice).toHaveBeenCalledTimes(2));
-    const [first, second] = api.createInvoice.mock.calls.map(([body]) => body.idempotencyKey);
-    expect(first).toBeTruthy();
-    expect(second).toBe(first);
 
-    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    await waitFor(() => expect(api.createInvoice).toHaveBeenCalledTimes(2));
+    const [first, second] = sentKeys();
+    expect(first).toBeTruthy();
+    expect(second).toBeTruthy();
+    expect(second).not.toBe(first);
+  });
+
+  it('keeps the key when no response arrived, so the retry cannot issue twice', async () => {
+    api.createInvoice.mockRejectedValueOnce({ code: 'NETWORK_ERROR', message: 'No se recibió respuesta del servidor.' });
+    renderPage();
     choosePatient('patient-2');
     fillAmounts();
     submit();
-    await waitFor(() => expect(api.createInvoice).toHaveBeenCalledTimes(3));
-    expect(api.createInvoice.mock.calls[2][0].idempotencyKey).not.toBe(first);
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    submit();
+
+    await waitFor(() => expect(api.createInvoice).toHaveBeenCalledTimes(2));
+    const [first, second] = sentKeys();
+    expect(second).toBe(first);
+  });
+
+  it('uses a new key when the form changes after an unanswered request', async () => {
+    api.createInvoice.mockRejectedValueOnce({ code: 'NETWORK_ERROR', message: 'No se recibió respuesta del servidor.' });
+    renderPage();
+    choosePatient('patient-2');
+    fillAmounts();
+    submit();
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText('Subtotal (USD)'), { target: { value: '250' } });
+    submit();
+
+    await waitFor(() => expect(api.createInvoice).toHaveBeenCalledTimes(2));
+    const [first, second] = sentKeys();
+    expect(second).not.toBe(first);
+  });
+
+  it('uses a new key for the next invoice after a success', async () => {
+    renderPage();
+    choosePatient('patient-2');
+    fillAmounts();
+    submit();
+    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    choosePatient('patient-2');
+    fillAmounts();
+    submit();
+
+    await waitFor(() => expect(api.createInvoice).toHaveBeenCalledTimes(2));
+    const [first, second] = sentKeys();
+    expect(second).not.toBe(first);
+  });
+
+  it('sends an empty address when the user clears it, so this invoice goes out without one', async () => {
+    renderPage();
+    choosePatient('patient-2');
+    fireEvent.change(screen.getByLabelText('Dirección'), { target: { value: '' } });
+    fillAmounts();
+    submit();
+
+    await waitFor(() => expect(api.createInvoice).toHaveBeenCalled());
+    expect(api.createInvoice.mock.calls[0][0].customer.address).toBe('');
   });
 
   it('confirms success, clears the form and keeps it on failure', async () => {
