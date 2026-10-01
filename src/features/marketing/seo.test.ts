@@ -45,6 +45,13 @@ describe('page metadata', () => {
   });
 });
 
+describe('about page metadata', () => {
+  it('does not promise a team or a location the page cannot show', () => {
+    const text = `${PAGES.about.title} ${PAGES.about.description}`;
+    expect(text).not.toMatch(/equipo|ubicaci[oó]n|encontrarnos|llegar/i);
+  });
+});
+
 describe('indexability', () => {
   it('never indexes the thank-you page', () => {
     expect(isIndexable('thanks')).toBe(false);

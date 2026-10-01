@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ContactInfo, SiteContent } from '@/content/site';
+import { hasWhatsappNumber, type ContactInfo, type SiteContent } from '@/content/site';
 import { whatsappUrl } from '../demo-request';
 
 export function Hero({ hero, contact }: { hero: SiteContent['hero']; contact: ContactInfo }) {
@@ -13,7 +13,7 @@ export function Hero({ hero, contact }: { hero: SiteContent['hero']; contact: Co
           <Link href="/contacto" className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             Solicitar demo
           </Link>
-          {contact.whatsappNumber.trim() !== '' && (
+          {hasWhatsappNumber(contact.whatsappNumber) && (
             <a
               href={whatsappUrl(contact.whatsappNumber, 'Hola, quiero información sobre la plataforma.')}
               target="_blank" rel="noopener noreferrer"

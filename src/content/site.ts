@@ -52,15 +52,35 @@ export interface SiteContent {
   legal: LegalEntity;
 }
 
+const FALLBACK_BASE_URL = 'http://localhost:4200';
+
+/** Always returns a parseable absolute URL without a trailing slash. */
 export function normalizeBaseUrl(raw: string | undefined): string {
   const value = (raw ?? '').trim().replace(/\/+$/, '');
-  return value || 'http://localhost:4200';
+  if (!value) return FALLBACK_BASE_URL;
+  const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    new URL(candidate);
+    return candidate;
+  } catch {
+    return FALLBACK_BASE_URL;
+  }
+}
+
+/** True when the value contains a dialable number, not just formatting characters. */
+export function hasWhatsappNumber(value: string): boolean {
+  return /\d/.test(value);
 }
 
 export function resolveContactChannel(contact: ContactInfo): 'whatsapp' | 'email' | 'none' {
-  if (contact.whatsappNumber.trim()) return 'whatsapp';
+  if (hasWhatsappNumber(contact.whatsappNumber)) return 'whatsapp';
   if (contact.email.trim()) return 'email';
   return 'none';
+}
+
+if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_APP_URL) {
+  // Canonical URLs, the sitemap and sharing tags would otherwise point at localhost.
+  console.warn('NEXT_PUBLIC_APP_URL is not set: public URLs fall back to ' + FALLBACK_BASE_URL);
 }
 
 export const site: SiteContent = {

@@ -57,9 +57,18 @@ describe('DemoRequestForm', () => {
     expect(screen.getByLabelText('Nombre')).toHaveValue('Ana Vega');
   });
 
-  it('falls back to e-mail when there is no WhatsApp number', () => {
+  it('falls back to e-mail when there is no WhatsApp number', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
     render(<DemoRequestForm contact={{ ...whatsapp, whatsappNumber: '' }} />);
     expect(screen.getByText(/Se abrirá tu aplicación de correo/)).toBeInTheDocument();
+    fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Solicitar demo' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/gracias'));
+    const [url, target] = open.mock.calls[0];
+    expect(target).toBe('_self');
+    expect(String(url)).toMatch(/^mailto:ventas@example\.com\?subject=/);
+    expect(decodeURIComponent(String(url))).toContain('Centro Vida');
   });
 
   it('renders a notice instead of a form when no contact channel exists', () => {

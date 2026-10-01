@@ -34,7 +34,7 @@ export function DemoRequestForm({ contact }: { contact: ContactInfo }) {
   const onSubmit = (data: DemoRequest) => {
     const message = buildDemoMessage(data);
     if (channel === 'email') {
-      window.location.href = mailtoUrl(contact.email, 'Solicitud de demo', message);
+      window.open(mailtoUrl(contact.email, 'Solicitud de demo', message), '_self');
       router.push('/gracias');
       return;
     }
@@ -93,7 +93,9 @@ export function DemoRequestForm({ contact }: { contact: ContactInfo }) {
         <div className="flex items-start gap-2">
           <input id="demo-privacy" type="checkbox" className="mt-1 h-4 w-4 rounded border-input" {...register('acceptPrivacy')} />
           <label htmlFor="demo-privacy" className="text-sm">
-            Acepto la <Link href="/privacidad" className="text-primary underline">política de privacidad</Link>
+            Acepto la{' '}
+            {/* Opens in a new tab so the typed form is not lost. */}
+            <Link href="/privacidad" target="_blank" className="text-primary underline">política de privacidad</Link>
           </label>
         </div>
         {errors.acceptPrivacy && <p role="alert" className="text-sm text-destructive">{errors.acceptPrivacy.message}</p>}

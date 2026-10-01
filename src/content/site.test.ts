@@ -58,4 +58,13 @@ describe('normalizeBaseUrl', () => {
     expect(normalizeBaseUrl('https://example.com/')).toBe('https://example.com');
     expect(normalizeBaseUrl('https://example.com///')).toBe('https://example.com');
   });
+
+  it('always returns a URL the app can parse', () => {
+    expect(normalizeBaseUrl('midominio.com')).toBe('https://midominio.com');
+    expect(normalizeBaseUrl('midominio.com/')).toBe('https://midominio.com');
+    expect(normalizeBaseUrl('not a url')).toBe('http://localhost:4200');
+    for (const raw of [undefined, '', 'midominio.com', 'not a url', 'https://example.com/']) {
+      expect(() => new URL(normalizeBaseUrl(raw))).not.toThrow();
+    }
+  });
 });

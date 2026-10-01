@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { readConsent, useConsent, useConsentReview, writeConsent } from './consent';
+import { readConsent, useConsent, useConsentReview, useIsClient, writeConsent } from './consent';
 
 export function CookieBanner() {
   const consent = useConsent();
   const reviewing = useConsentReview();
-  if (consent !== 'unset' && !reviewing) return null;
+  // The stored choice is unknown on the server, so the banner only appears in the browser.
+  const isClient = useIsClient();
+  if (!isClient || (consent !== 'unset' && !reviewing)) return null;
 
   const choose = (next: 'accepted' | 'rejected') => {
     const wasAccepted = readConsent() === 'accepted';

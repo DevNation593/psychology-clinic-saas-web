@@ -1,5 +1,6 @@
 import { site } from '@/content/site';
 import { Breadcrumbs } from '@/features/marketing/breadcrumbs';
+import { DirectContact } from '@/features/marketing/direct-contact';
 import { DemoRequestForm } from '@/features/marketing/demo-request-form';
 import { PAGES, buildMetadata } from '@/features/marketing/seo';
 
@@ -15,12 +16,7 @@ export default function ContactPage() {
       <div className="mt-8">
         <DemoRequestForm contact={site.contact} />
       </div>
-      {site.contact.email && (
-        <p className="mt-8 text-sm">
-          También puedes escribirnos a{' '}
-          <a href={`mailto:${site.contact.email}`} className="text-primary underline">{site.contact.email}</a>.
-        </p>
-      )}
+      <DirectContact contact={site.contact} />
       </div>
     </>
   );
