@@ -7,7 +7,32 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import esLocale from '@fullcalendar/core/locales/es';
-import { Appointment, TenantSettings } from '@/types';
+import { APPOINTMENT_STATUS_LABELS } from '@/lib/constants';
+import { Appointment, AppointmentStatus, TenantSettings } from '@/types';
+
+const STATUS_COLORS: Record<AppointmentStatus, string> = {
+  [AppointmentStatus.SCHEDULED]: '#3b82f6',
+  [AppointmentStatus.CONFIRMED]: '#10b981',
+  [AppointmentStatus.COMPLETED]: '#6b7280',
+  [AppointmentStatus.CANCELLED]: '#ef4444',
+  [AppointmentStatus.NO_SHOW]: '#f97316',
+};
+const LEGEND_ORDER: AppointmentStatus[] = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CONFIRMED,
+  AppointmentStatus.COMPLETED,
+  AppointmentStatus.CANCELLED,
+  AppointmentStatus.NO_SHOW,
+];
+const COMPACT_BREAKPOINT = 768;
+
+/** FullCalendar durations are HH:MM:SS; an invalid length falls back to one hour. */
+export function toSlotDuration(minutes: number): string {
+  const safe = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 60;
+  const hours = Math.floor(safe / 60).toString().padStart(2, '0');
+  const rest = (safe % 60).toString().padStart(2, '0');
+  return `${hours}:${rest}:00`;
+}
 
 interface CalendarViewProps {
   events: Appointment[];
@@ -56,10 +81,9 @@ export default function CalendarView({
   const lastClosing = configuredSchedules.length > 0
     ? Math.max(...configuredSchedules.map((schedule) => toMinutes(schedule.endTime)))
     : 20 * 60;
-  const configuredDuration = settings?.defaultSessionDuration || 60;
-  const slotDuration = `00:${Math.floor(configuredDuration / 60)
-    .toString()
-    .padStart(2, '0')}:${(configuredDuration % 60).toString().padStart(2, '0')}`;
+  const slotDuration = toSlotDuration(settings?.defaultSessionDuration ?? 60);
+  // Phones cannot fit a week grid, so they start on the agenda list with fewer view buttons.
+  const isCompact = typeof window !== 'undefined' && window.innerWidth < COMPACT_BREAKPOINT;
 
   const calendarEvents = events.map((appointment) => ({
     id: appointment.id,
@@ -75,25 +99,33 @@ export default function CalendarView({
   }));
 
   function getStatusColor(status: string): string {
-    const colors: Record<string, string> = {
-      SCHEDULED: '#3b82f6',
-      CONFIRMED: '#10b981',
-      CANCELLED: '#ef4444',
-      COMPLETED: '#6b7280',
-      NO_SHOW: '#f97316',
-    };
-    return colors[status] || '#3b82f6';
+    return STATUS_COLORS[status as AppointmentStatus] ?? STATUS_COLORS[AppointmentStatus.SCHEDULED];
   }
 
   return (
+    <div className="space-y-4">
     <FullCalendar
       ref={calendarRef}
       plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-      initialView="timeGridWeek"
+      initialView={isCompact ? 'listWeek' : 'timeGridWeek'}
       headerToolbar={{
         left: 'prev,next today',
         center: 'title',
-        right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+        right: isCompact ? 'listWeek,timeGridDay' : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+      }}
+      eventContent={(info) => {
+        const appointment = info.event.extendedProps.appointment as Appointment;
+        const professional = appointment.professional
+          ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
+          : null;
+        const detail = [professional, appointment.specialty?.name].filter(Boolean).join(' · ');
+        return (
+          <div className="overflow-hidden px-1 leading-tight">
+            {info.timeText && <span className="mr-1 text-[0.7rem] opacity-90">{info.timeText}</span>}
+            <span className="font-medium">{info.event.title}</span>
+            {detail && <span className="block truncate text-[0.7rem] opacity-90">{detail}</span>}
+          </div>
+        );
       }}
       locale={esLocale}
       events={calendarEvents}
@@ -143,5 +175,14 @@ export default function CalendarView({
         }
       }}
     />
+    <ul aria-label="Estados de las citas" className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+      {LEGEND_ORDER.map((status) => (
+        <li key={status} className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLORS[status] }} />
+          {APPOINTMENT_STATUS_LABELS[status]}
+        </li>
+      ))}
+    </ul>
+    </div>
   );
 }
