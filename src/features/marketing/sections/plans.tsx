@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import Link from 'next/link';
 import type { Plan } from '@/content/site';
 
@@ -18,9 +19,11 @@ function limits(plan: Plan): string[] {
 }
 
 export function Plans({ plans, heading = 'Planes' }: { plans: Plan[]; heading?: string }) {
+  // The section can appear more than once per page, so its heading id must be unique.
+  const titleId = useId();
   return (
-    <section aria-labelledby="plans-title" className="mx-auto max-w-6xl px-4 py-16">
-      <h2 id="plans-title" className="text-2xl font-bold">{heading}</h2>
+    <section aria-labelledby={titleId} className="mx-auto max-w-6xl px-4 py-16">
+      <h2 id={titleId} className="text-2xl font-bold">{heading}</h2>
       <p className="mt-2 text-sm text-muted-foreground">Precios en USD por mes.</p>
       <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => (

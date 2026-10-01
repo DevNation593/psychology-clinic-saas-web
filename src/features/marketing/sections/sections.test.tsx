@@ -43,6 +43,17 @@ describe('Plans', () => {
     expect(within(card).getByText('Hasta 150 pacientes activos')).toBeInTheDocument();
     expect(screen.getAllByRole('article')).toHaveLength(6);
   });
+
+  it('labels each instance with its own heading when rendered twice', () => {
+    render(
+      <>
+        <Plans plans={site.plans.slice(0, 1)} heading="Para profesionales independientes" />
+        <Plans plans={site.plans.slice(3, 4)} heading="Para clínicas y equipos" />
+      </>,
+    );
+    expect(screen.getByRole('region', { name: 'Para profesionales independientes' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Para clínicas y equipos' })).toBeInTheDocument();
+  });
 });
 
 describe('FaqSection', () => {
