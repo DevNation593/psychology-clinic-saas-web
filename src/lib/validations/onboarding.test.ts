@@ -59,7 +59,7 @@ describe('clinicOnboardingSchema', () => {
 });
 
 describe('tenantTeamMemberSchema', () => {
-  it.each([UserRole.ADMIN, UserRole.ASISTENTE])('accepts %s without a profile', (role) => {
+  it.each([UserRole.MASTER, UserRole.ASISTENTE])('accepts %s without a profile', (role) => {
     expect(tenantTeamMemberSchema.safeParse(member({ role })).success).toBe(true);
   });
 
@@ -71,29 +71,27 @@ describe('tenantTeamMemberSchema', () => {
 
   it('allows an admin clinical profile but prohibits one for an assistant', () => {
     const professionalProfile = { specialtyId: 'specialty-1', isActive: true };
-    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.ADMIN, professionalProfile })).success).toBe(true);
+    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.MASTER, professionalProfile })).success).toBe(true);
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.ASISTENTE, professionalProfile })).success).toBe(false);
   });
 
   it('requires clinical-profile activity metadata for create and update profiles', () => {
     const profileWithoutActivity = { specialtyId: 'specialty-1' };
     expect(tenantTeamMemberSchema.safeParse(member({
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
       professionalProfile: profileWithoutActivity,
     })).success).toBe(false);
     expect(tenantTeamMemberUpdateSchema.safeParse({
       email: 'member@example.com',
       firstName: 'Luis',
       lastName: 'Paz',
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
       professionalProfile: profileWithoutActivity,
     }).success).toBe(false);
   });
 
   it('rejects unsupported roles, missing passwords, and tenant/provider fields', () => {
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.SOPORTE })).success).toBe(false);
-    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.CLIENTE })).success).toBe(false);
-    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.PSICOLOGO })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ password: undefined })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ password: 'short' })).success).toBe(false);
     expect(tenantTeamMemberSchema.safeParse(member({ tenantId: 'other-tenant' })).success).toBe(false);
@@ -141,7 +139,7 @@ describe('tenantTeamMemberUpdateSchema', () => {
       email: ' Ana@Example.com ',
       firstName: ' Ana ',
       lastName: ' Vega ',
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
     });
 
     expect(result).toMatchObject({
@@ -150,12 +148,12 @@ describe('tenantTeamMemberUpdateSchema', () => {
         email: 'ana@example.com',
         firstName: 'Ana',
         lastName: 'Vega',
-        role: UserRole.ADMIN,
+        role: UserRole.MASTER,
       },
     });
     expect(tenantTeamMemberUpdateSchema.safeParse({
       ...member(),
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
     }).success).toBe(false);
   });
 
@@ -168,11 +166,11 @@ describe('tenantTeamMemberUpdateSchema', () => {
       professionalProfile: { specialtyId: 'specialty-1' },
     }).success).toBe(false);
     expect(tenantTeamMemberUpdateSchema.safeParse({
-      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.ADMIN,
+      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.MASTER,
       tenantId: 'tenant-other',
     }).success).toBe(false);
     expect(tenantTeamMemberUpdateSchema.safeParse({
-      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.ADMIN,
+      email: 'member@example.com', firstName: 'Luis', lastName: 'Paz', role: UserRole.MASTER,
       managedByProvider: true,
     }).success).toBe(false);
   });

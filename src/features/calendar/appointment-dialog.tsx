@@ -10,7 +10,6 @@ import { usePatients } from '@/hooks/usePatients';
 import { useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useEligiblePatientProfessionals } from '@/hooks/usePatientTeam';
 import { useAuthStore } from '@/store/authStore';
-import { toCanonicalRole } from '@/types/guards';
 import { UserRole, type Appointment } from '@/types';
 import { getAppointmentErrorMessage } from './appointment-errors';
 import {
@@ -104,7 +103,7 @@ export function AppointmentDialog({
   );
   const visibleProfessionals = useMemo(() => {
     const candidates = eligible.data ?? [];
-    if (!actor || toCanonicalRole(actor.role) !== UserRole.PROFESIONAL) return candidates;
+    if (!actor || actor.role !== UserRole.PROFESIONAL) return candidates;
     return candidates.filter((candidate) => candidate.id === actor.id);
   }, [actor, eligible.data]);
 

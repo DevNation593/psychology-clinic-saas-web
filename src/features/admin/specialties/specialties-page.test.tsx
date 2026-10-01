@@ -14,13 +14,13 @@ const signIn = (role: UserRole) =>
 beforeEach(() => useAuthStore.setState({ user: null }));
 
 describe('SpecialtiesPage access', () => {
-  it.each([UserRole.ADMIN, UserRole.CLIENTE, UserRole.SOPORTE])('opens for %s', (role) => {
+  it.each([UserRole.MASTER, UserRole.SOPORTE])('opens for %s', (role) => {
     signIn(role);
     render(<SpecialtiesPage />);
     expect(screen.getByTestId('specialty-manager')).toBeInTheDocument();
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.PSICOLOGO])(
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])(
     'tells %s the section is restricted instead of showing it',
     (role) => {
       signIn(role);

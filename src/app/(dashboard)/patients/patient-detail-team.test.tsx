@@ -102,7 +102,7 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({
-    user: { id: 'admin-1', tenantId: 'tenant-1', role: UserRole.CLIENTE } as User,
+    user: { id: 'admin-1', tenantId: 'tenant-1', role: UserRole.MASTER } as User,
     tenant: { id: 'tenant-1' } as ReturnType<typeof useAuthStore.getState>['tenant'],
   });
   mocks.get.mockImplementation((url: string) => {
@@ -119,10 +119,8 @@ beforeEach(() => {
 
 describe('patient detail invoices tab', () => {
   it.each([
-    [UserRole.ADMIN, true],
-    [UserRole.CLIENTE, true],
+    [UserRole.MASTER, true],
     [UserRole.PROFESIONAL, true],
-    [UserRole.PSICOLOGO, true],
     [UserRole.ASISTENTE, false],
   ])('for %s is visible: %s', (role, visible) => {
     useAuthStore.setState({ user: { id: 'user-1', tenantId: 'tenant-1', role } as User });

@@ -28,7 +28,7 @@ const enabledSpecialties = [
 ];
 
 function renderTeam({
-  role = UserRole.ADMIN,
+  role = UserRole.MASTER,
   team = [],
   eligible = [],
   specialties = enabledSpecialties,
@@ -99,11 +99,9 @@ describe('PatientTeamTab', () => {
   });
 
   it.each([
-    [UserRole.ADMIN, true, true],
-    [UserRole.CLIENTE, true, true],
+    [UserRole.MASTER, true, true],
     [UserRole.ASISTENTE, true, true],
     [UserRole.PROFESIONAL, true, false],
-    [UserRole.PSICOLOGO, true, false],
     [UserRole.PACIENTE, false, false],
     [UserRole.SOPORTE, false, false],
   ] as const)('applies add/remove UI permissions for %s', async (role, canAdd, canRemove) => {
@@ -176,7 +174,7 @@ describe('PatientTeamTab', () => {
     expect(screen.queryByRole('button', { name: /Retirar/ })).not.toBeInTheDocument();
   });
 
-  it.each([UserRole.PROFESIONAL, UserRole.PSICOLOGO])(
+  it.each([UserRole.PROFESIONAL])(
     'shows the team read-only to a %s who does not treat the patient',
     async (role) => {
       renderTeam({ role, team: [member('psych-1', psychology), member('actor-1', nutrition, false)] });
@@ -209,7 +207,7 @@ describe('PatientTeamTab', () => {
     await act(async () => finish(member('nutrition-1', nutrition)));
   });
 
-  it.each([UserRole.ADMIN, UserRole.ASISTENTE, UserRole.CLIENTE])('%s confirms removal and keeps the row until server response', async (role) => {
+  it.each([UserRole.MASTER, UserRole.ASISTENTE])('%s confirms removal and keeps the row until server response', async (role) => {
     let finish!: (value: PatientTeamMember) => void;
     http.delete.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
     renderTeam({ role, team: [member('nutrition-1', nutrition)] });

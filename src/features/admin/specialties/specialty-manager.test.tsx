@@ -130,7 +130,7 @@ beforeEach(() => {
   vi.mocked(tenantModulesApi.list).mockResolvedValue([psychologyModule, nutritionModule]);
   vi.mocked(tenantModulesApi.setEnabled).mockResolvedValue({ ...psychologyModule, enabled: false });
   useAuthStore.setState({
-    user: { role: UserRole.ADMIN } as User,
+    user: { role: UserRole.MASTER } as User,
     tenant: {
       id: 'tenant-1',
       subscription: {

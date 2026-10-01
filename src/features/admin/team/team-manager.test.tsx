@@ -129,7 +129,7 @@ beforeEach(() => {
       tenantType: 'CLINIC',
       subscription: { plan: { limits: { maxPsychologists: 99 } } },
     } as ReturnType<typeof useAuthStore.getState>['tenant'],
-    user: { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' } as User,
+    user: { id: 'admin-1', role: UserRole.MASTER, tenantId: 'tenant-1' } as User,
   });
   api.listUsers.mockResolvedValue([]);
   api.createUser.mockImplementation(async (input: unknown) => input);
@@ -148,8 +148,8 @@ afterEach(() => vi.unstubAllGlobals());
 describe('TeamManager', () => {
   it.each(['array', 'paginated'])('shows only team-role users and their actions for a %s response', async (shape) => {
     const rows = [
-      makeUser({ id: 'legacy-admin', firstName: 'Legacy', lastName: 'Admin', role: UserRole.CLIENTE, professionalProfile: undefined }),
-      makeUser({ id: 'legacy-professional', firstName: 'Legacy', lastName: 'Professional', role: UserRole.PSICOLOGO }),
+      makeUser({ id: 'legacy-admin', firstName: 'Legacy', lastName: 'Admin', role: UserRole.MASTER, professionalProfile: undefined }),
+      makeUser({ id: 'legacy-professional', firstName: 'Legacy', lastName: 'Professional', role: UserRole.PROFESIONAL }),
       makeUser({ id: 'assistant', firstName: 'Team', lastName: 'Assistant', role: UserRole.ASISTENTE, professionalProfile: undefined }),
       makeUser({ id: 'patient', firstName: 'Patient', lastName: 'Outside', role: UserRole.PACIENTE }),
       makeUser({ id: 'support', firstName: 'Support', lastName: 'Outside', role: UserRole.SOPORTE }),
@@ -170,7 +170,7 @@ describe('TeamManager', () => {
 
   it('renders array and paginated user results with separate account and clinical states', async () => {
     const manager = makeUser({
-      firstName: 'Ana', lastName: 'Vega', role: UserRole.CLIENTE,
+      firstName: 'Ana', lastName: 'Vega', role: UserRole.MASTER,
       professionalProfile: undefined,
     });
     const professional = makeUser({
@@ -187,7 +187,7 @@ describe('TeamManager', () => {
 
     expect(await screen.findByText('Ana Vega')).toBeInTheDocument();
     expect(screen.getByText('Luis Paz')).toBeInTheDocument();
-    expect(screen.getByText('Administrador')).toBeInTheDocument();
+    expect(screen.getByText('Titular de la cuenta')).toBeInTheDocument();
     expect(screen.getAllByText('Sin perfil clínico')).toHaveLength(1);
     expect(screen.getByText('Cuenta activa')).toBeInTheDocument();
     expect(screen.getByText('Cuenta inactiva')).toBeInTheDocument();
@@ -290,7 +290,7 @@ describe('TeamManager', () => {
       password: 'Secret123',
       firstName: 'Nora',
       lastName: 'Ríos',
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
     }, 'tenant-1'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expectCoreInvalidations(client);
@@ -336,7 +336,7 @@ describe('TeamManager', () => {
   });
 
   it('deactivates accounts through DELETE and keeps the row when the API protects the last admin', async () => {
-    const user = makeUser({ id: 'admin-2', firstName: 'Elena', lastName: 'Ríos', role: UserRole.ADMIN });
+    const user = makeUser({ id: 'admin-2', firstName: 'Elena', lastName: 'Ríos', role: UserRole.MASTER });
     api.deleteUser.mockRejectedValueOnce({
       code: 'LAST_ACTIVE_ADMIN_REQUIRED',
       message: 'El consultorio debe conservar al menos un administrador activo.',
@@ -390,16 +390,6 @@ describe('TeamManager', () => {
     expect(screen.getByRole('button', { name: 'Desactivar atención clínica de Equipo Proveedor' })).toBeEnabled();
   });
 
-  it('normalizes legacy professional rows to the canonical role in the edit form', async () => {
-    const legacy = makeUser({ id: 'legacy-1', role: UserRole.PSICOLOGO, firstName: 'Rosa', lastName: 'Luz' });
-    renderManager([legacy]);
-
-    expect(await screen.findByText('Profesional')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Editar Rosa Luz' }));
-    expect(screen.getByLabelText('Rol')).toHaveValue(UserRole.PROFESIONAL);
-    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
-  });
-
   it('shows a retryable user-list error without replacing the page with an empty state', async () => {
     api.listUsers.mockRejectedValueOnce(new Error('No se pudo cargar el equipo.'));
     renderManager();
@@ -445,7 +435,7 @@ describe('TeamManager', () => {
 
     act(() => useAuthStore.setState({
       tenant: { ...useAuthStore.getState().tenant!, id: 'tenant-2' } as ReturnType<typeof useAuthStore.getState>['tenant'],
-      user: { id: 'admin-2', role: UserRole.ADMIN, tenantId: 'tenant-2' } as User,
+      user: { id: 'admin-2', role: UserRole.MASTER, tenantId: 'tenant-2' } as User,
     }));
     await waitFor(() => expect(api.listUsers).toHaveBeenCalledWith(undefined, 'tenant-2'));
     await act(async () => reject(new Error('Tenant A request failed')));

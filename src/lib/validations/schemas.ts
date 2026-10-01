@@ -131,7 +131,7 @@ const tenantTeamMemberFields = {
   lastName: z.string().trim().min(1, 'Ingresa el apellido'),
   phone: z.string().trim().optional(),
   role: z.union([
-    z.literal(UserRole.ADMIN),
+    z.literal(UserRole.MASTER),
     z.literal(UserRole.PROFESIONAL),
     z.literal(UserRole.ASISTENTE),
   ]),
@@ -142,7 +142,7 @@ function refineTenantTeamMember(
   data: { role: UserRole; professionalProfile?: { specialtyId: string } },
   context: z.RefinementCtx,
 ) {
-  if ([UserRole.PROFESIONAL, UserRole.PSICOLOGO].includes(data.role) && !data.professionalProfile) {
+  if (data.role === UserRole.PROFESIONAL && !data.professionalProfile) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['professionalProfile'], message: 'Selecciona una especialidad' });
   }
   if (data.role === UserRole.ASISTENTE && data.professionalProfile) {

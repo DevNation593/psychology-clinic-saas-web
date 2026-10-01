@@ -24,12 +24,12 @@ const catalog: SpecialtyCatalogItem[] = [
 ];
 const created = {
   tenant: { id: 'tenant-1', name: 'Centro Integral', email: 'contacto@example.com', phone: null, address: null, tenantType: TenantType.CLINIC, onboardingCompleted: true },
-  admin: { id: 'admin-1', tenantId: 'tenant-1', email: 'server-canonical@example.com', firstName: 'Ana', lastName: 'Vega', role: UserRole.ADMIN, professionalProfile: null },
+  admin: { id: 'admin-1', tenantId: 'tenant-1', email: 'server-canonical@example.com', firstName: 'Ana', lastName: 'Vega', role: UserRole.MASTER, professionalProfile: null },
   specialties: [catalog[0]], modules: [], pricing: { includedSpecialties: 1, selectedSpecialties: 1, billableSpecialties: 0, specialtyUnitPrice: 0, basePlanPrice: 0, featureAddonsPrice: 0, specialtyAddonsPrice: 0, totalMonthly: 0, currency: 'USD' },
 } satisfies ClinicOnboardingResult;
 const session = {
   accessToken: 'access', refreshToken: 'refresh', user: {
-    id: 'admin-1', email: 'server-canonical@example.com', firstName: 'Ana', lastName: 'Vega', role: UserRole.ADMIN,
+    id: 'admin-1', email: 'server-canonical@example.com', firstName: 'Ana', lastName: 'Vega', role: UserRole.MASTER,
     tenantId: 'tenant-1', isActive: true, emailVerified: true, createdAt: '2026-09-25T00:00:00Z', updatedAt: '2026-09-25T00:00:00Z',
   },
 } satisfies AuthResponse;

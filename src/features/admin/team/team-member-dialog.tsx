@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { tenantTeamMemberSchema, tenantTeamMemberUpdateSchema } from '@/lib/validations/schemas';
-import { isAdminRole, toCanonicalRole } from '@/types/guards';
+import { isMasterRole } from '@/types/guards';
 import {
   UserRole,
   type CreateTenantUserInput,
@@ -51,7 +51,7 @@ const EMPTY_FORM: FormValues = {
   firstName: '',
   lastName: '',
   phone: '',
-  role: UserRole.ADMIN,
+  role: UserRole.MASTER,
   specialtyId: '',
   professionalTitle: '',
   licenseNumber: '',
@@ -88,12 +88,12 @@ function getInitialValues(member?: User | null): FormValues {
     firstName: member.firstName,
     lastName: member.lastName,
     phone: member.phone ?? '',
-    role: toCanonicalRole(member.role) as TenantTeamRole,
+    role: member.role as TenantTeamRole,
     specialtyId: profile?.specialtyId ?? member.professionalSpecialties?.[0]?.id ?? '',
     professionalTitle: profile?.professionalTitle ?? member.professionalTitle ?? '',
     licenseNumber: profile?.licenseNumber ?? member.licenseNumber ?? '',
     bio: profile?.bio ?? '',
-    adminProvidesCare: isAdminRole(member.role) && !!profile,
+    adminProvidesCare: isMasterRole(member.role) && !!profile,
   };
 }
 
@@ -161,7 +161,7 @@ export function TeamMemberDialog({
       ]
     : enabledSpecialties;
   const profileIsRequired = values.role === UserRole.PROFESIONAL ||
-    (values.role === UserRole.ADMIN && values.adminProvidesCare);
+    (values.role === UserRole.MASTER && values.adminProvidesCare);
 
   const setValue = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -187,7 +187,7 @@ export function TeamMemberDialog({
           adminProvidesCare: false,
         };
       }
-      if (role === UserRole.ADMIN) {
+      if (role === UserRole.MASTER) {
         const becameAdminFromProfessional = current.role === UserRole.PROFESIONAL;
         return {
           ...current,
@@ -433,7 +433,7 @@ export function TeamMemberDialog({
               disabled={isSaving}
               aria-describedby="team-member-role-description"
             >
-              <option value={UserRole.ADMIN}>Administrador</option>
+              <option value={UserRole.MASTER}>Administrador</option>
               <option value={UserRole.PROFESIONAL}>Profesional</option>
               <option value={UserRole.ASISTENTE}>Asistente</option>
             </select>
@@ -442,7 +442,7 @@ export function TeamMemberDialog({
             </p>
           </div>
 
-          {values.role === UserRole.ADMIN && (
+          {values.role === UserRole.MASTER && (
             <div className="flex items-start gap-3 rounded-md border p-3">
               <input
                 id="team-member-admin-care"

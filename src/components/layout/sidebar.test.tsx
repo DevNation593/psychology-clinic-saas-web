@@ -28,7 +28,7 @@ const admin = {
   email: 'admin@example.com',
   firstName: 'Ana',
   lastName: 'Vega',
-  role: UserRole.ADMIN,
+  role: UserRole.MASTER,
   tenantId: 'tenant-a',
 } as User;
 
@@ -55,13 +55,13 @@ beforeEach(() => {
 });
 
 describe('Sidebar clinical modules entry', () => {
-  it.each([UserRole.ADMIN, UserRole.CLIENTE, UserRole.SOPORTE])('is shown to %s', async (role) => {
+  it.each([UserRole.MASTER, UserRole.SOPORTE])('is shown to %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Módulos clínicos' })).toHaveAttribute('href', '/admin/specialties');
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.PSICOLOGO])('is hidden from %s', async (role) => {
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])('is hidden from %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('Sidebar billing entry', () => {
     expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
   });
 
-  it.each([UserRole.ADMIN, UserRole.PROFESIONAL])('is shown to %s', async (role) => {
+  it.each([UserRole.MASTER, UserRole.PROFESIONAL])('is shown to %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Facturación' })).toBeInTheDocument();

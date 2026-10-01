@@ -98,7 +98,7 @@ describe('TeamMemberDialog', () => {
       password: 'Secret123',
       firstName: 'Ana',
       lastName: 'Vega',
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
     }));
     expect(onSubmit).not.toHaveBeenCalledWith(expect.objectContaining({ professionalProfile: expect.anything() }));
   });
@@ -111,7 +111,7 @@ describe('TeamMemberDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Crear miembro' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      role: UserRole.ADMIN,
+      role: UserRole.MASTER,
       professionalProfile: { specialtyId: nutrition.id, isActive: true },
     })));
   });
@@ -175,7 +175,7 @@ describe('TeamMemberDialog', () => {
       email: 'luis@example.com',
       firstName: 'Luis',
       lastName: 'Paz',
-      role: UserRole.PSICOLOGO,
+      role: UserRole.PROFESIONAL,
       tenantId: 'tenant-1',
       isActive: true,
       emailVerified: true,
@@ -221,7 +221,7 @@ describe('TeamMemberDialog', () => {
   it('preserves unsaved form values when the same member row is refreshed', async () => {
     const member = {
       id: 'user-refresh', email: 'luis@example.com', firstName: 'Luis', lastName: 'Paz',
-      role: UserRole.ADMIN, tenantId: 'tenant-1', isActive: true,
+      role: UserRole.MASTER, tenantId: 'tenant-1', isActive: true,
       createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
     } as User;
     const { rerender, onOpenChange } = renderDialog({ member });
