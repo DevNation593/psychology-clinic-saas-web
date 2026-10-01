@@ -16,7 +16,8 @@ import {
   SpecialtyRecordEntryForm,
   type SpecialtyRecordModuleOption,
 } from '@/features/patients/specialty-record-entry-form';
-import { canAccessClinicalNotes, canEditAppointment, canDeletePatient } from '@/types/guards';
+import { canAccessClinicalNotes, canEditAppointment, canDeletePatient, isAdminRole } from '@/types/guards';
+import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
   AppointmentStatus,
@@ -473,13 +474,15 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
                     <Button variant="ghost" size="icon" onClick={() => setViewNote(note)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteNoteId(note.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {(isAdminRole(user.role) || note.psychologistId === user.id) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteNoteId(note.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -741,7 +744,7 @@ function AppointmentsTab({ patientId }: { patientId: string }) {
 // ==========================================
 function TasksTab({ patientId }: { patientId: string }) {
   const user = useAuthStore((state) => state.user);
-  const { data: tasks, isLoading } = useTasks({ patientId });
+  const { data: tasks, isLoading, error: tasksError } = useTasks({ patientId });
   const createTask = useCreateTask();
 
   const [showNewTask, setShowNewTask] = useState(false);
@@ -779,6 +782,10 @@ function TasksTab({ patientId }: { patientId: string }) {
         ))}
       </div>
     );
+  }
+
+  if (isFeatureLockedError(tasksError)) {
+    return <FeatureLockedNotice featureName="El módulo de tareas" />;
   }
 
   return (

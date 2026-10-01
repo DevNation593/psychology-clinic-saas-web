@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTasks, useCreateTask, useDeleteTask } from '@/hooks/useTasks';
 import { tasksApi, usersApi, patientsApi, extractArray } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
+import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { QUERY_KEYS, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/lib/constants';
 import { TaskStatus, TaskPriority, UserRole } from '@/types';
 import type { Task } from '@/types';
@@ -75,7 +76,7 @@ export default function TasksPage() {
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   // Fetch tasks
-  const { data: tasks, isLoading } = useTasks();
+  const { data: tasks, isLoading, error: tasksError } = useTasks();
   const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
 
   // Complete task mutation
@@ -128,6 +129,15 @@ export default function TasksPage() {
     new Date(task.dueDate) < new Date() &&
     task.status !== TaskStatus.COMPLETED &&
     task.status !== TaskStatus.CANCELLED);
+
+  if (isFeatureLockedError(tasksError)) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Tareas</h1>
+        <FeatureLockedNotice featureName="El módulo de tareas" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

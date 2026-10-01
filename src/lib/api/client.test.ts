@@ -74,4 +74,17 @@ describe('ApiClient error normalization', () => {
       expect(error).not.toHaveProperty('request');
     }
   });
+
+  it('uses the uppercase guard code reported in `error` as the error code', async () => {
+    interceptor.responseData = {
+      statusCode: 403, error: 'FEATURE_NOT_AVAILABLE', message: 'This feature requires a higher plan.',
+    };
+    await expect(apiClient.post('/tasks', {})).rejects.toMatchObject({ code: 'FEATURE_NOT_AVAILABLE' });
+  });
+
+  it('ignores the default HTTP reason phrase in `error`', async () => {
+    interceptor.responseData = { statusCode: 403, error: 'Forbidden', message: 'Forbidden resource' };
+    const error = await apiClient.post('/tasks', {}).catch((e) => e);
+    expect(error).not.toHaveProperty('code');
+  });
 });
