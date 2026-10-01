@@ -8,7 +8,7 @@ import { FaqSection } from '@/features/marketing/sections/faq';
 import { Hero } from '@/features/marketing/sections/hero';
 import { HowItWorks } from '@/features/marketing/sections/how-it-works';
 import { Modules } from '@/features/marketing/sections/modules';
-import { Plans } from '@/features/marketing/sections/plans';
+import { PlanGroups } from '@/features/marketing/sections/plan-groups';
 import { Reviews } from '@/features/marketing/sections/reviews';
 
 // The home title is absolute so the root layout's "%s | brand" template does not duplicate the brand.
@@ -24,7 +24,7 @@ export default function HomePage() {
         <Link href="/como-funciona" className="text-primary underline">Ver el recorrido completo</Link>
       </p>
       <Modules modules={site.modules} />
-      <Plans plans={site.plans.filter((plan) => plan.id !== 'trial' && plan.id !== 'enterprise')} />
+      <PlanGroups plans={site.plans} />
       <p className="mx-auto -mt-8 max-w-6xl px-4 pb-8 text-sm">
         <Link href="/planes" className="text-primary underline">Comparar todos los planes</Link>
       </p>

@@ -4,10 +4,18 @@ export interface ImageAsset {
   alt: string;
 }
 
+export type PlanAudience = 'individual' | 'business';
+
+export const PLAN_AUDIENCE_LABELS: Record<PlanAudience, string> = {
+  individual: 'Individual',
+  business: 'Empresarial',
+};
+
 export interface Plan {
   id: string;
+  /** Short name shown inside its group; both groups have a "Básico" and a "Pro". */
   name: string;
-  audience: 'personal' | 'clinic';
+  audience: PlanAudience;
   summary: string;
   /** USD per month; null means custom pricing. */
   priceMonthly: number | null;
@@ -72,6 +80,11 @@ export function hasWhatsappNumber(value: string): boolean {
   return /\d/.test(value);
 }
 
+/** Unambiguous plan name, e.g. "Empresarial Básico". */
+export function planFullName(plan: Plan): string {
+  return `${PLAN_AUDIENCE_LABELS[plan.audience]} ${plan.name}`;
+}
+
 export function resolveContactChannel(contact: ContactInfo): 'whatsapp' | 'email' | 'none' {
   if (hasWhatsappNumber(contact.whatsappNumber)) return 'whatsapp';
   if (contact.email.trim()) return 'email';
@@ -119,12 +132,12 @@ export const site: SiteContent = {
   ],
   // Mirrors api/src/subscription/subscription-pricing.ts. Update both together.
   plans: [
-    { id: 'trial', name: 'Prueba', audience: 'personal', summary: 'Para conocer la plataforma.', priceMonthly: 0, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 10, storageGB: null, monthlyNotifications: 100 },
-    { id: 'personal-basic', name: 'Personal Básico', audience: 'personal', summary: 'Para un profesional independiente.', priceMonthly: 29, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 50, storageGB: null, monthlyNotifications: 300 },
-    { id: 'personal-pro', name: 'Personal Pro', audience: 'personal', summary: 'Para una consulta individual en crecimiento.', priceMonthly: 59, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 200, storageGB: 1, monthlyNotifications: 1000 },
-    { id: 'clinic-basic', name: 'Clínica Básica', audience: 'clinic', summary: 'Para equipos pequeños.', priceMonthly: 99, pricePerExtraSeat: 15, seatsIncluded: 3, maxActivePatients: 150, storageGB: 1, monthlyNotifications: 500, highlighted: true },
-    { id: 'clinic-pro', name: 'Clínica Pro', audience: 'clinic', summary: 'Para clínicas con varias especialidades.', priceMonthly: 199, pricePerExtraSeat: 12, seatsIncluded: 10, maxActivePatients: 500, storageGB: 5, monthlyNotifications: 2000 },
-    { id: 'enterprise', name: 'Enterprise', audience: 'clinic', summary: 'Para redes de clínicas con necesidades a medida.', priceMonthly: null, pricePerExtraSeat: null, seatsIncluded: null, maxActivePatients: null, storageGB: null, monthlyNotifications: null },
+    { id: 'trial', name: 'Prueba', audience: 'individual', summary: 'Para conocer la plataforma.', priceMonthly: 0, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 10, storageGB: null, monthlyNotifications: 100 },
+    { id: 'personal-basic', name: 'Básico', audience: 'individual', summary: 'Para un profesional independiente.', priceMonthly: 29, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 50, storageGB: null, monthlyNotifications: 300 },
+    { id: 'personal-pro', name: 'Pro', audience: 'individual', summary: 'Para una consulta individual en crecimiento.', priceMonthly: 59, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 200, storageGB: 1, monthlyNotifications: 1000, highlighted: true },
+    { id: 'clinic-basic', name: 'Básico', audience: 'business', summary: 'Para equipos pequeños.', priceMonthly: 99, pricePerExtraSeat: 15, seatsIncluded: 3, maxActivePatients: 150, storageGB: 1, monthlyNotifications: 500, highlighted: true },
+    { id: 'clinic-pro', name: 'Pro', audience: 'business', summary: 'Para clínicas con varias especialidades.', priceMonthly: 199, pricePerExtraSeat: 12, seatsIncluded: 10, maxActivePatients: 500, storageGB: 5, monthlyNotifications: 2000 },
+    { id: 'enterprise', name: 'Personalizado', audience: 'business', summary: 'Para redes de clínicas con necesidades a medida.', priceMonthly: null, pricePerExtraSeat: null, seatsIncluded: null, maxActivePatients: null, storageGB: null, monthlyNotifications: null },
   ],
   faq: [
     { question: '¿Para qué tipo de consultorio sirve?', answer: 'Para profesionales independientes y clínicas con una o varias especialidades de salud, como psicología o nutrición.' },

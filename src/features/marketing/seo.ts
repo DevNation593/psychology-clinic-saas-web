@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { site, type Faq, type SiteContent } from '@/content/site';
+import { planFullName, site, type Faq, type SiteContent } from '@/content/site';
 
 export type PageKey =
   | 'home' | 'plans' | 'howItWorks' | 'caseStudies' | 'about' | 'contact'
@@ -65,7 +65,7 @@ export function buildMetadata(key: PageKey, content: SiteContent = site): Metada
 export function softwareApplicationLd(content: SiteContent = site) {
   const offers = content.plans
     .filter((plan) => plan.priceMonthly !== null)
-    .map((plan) => ({ '@type': 'Offer', name: plan.name, price: String(plan.priceMonthly), priceCurrency: 'USD' }));
+    .map((plan) => ({ '@type': 'Offer', name: planFullName(plan), price: String(plan.priceMonthly), priceCurrency: 'USD' }));
   const reviews = content.reviews;
   const average = reviews.reduce((sum, review) => sum + review.rating, 0) / (reviews.length || 1);
   return {
