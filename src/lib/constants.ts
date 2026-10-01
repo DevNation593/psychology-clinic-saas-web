@@ -8,6 +8,11 @@ export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Consultorios de Sal
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:4200';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
 
+function requiredPathSegment(value: string, label: string): string {
+  if (!value?.trim()) throw new Error(`${label} ID is required.`);
+  return encodeURIComponent(value);
+}
+
 // ==========================================
 // ROUTES
 // ==========================================
@@ -88,6 +93,12 @@ export const API_ENDPOINTS = {
   // Patients (tenant-scoped)
   PATIENTS: (tenantId: string) => `/tenants/${tenantId}/patients`,
   PATIENT_DETAIL: (tenantId: string, patientId: string) => `/tenants/${tenantId}/patients/${patientId}`,
+  PATIENT_TEAM: (tenantId: string, patientId: string) =>
+    `/tenants/${requiredPathSegment(tenantId, 'tenant')}/patients/${requiredPathSegment(patientId, 'patient')}/team`,
+  PATIENT_TEAM_ELIGIBLE: (tenantId: string, patientId: string) =>
+    `/tenants/${requiredPathSegment(tenantId, 'tenant')}/patients/${requiredPathSegment(patientId, 'patient')}/team/eligible`,
+  PATIENT_TEAM_PROFESSIONAL: (tenantId: string, patientId: string, professionalId: string) =>
+    `/tenants/${requiredPathSegment(tenantId, 'tenant')}/patients/${requiredPathSegment(patientId, 'patient')}/team/${requiredPathSegment(professionalId, 'professional')}`,
   PATIENT_SPECIALTY_RECORDS: (tenantId: string, patientId: string) =>
     `/tenants/${tenantId}/patients/${patientId}/specialty-records`,
 
@@ -156,14 +167,21 @@ export const QUERY_KEYS = {
   
   // Patients
   PATIENTS: ['patients'],
+  PATIENTS_SCOPED: (tenantId: string, filters?: unknown) => ['patients', 'tenant', tenantId, filters] as const,
   PATIENT_DETAIL: (id: string) => ['patients', id],
+  PATIENT_DETAIL_SCOPED: (tenantId: string, patientId: string) => ['patients', 'tenant', tenantId, patientId] as const,
+  PATIENT_TEAM: (tenantId: string, patientId: string) => ['patient-team', tenantId, patientId] as const,
+  PATIENT_TEAM_ELIGIBLE: (tenantId: string, patientId: string, specialtyId?: string) =>
+    ['patient-team', tenantId, patientId, 'eligible', specialtyId] as const,
   PATIENT_CLINICAL_NOTES: (patientId: string) => ['patients', patientId, 'clinical-notes'],
   PATIENT_SESSION_PLAN: (patientId: string) => ['patients', patientId, 'session-plan'],
   PATIENT_SPECIALTY_RECORDS: (patientId: string) => ['patients', patientId, 'specialty-records'],
   
   // Appointments
   APPOINTMENTS: ['appointments'],
+  APPOINTMENTS_SCOPED: (tenantId: string, filters?: unknown) => ['appointments', 'tenant', tenantId, filters] as const,
   APPOINTMENT_DETAIL: (id: string) => ['appointments', id],
+  APPOINTMENT_DETAIL_SCOPED: (tenantId: string, id: string) => ['appointments', 'tenant', tenantId, id] as const,
   APPOINTMENTS_TODAY: ['appointments', 'today'],
   APPOINTMENTS_UPCOMING: ['appointments', 'upcoming'],
   

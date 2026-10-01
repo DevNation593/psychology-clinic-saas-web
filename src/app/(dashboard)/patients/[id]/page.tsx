@@ -16,13 +16,15 @@ import {
   SpecialtyRecordEntryForm,
   type SpecialtyRecordModuleOption,
 } from '@/features/patients/specialty-record-entry-form';
-import { canAccessClinicalNotes, canEditAppointment, canDeletePatient, isAdminRole } from '@/types/guards';
+import { PatientTeamTab } from '@/features/patients/patient-team-tab';
+import { canAccessClinicalNotes, canDeletePatient, isAdminRole } from '@/types/guards';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
   AppointmentStatus,
   TaskStatus,
   TaskPriority,
+  type Appointment,
   type ClinicalNote,
   type Task,
 } from '@/types';
@@ -80,12 +82,13 @@ import {
   XCircle,
   Eye,
   Lock,
+  Users,
 } from 'lucide-react';
 
 // ==========================================
 // TAB TYPES
 // ==========================================
-type TabId = 'overview' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
+type TabId = 'overview' | 'team' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
 
 interface Tab {
   id: TabId;
@@ -95,6 +98,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: 'overview', label: 'General', icon: UserIcon },
+  { id: 'team', label: 'Equipo tratante', icon: Users },
   { id: 'clinical', label: 'Historia Clínica', icon: FileText },
   { id: 'specialties', label: 'Especialidades', icon: ClipboardList },
   { id: 'appointments', label: 'Citas', icon: Calendar },
@@ -211,6 +215,7 @@ export default function PatientDetailPage() {
       {/* Tab Content */}
       <div>
         {activeTab === 'overview' && <OverviewTab patient={patient} />}
+        {activeTab === 'team' && <PatientTeamTab patientId={patientId} />}
         {activeTab === 'clinical' && <ClinicalHistoryTab patientId={patientId} />}
         {activeTab === 'specialties' && <SpecialtyRecordsTab patientId={patientId} />}
         {activeTab === 'appointments' && <AppointmentsTab patientId={patientId} />}
@@ -304,35 +309,6 @@ function OverviewTab({ patient }: { patient: any }) {
         <CardContent className="space-y-4">
           <InfoRow label="Nombre" value={patient.emergencyContactName || '—'} />
           <InfoRow label="Teléfono" value={patient.emergencyContactPhone || '—'} />
-        </CardContent>
-      </Card>
-
-      {/* Assigned Psychologist */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Psicólogo Asignado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {patient.assignedPsychologist ? (
-            <div className="flex items-center gap-3">
-              <Avatar
-                fallback={getInitials(
-                  patient.assignedPsychologist.firstName,
-                  patient.assignedPsychologist.lastName
-                )}
-              />
-              <div>
-                <p className="font-medium">
-                  {patient.assignedPsychologist.firstName} {patient.assignedPsychologist.lastName}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {patient.assignedPsychologist.email}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Sin psicólogo asignado</p>
-          )}
         </CardContent>
       </Card>
 
@@ -1239,7 +1215,7 @@ function StatCard({
   );
 }
 
-function AppointmentCard({ appointment }: { appointment: any }) {
+function AppointmentCard({ appointment }: { appointment: Appointment }) {
   return (
     <Card>
       <CardContent className="py-3">
@@ -1257,10 +1233,16 @@ function AppointmentCard({ appointment }: { appointment: any }) {
                 {formatDate(appointment.startTime, 'HH:mm')} -{' '}
                 {formatDate(appointment.endTime, 'HH:mm')}
               </p>
-              {appointment.psychologist && (
+              {appointment.professional && (
                 <p className="text-xs text-muted-foreground">
-                  Dr. {appointment.psychologist.firstName} {appointment.psychologist.lastName}
+                  {appointment.professional.professionalTitle
+                    ? `${appointment.professional.professionalTitle} `
+                    : ''}
+                  {appointment.professional.firstName} {appointment.professional.lastName}
                 </p>
+              )}
+              {appointment.specialty && (
+                <p className="text-xs text-muted-foreground">{appointment.specialty.name}</p>
               )}
             </div>
           </div>

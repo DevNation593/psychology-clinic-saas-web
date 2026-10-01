@@ -15,6 +15,7 @@ interface CalendarViewProps {
   onEventClick: (event: Appointment) => void;
   onEventDrop?: (appointmentId: string, newStart: string, newEnd: string) => void;
   onEventResize?: (appointmentId: string, newStart: string, newEnd: string) => void;
+  canEdit?: (appointment: Appointment) => boolean;
   settings?: TenantSettings;
 }
 
@@ -24,6 +25,7 @@ export default function CalendarView({
   onEventClick,
   onEventDrop,
   onEventResize,
+  canEdit = () => false,
   settings,
 }: CalendarViewProps) {
   const calendarRef = useRef<FullCalendar>(null);
@@ -66,6 +68,7 @@ export default function CalendarView({
     end: appointment.endTime,
     backgroundColor: getStatusColor(appointment.status),
     borderColor: getStatusColor(appointment.status),
+    editable: canEdit(appointment),
     extendedProps: {
       appointment,
     },
@@ -94,7 +97,7 @@ export default function CalendarView({
       }}
       locale={esLocale}
       events={calendarEvents}
-      editable={true}
+      editable={false}
       selectable={true}
       selectMirror={true}
       dayMaxEvents={true}
@@ -113,6 +116,10 @@ export default function CalendarView({
       }}
       eventDrop={(info) => {
         const appointment = info.event.extendedProps.appointment as Appointment;
+        if (!canEdit(appointment)) {
+          info.revert();
+          return;
+        }
         const newStart = info.event.start?.toISOString();
         const newEnd = info.event.end?.toISOString();
         if (onEventDrop && newStart && newEnd) {
@@ -123,6 +130,10 @@ export default function CalendarView({
       }}
       eventResize={(info) => {
         const appointment = info.event.extendedProps.appointment as Appointment;
+        if (!canEdit(appointment)) {
+          info.revert();
+          return;
+        }
         const newStart = info.event.start?.toISOString();
         const newEnd = info.event.end?.toISOString();
         if (onEventResize && newStart && newEnd) {
