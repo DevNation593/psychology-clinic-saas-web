@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { isAdminRole } from '@/types/guards';
 import { UserRole, type SpecialtyPricingSummary } from '@/types';
+import { describeModule } from './module-labels';
 
 interface SpecialtyDraft {
   tenantId: string;
@@ -148,13 +149,17 @@ export function SpecialtyManager() {
   const moduleStateKnown = tenantModulesQuery.isSuccess && !tenantModulesQuery.isError;
   const enabledModulesCount = modules.filter((module) => module.enabled).length;
   const canEdit = canConfigure && draftIsReady;
+  const hasUnsavedChanges = draftIsReady && !sameCodes(selectedCodes, persistedCodes);
+  const selectedSpecialties = catalog.filter(
+    (specialty) => selectedCodeSet.has(specialty.code) && specialty.modules.length > 0,
+  );
 
   return (
     <div className="max-w-4xl space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-3xl font-bold">Especialidades</h1>
+        <h1 className="flex items-center gap-2 text-3xl font-bold">Módulos clínicos</h1>
         <p className="mt-1 text-muted-foreground">
-          Selecciona las especialidades disponibles para este consultorio. El plan incluye un cupo y las adicionales se cobran según la tarifa vigente.
+          Elige las especialidades de este consultorio y activa los módulos de cada una. El plan incluye un cupo de especialidades y las adicionales se cobran según la tarifa vigente.
         </p>
       </div>
 
@@ -243,7 +248,7 @@ export function SpecialtyManager() {
                     {specialty.modules.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {specialty.modules.map((module) => (
-                          <Badge key={module.moduleKey} variant="secondary">{module.moduleKey}</Badge>
+                          <Badge key={module.moduleKey} variant="secondary">{describeModule(module.moduleKey).name}</Badge>
                         ))}
                       </div>
                     )}
@@ -257,6 +262,12 @@ export function SpecialtyManager() {
             <p aria-live="polite" className="text-sm text-muted-foreground">
               {authoritativePricing ? 'Precio mensual por especialidades:' : 'Estimado mensual:'}{' '}
               {formatMoney(displayedAddonsPrice, displayedCurrency)} / mes
+            </p>
+          )}
+
+          {canConfigure && hasUnsavedChanges && (
+            <p role="status" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Tienes cambios sin guardar.
             </p>
           )}
 
@@ -285,7 +296,7 @@ export function SpecialtyManager() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Módulos clínicos</CardTitle>
+          <CardTitle>Módulos por especialidad</CardTitle>
           <CardDescription>
             {tenantModulesQuery.isLoading
               ? 'Cargando módulos habilitados…'
@@ -318,25 +329,51 @@ export function SpecialtyManager() {
               Guarda las especialidades antes de activar sus módulos.
             </p>
           )}
-          {selectedModuleKeys.length === 0 ? (
+          {selectedSpecialties.length === 0 ? (
             <p className="text-sm text-muted-foreground">Selecciona una especialidad para ver sus módulos.</p>
-          ) : moduleStateKnown ? selectedModuleKeys.map((moduleKey) => {
-            const tenantModule = modules.find((item) => item.moduleKey === moduleKey);
-            const specialtyCode = specialtyCodeByModuleKey.get(moduleKey);
-            const requiresSavedSpecialty = specialtyCode !== undefined && !persistedCodeSet.has(specialtyCode);
+          ) : moduleStateKnown ? selectedSpecialties.map((specialty) => {
+            const requiresSavedSpecialty = !persistedCodeSet.has(specialty.code);
             return (
-              <label key={moduleKey} className="flex items-center justify-between gap-4 rounded-lg border p-3">
-                <span className="text-sm font-medium">{moduleKey}</span>
-                <input
-                  type="checkbox"
-                  aria-label={moduleKey}
-                  aria-describedby={requiresSavedSpecialty ? 'module-needs-save-guidance' : undefined}
-                  checked={tenantModule?.enabled ?? false}
-                  disabled={!canConfigure || !draftIsReady || requiresSavedSpecialty || tenantModulesQuery.isLoading || tenantModulesQuery.isError || setModuleEnabled.isPending}
-                  onChange={(event) => setModuleEnabled.mutate({ moduleKey, enabled: event.currentTarget.checked })}
-                  className="h-4 w-4 accent-primary"
-                />
-              </label>
+              <div key={specialty.code} role="group" aria-label={specialty.name} className="space-y-2">
+                <h3 className="text-sm font-semibold">{specialty.name}</h3>
+                {specialty.modules.map(({ moduleKey }) => {
+                  const tenantModule = modules.find((item) => item.moduleKey === moduleKey);
+                  const label = describeModule(moduleKey);
+                  const enabled = tenantModule?.enabled ?? false;
+                  return (
+                    <label
+                      key={moduleKey}
+                      className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border p-3 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-70"
+                    >
+                      <span>
+                        <span className="block text-sm font-medium">{label.name}</span>
+                        {label.description && (
+                          <span className="block text-sm text-muted-foreground">{label.description}</span>
+                        )}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <span aria-hidden="true" className="text-xs text-muted-foreground">
+                          {enabled ? 'Activo' : 'Inactivo'}
+                        </span>
+                        <input
+                          type="checkbox"
+                          aria-label={label.name}
+                          aria-describedby={requiresSavedSpecialty ? 'module-needs-save-guidance' : undefined}
+                          checked={enabled}
+                          disabled={!canConfigure || !draftIsReady || requiresSavedSpecialty || tenantModulesQuery.isLoading || tenantModulesQuery.isError || setModuleEnabled.isPending}
+                          onChange={(event) => setModuleEnabled.mutate({ moduleKey, enabled: event.currentTarget.checked })}
+                          className="peer sr-only"
+                        />
+                        {/* Visual switch driven by the hidden checkbox above. */}
+                        <span
+                          aria-hidden="true"
+                          className="relative h-6 w-11 rounded-full bg-input transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:shadow after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2"
+                        />
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             );
           }) : null}
         </CardContent>

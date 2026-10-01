@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tenantModulesApi, tenantSpecialtiesApi, specialtyCatalogApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
@@ -291,9 +291,9 @@ describe('SpecialtyManager', () => {
   it('shows module switches only for selected specialties and saves their requested state', async () => {
     renderManager();
 
-    const psychologySwitch = await screen.findByRole('checkbox', { name: 'psychology.assessments' });
+    const psychologySwitch = await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' });
     expect(psychologySwitch).toBeChecked();
-    expect(screen.queryByRole('checkbox', { name: 'nutrition.assessments' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Evaluaciones nutricionales' })).not.toBeInTheDocument();
 
     fireEvent.click(psychologySwitch);
     await waitFor(() => expect(tenantModulesApi.setEnabled).toHaveBeenCalledWith(
@@ -312,14 +312,14 @@ describe('SpecialtyManager', () => {
     renderManager();
 
     fireEvent.click(await findEnabledButton(/Nutrición/));
-    const nutritionSwitch = await screen.findByRole('checkbox', { name: 'nutrition.assessments' });
+    const nutritionSwitch = await screen.findByRole('checkbox', { name: 'Evaluaciones nutricionales' });
     expect(nutritionSwitch).toBeDisabled();
     expect(nutritionSwitch).toHaveAccessibleDescription('Guarda las especialidades antes de activar sus módulos.');
     fireEvent.click(nutritionSwitch);
     expect(tenantModulesApi.setEnabled).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'nutrition.assessments' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Evaluaciones nutricionales' })).toBeEnabled());
   });
 
   it('disables a pending module switch and restores server state after an error', async () => {
@@ -327,18 +327,18 @@ describe('SpecialtyManager', () => {
     vi.mocked(tenantModulesApi.setEnabled).mockReturnValue(pending.promise);
     renderManager();
 
-    const psychologySwitch = await screen.findByRole('checkbox', { name: 'psychology.assessments' });
+    const psychologySwitch = await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' });
     fireEvent.click(psychologySwitch);
     await waitFor(() => expect(tenantModulesApi.setEnabled).toHaveBeenCalledWith(
       'psychology.assessments',
       false,
       'tenant-1',
     ));
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'psychology.assessments' })).toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeDisabled());
 
     await act(async () => pending.reject({ message: 'No se pudo actualizar el módulo.' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo actualizar el módulo.');
-    expect(screen.getByRole('checkbox', { name: 'psychology.assessments' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeChecked();
   });
 
   it('shows module loading without treating unknown module state as zero', async () => {
@@ -372,10 +372,10 @@ describe('SpecialtyManager', () => {
 
     await waitFor(() => expect(tenantModulesApi.list).toHaveBeenCalledWith('tenant-1'));
     await waitFor(() => expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true'));
-    expect(screen.queryByRole('checkbox', { name: 'psychology.assessments' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Evaluaciones psicológicas' })).not.toBeInTheDocument();
 
     await act(async () => modules.resolve([psychologyModule]));
-    expect(await screen.findByRole('checkbox', { name: 'psychology.assessments' })).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeChecked();
   });
 
   it('keeps module switches unknown after a load error until retry returns server state', async () => {
@@ -383,10 +383,10 @@ describe('SpecialtyManager', () => {
     renderManager();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Módulos no disponibles.');
-    expect(screen.queryByRole('checkbox', { name: 'psychology.assessments' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Evaluaciones psicológicas' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar módulos' }));
-    expect(await screen.findByRole('checkbox', { name: 'psychology.assessments' })).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeChecked();
   });
 
   it('ignores tenant A save completion after tenant B has initialized its draft', async () => {
@@ -438,13 +438,48 @@ describe('SpecialtyManager', () => {
     expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('titles the page like the navigation entry', async () => {
+    renderManager();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Módulos clínicos' })).toBeInTheDocument();
+  });
+
+  it('groups module switches under their specialty with readable names', async () => {
+    vi.mocked(tenantSpecialtiesApi.list).mockResolvedValue([psychologySelection, nutritionSelection]);
+    renderManager();
+
+    const psychologyGroup = await screen.findByRole('group', { name: 'Psicología' });
+    const nutritionGroup = screen.getByRole('group', { name: 'Nutrición' });
+    expect(within(psychologyGroup).getByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeChecked();
+    expect(within(nutritionGroup).getByRole('checkbox', { name: 'Evaluaciones nutricionales' })).not.toBeChecked();
+    expect(within(psychologyGroup).queryByRole('checkbox', { name: 'Evaluaciones nutricionales' })).not.toBeInTheDocument();
+  });
+
+  it('never shows internal module keys', async () => {
+    renderManager();
+    await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' });
+    expect(screen.queryByText('psychology.assessments')).not.toBeInTheDocument();
+    expect(screen.queryByText('nutrition.assessments')).not.toBeInTheDocument();
+  });
+
+  it('warns about unsaved specialty changes until they are saved or undone', async () => {
+    renderManager();
+    const nutritionButton = await findEnabledButton(/Nutrición/);
+    expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument();
+
+    fireEvent.click(nutritionButton);
+    expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument();
+
+    fireEvent.click(nutritionButton);
+    expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument();
+  });
+
   it('keeps specialty and module controls read-only without admin authority', async () => {
     useAuthStore.setState({ user: { role: UserRole.PROFESIONAL } as User });
     renderManager();
 
     expect(await screen.findByRole('button', { name: /Psicología/ })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Guardar especialidades' })).not.toBeInTheDocument();
-    expect(await screen.findByRole('checkbox', { name: 'psychology.assessments' })).toBeDisabled();
+    expect(await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeDisabled();
     expect(screen.getByText('La selección de especialidades la administra el administrador del consultorio.')).toBeInTheDocument();
   });
 });
