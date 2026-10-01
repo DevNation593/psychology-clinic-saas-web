@@ -160,7 +160,7 @@ describe('SpecialtyManager', () => {
     });
     await act(async () => catalog.resolve([psychology, nutrition]));
 
-    const nutritionButton = await findEnabledButton(/Nutrición/);
+    const nutritionButton = await screen.findByRole('button', { name: /Nutrición/ });
     expect(nutritionButton).toHaveAttribute('aria-pressed', 'false');
     expect(nutritionButton).toBeDisabled();
 
