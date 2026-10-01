@@ -26,7 +26,7 @@ describe('SpecialtiesPage access', () => {
       signIn(role);
       render(<SpecialtiesPage />);
       expect(screen.queryByTestId('specialty-manager')).not.toBeInTheDocument();
-      expect(screen.getByRole('alert')).toHaveTextContent('Solo los administradores pueden gestionar los módulos clínicos.');
+      expect(screen.getByRole('alert')).toHaveTextContent('Solo el titular de la cuenta puede acceder a esta sección.');
     },
   );
 

@@ -254,7 +254,7 @@ export function TeamManager() {
       </div>
 
       {!canManage && (
-        <Alert title="Vista de solo lectura" description="Solo un administrador del consultorio puede modificar el equipo." />
+        <Alert title="Vista de solo lectura" description="Solo el titular de la cuenta puede modificar el equipo." />
       )}
 
       {actionError?.tenantId === tenantId && (

@@ -10,6 +10,7 @@ import {
   Clock, 
   Sparkles,
 } from 'lucide-react';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getStatusColor } from '@/types/guards';
 import { ROUTES } from '@/lib/constants';
@@ -29,6 +30,7 @@ interface StatusConfig {
 
 export function SubscriptionStatusBanner() {
   const router = useRouter();
+  const canManage = useCanManageAccount();
   const { data: subscription } = useSubscription();
 
   if (!subscription) return null;
@@ -142,7 +144,10 @@ export function SubscriptionStatusBanner() {
             </AlertDescription>
           </div>
           <div className="flex gap-2">
-            {config.action && (
+            {!canManage && (status === 'PAST_DUE' || status === 'SUSPENDED' || status === 'CANCELED') && (
+              <p className="self-center text-sm text-muted-foreground">Contacta al titular de la cuenta.</p>
+            )}
+            {config.action && (canManage || config.action.onClick === handleContactSupport) && (
               <Button
                 onClick={config.action.onClick}
                 size="sm"
@@ -151,7 +156,7 @@ export function SubscriptionStatusBanner() {
                 {config.action.label}
               </Button>
             )}
-            {status !== 'DELETED' && (
+            {canManage && status !== 'DELETED' && (
               <Button
                 onClick={handleViewSubscription}
                 size="sm"
@@ -173,6 +178,7 @@ export function SubscriptionStatusBanner() {
  */
 export function TrialExpirationBanner() {
   const router = useRouter();
+  const canManage = useCanManageAccount();
   const { data: subscription } = useSubscription();
 
   if (!subscription) return null;
@@ -203,14 +209,18 @@ export function TrialExpirationBanner() {
               Actualiza ahora para mantener todas las funciones y evitar la pérdida de acceso.
             </AlertDescription>
           </div>
-          <Button
-            onClick={handleUpgrade}
-            size="sm"
-            className="gap-2 bg-blue-600 hover:bg-blue-700"
-          >
-            <Sparkles className="h-4 w-4" />
-            Ver Planes
-          </Button>
+          {canManage ? (
+            <Button
+              onClick={handleUpgrade}
+              size="sm"
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Sparkles className="h-4 w-4" />
+              Ver Planes
+            </Button>
+          ) : (
+            <p className="self-center text-sm text-muted-foreground">Contacta al titular de la cuenta.</p>
+          )}
         </div>
       </Alert>
     </div>

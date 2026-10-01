@@ -10,6 +10,9 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { RestrictedAccess } from '@/components/layout/restricted-access';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
+import { useAuthStore } from '@/store/authStore';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -323,7 +326,7 @@ function FileRow({
 // Main Page
 // ==========================================
 
-export default function StorageManagementPage() {
+function StorageManagementPageContent() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -667,4 +670,13 @@ export default function StorageManagementPage() {
       </AlertDialog>
     </div>
   );
+}
+
+export default function StorageManagementPage() {
+  const user = useAuthStore((state) => state.user);
+  const canManage = useCanManageAccount();
+  if (!user) return null;
+  // The menu entry is hidden for other roles; this covers direct navigation.
+  if (!canManage) return <RestrictedAccess />;
+  return <StorageManagementPageContent />;
 }

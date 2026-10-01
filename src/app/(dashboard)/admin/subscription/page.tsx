@@ -12,6 +12,8 @@ import { Alert } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/store/authStore';
+import { RestrictedAccess } from '@/components/layout/restricted-access';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import {
   Check,
   X,
@@ -490,7 +492,7 @@ function SubscriptionStatusBar({
 // Main Page
 // ==========================================
 
-export default function SubscriptionPage() {
+function SubscriptionPageContent() {
   const router = useRouter();
   const tenant = useAuthStore((state) => state.tenant);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
@@ -834,4 +836,13 @@ function renderFeatureList(features?: FeatureFlags) {
         {f.label}
       </span>
     ));
+}
+
+export default function SubscriptionPage() {
+  const user = useAuthStore((state) => state.user);
+  const canManage = useCanManageAccount();
+  if (!user) return null;
+  // The menu entry is hidden for other roles; this covers direct navigation.
+  if (!canManage) return <RestrictedAccess />;
+  return <SubscriptionPageContent />;
 }

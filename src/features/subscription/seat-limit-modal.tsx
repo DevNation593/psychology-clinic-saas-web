@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, TrendingUp } from 'lucide-react';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getPlanDisplayName } from '@/types/guards';
 import { ROUTES } from '@/lib/constants';
@@ -24,6 +25,7 @@ interface SeatLimitModalProps {
 export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
   const router = useRouter();
   const { data: subscription } = useSubscription();
+  const canManage = useCanManageAccount();
 
   const handleUpgrade = () => {
     onOpenChange(false);
@@ -106,7 +108,11 @@ export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
             Cancelar
           </Button>
 
-          {currentTier === PlanTier.BASIC && (
+          {!canManage && (
+            <p className="text-sm text-muted-foreground">Contacta al titular de la cuenta.</p>
+          )}
+
+          {canManage && currentTier === PlanTier.BASIC && (
             <>
               <Button variant="secondary" onClick={() => {
                 onOpenChange(false);
@@ -122,7 +128,7 @@ export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
             </>
           )}
 
-          {currentTier === PlanTier.PROFESSIONAL && (
+          {canManage && currentTier === PlanTier.PROFESSIONAL && (
             <Button onClick={() => {
               onOpenChange(false);
               router.push(`${ROUTES.ADMIN_SUBSCRIPTION}?action=contact`);
