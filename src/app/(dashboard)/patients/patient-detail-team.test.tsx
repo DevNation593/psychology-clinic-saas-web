@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
-import { UserRole, type Patient, type User } from '@/types';
+import { AppointmentStatus, UserRole, type Appointment, type Patient, type User } from '@/types';
 import PatientDetailPage from './[id]/page';
 
 const mocks = vi.hoisted(() => ({
@@ -31,6 +31,51 @@ const patient = {
   updatedAt: '2026-01-01T00:00:00Z',
 } as Patient;
 
+const canonicalAppointment = {
+  id: 'appointment-1',
+  tenantId: 'tenant-1',
+  patientId: 'patient-1',
+  patient: { id: 'patient-1', firstName: 'Ana', lastName: 'Vega', email: null, phone: null },
+  professionalId: 'professional-1',
+  professional: {
+    id: 'professional-1', firstName: 'Noa', lastName: 'Paz', email: 'noa@example.com',
+    professionalTitle: 'Nutricionista',
+  },
+  specialtyId: 'nutrition',
+  specialty: { id: 'nutrition', code: 'NUTRITION', name: 'Nutrición' },
+  psychologistId: 'legacy-psychologist',
+  psychologist: { id: 'legacy-psychologist', firstName: 'Legacy', lastName: 'Psych', email: 'legacy@example.com' },
+  title: 'Consulta nutricional',
+  description: null,
+  startTime: '2025-01-01T15:00:00.000Z',
+  endTime: '2025-01-01T16:00:00.000Z',
+  duration: 60,
+  status: AppointmentStatus.COMPLETED,
+  location: null,
+  isOnline: false,
+  meetingUrl: null,
+  cancelledAt: null,
+  cancelledBy: null,
+  cancellationReason: null,
+  reminderSent24h: false,
+  reminderSent2h: false,
+  lastReminderSentAt: null,
+  createdAt: '2025-01-01T00:00:00.000Z',
+  updatedAt: '2025-01-01T00:00:00.000Z',
+} as Appointment;
+
+const canonicalAppointmentWithoutTitle = {
+  ...canonicalAppointment,
+  id: 'appointment-2',
+  professionalId: 'professional-2',
+  professional: {
+    id: 'professional-2', firstName: 'Luis', lastName: 'Claro', email: 'luis@example.com',
+    professionalTitle: null,
+  },
+  psychologistId: 'legacy-psychologist-2',
+  psychologist: { id: 'legacy-psychologist-2', firstName: 'Otro', lastName: 'Legado', email: 'otro@example.com' },
+} as Appointment;
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
   useParams: () => ({ id: 'patient-1' }),
@@ -56,11 +101,15 @@ beforeEach(() => {
     tenant: { id: 'tenant-1' } as ReturnType<typeof useAuthStore.getState>['tenant'],
   });
   mocks.get.mockImplementation((url: string) => {
+    if (url.endsWith('/appointments')) {
+      return Promise.resolve([canonicalAppointment, canonicalAppointmentWithoutTitle]);
+    }
     if (url.endsWith('/team') || url.endsWith('/team/eligible') || url.includes('/specialties')) {
       return Promise.resolve([]);
     }
     throw new Error(`Unexpected request: ${url}`);
   });
+
 });
 
 describe('patient detail treating-team wiring', () => {
@@ -87,5 +136,17 @@ describe('patient detail treating-team wiring', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Equipo tratante' }));
     expect(await screen.findByRole('heading', { name: 'Equipo tratante' })).toBeInTheDocument();
     expect(mocks.get).toHaveBeenCalledWith('/tenants/tenant-1/patients/patient-1/team');
+  });
+
+  it('renders appointment cards from canonical professional and specialty metadata', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Citas' }));
+
+    expect(await screen.findByText('Nutricionista Noa Paz')).toBeInTheDocument();
+    expect(screen.getByText('Luis Claro')).toBeInTheDocument();
+    expect(screen.getAllByText('Nutrición')).toHaveLength(2);
+    expect(screen.queryByText(/Legacy Psych/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dr\. Noa Paz/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dr\. Luis Claro/)).not.toBeInTheDocument();
   });
 });

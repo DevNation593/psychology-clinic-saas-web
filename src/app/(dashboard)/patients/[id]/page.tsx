@@ -17,12 +17,13 @@ import {
   type SpecialtyRecordModuleOption,
 } from '@/features/patients/specialty-record-entry-form';
 import { PatientTeamTab } from '@/features/patients/patient-team-tab';
-import { canAccessClinicalNotes, canEditAppointment, canDeletePatient } from '@/types/guards';
+import { canAccessClinicalNotes, canDeletePatient } from '@/types/guards';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
   AppointmentStatus,
   TaskStatus,
   TaskPriority,
+  type Appointment,
   type ClinicalNote,
   type Task,
 } from '@/types';
@@ -1203,7 +1204,7 @@ function StatCard({
   );
 }
 
-function AppointmentCard({ appointment }: { appointment: any }) {
+function AppointmentCard({ appointment }: { appointment: Appointment }) {
   return (
     <Card>
       <CardContent className="py-3">
@@ -1221,10 +1222,16 @@ function AppointmentCard({ appointment }: { appointment: any }) {
                 {formatDate(appointment.startTime, 'HH:mm')} -{' '}
                 {formatDate(appointment.endTime, 'HH:mm')}
               </p>
-              {appointment.psychologist && (
+              {appointment.professional && (
                 <p className="text-xs text-muted-foreground">
-                  Dr. {appointment.psychologist.firstName} {appointment.psychologist.lastName}
+                  {appointment.professional.professionalTitle
+                    ? `${appointment.professional.professionalTitle} `
+                    : ''}
+                  {appointment.professional.firstName} {appointment.professional.lastName}
                 </p>
+              )}
+              {appointment.specialty && (
+                <p className="text-xs text-muted-foreground">{appointment.specialty.name}</p>
               )}
             </div>
           </div>

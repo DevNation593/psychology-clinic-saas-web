@@ -585,6 +585,7 @@ export interface AppointmentProfessional {
   firstName: string;
   lastName: string;
   email: string;
+  professionalTitle?: string | null;
 }
 
 export interface AppointmentPatient {

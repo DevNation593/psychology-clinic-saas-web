@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
 import { usePatients, usePatient, useCreatePatient, useUpdatePatient } from './usePatients';
 import { useAppointments, useCreateAppointment, useUpdateAppointment, useCancelAppointment } from './useAppointments';
+import { toast } from 'sonner';
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() }));
 vi.mock('@/lib/api/client', () => ({ apiClient: http }));
@@ -98,6 +99,29 @@ describe('tenant-scoped existing hooks', () => {
     await waitFor(() => expect(result.current.variables).toMatchObject({ patientId: 'patient-1', professionalId: 'pro-1' }));
     for (const index of [0, 1, 5]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(true);
     for (const index of [2, 3, 4, 6, 7]) expect(client.getQueryState(keys[index])?.isInvalidated).toBe(false);
+  });
+
+  it('maps appointment API codes to stable safe mutation feedback', async () => {
+    http.post.mockRejectedValue({
+      code: 'APPOINTMENT_CONFLICT',
+      message: 'raw database conflict text',
+    });
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useCreateAppointment(), { wrapper });
+
+    await act(async () => {
+      await expect(result.current.mutateAsync({
+        patientId: 'patient-1',
+        professionalId: 'pro-1',
+        specialtyId: 'nutrition',
+        title: 'Consulta',
+        startTime: '2026-10-01T10:00',
+        duration: 60,
+        isOnline: false,
+      })).rejects.toMatchObject({ code: 'APPOINTMENT_CONFLICT' });
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('El profesional ya tiene una cita en ese horario.');
   });
 
   it('finishes an in-flight create in the tenant where it started after a tenant switch', async () => {

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { invalidateScopedLists } from './queryInvalidation';
 import { requireTenantId, useTenantId } from './useTenantScope';
 import { useTenantMutation } from './useTenantMutation';
+import { getAppointmentErrorMessage } from '@/features/calendar/appointment-errors';
 
 export function useAppointments(params?: Parameters<typeof appointmentsApi.list>[0]) {
   const tenantId = useTenantId();
@@ -61,7 +62,7 @@ export function useCreateAppointment() {
       ]);
       toast.success('Cita creada exitosamente');
     },
-    onError: (error: Error) => toast.error(error.message || 'Error al crear cita'),
+    onError: (error: Error) => toast.error(getAppointmentErrorMessage(error)),
   });
 }
 
@@ -82,7 +83,7 @@ export function useUpdateAppointment(id: string) {
       ]);
       toast.success('Cita actualizada');
     },
-    onError: (error: Error) => toast.error(error.message || 'Error al actualizar cita'),
+    onError: (error: Error) => toast.error(getAppointmentErrorMessage(error)),
   });
 }
 
@@ -99,6 +100,6 @@ export function useCancelAppointment() {
       ]);
       toast.success('Cita cancelada');
     },
-    onError: (error: Error) => toast.error(error.message || 'Error al cancelar cita'),
+    onError: (error: Error) => toast.error(getAppointmentErrorMessage(error)),
   });
 }
