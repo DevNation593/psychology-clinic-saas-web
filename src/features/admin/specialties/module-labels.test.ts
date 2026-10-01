@@ -9,6 +9,10 @@ describe('describeModule', () => {
     });
     expect(describeModule('nutrition.assessments').name).toBe('Evaluaciones nutricionales');
     expect(describeModule('dentistry.odontogram').name).toBe('Odontograma');
+    expect(describeModule('physiotherapy.exercise-plans').name).toBe('Planes de ejercicios');
+    expect(describeModule('physiotherapy.evolution').name).toBe('Evolución de fisioterapia');
+    expect(describeModule('nutrition.diet-plans').name).toBe('Planes de alimentación');
+    expect(describeModule('psychology.session-notes').name).toBe('Notas de sesión');
   });
 
   it('turns an unknown key into readable text instead of showing the raw key', () => {

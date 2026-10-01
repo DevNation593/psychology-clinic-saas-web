@@ -17,6 +17,7 @@ import {
   type SpecialtyRecordModuleOption,
 } from '@/features/patients/specialty-record-entry-form';
 import { PatientTeamTab } from '@/features/patients/patient-team-tab';
+import { describeModule } from '@/features/admin/specialties/module-labels';
 import { canAccessClinicalNotes, canDeletePatient, isAdminRole } from '@/types/guards';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
@@ -626,8 +627,8 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
               <CardContent className="pt-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-medium">{record.specialty?.name || record.moduleKey}</p>
-                    <p className="text-sm text-muted-foreground">{record.moduleKey}</p>
+                    <p className="font-medium">{record.specialty?.name || describeModule(record.moduleKey).name}</p>
+                    <p className="text-sm text-muted-foreground">{describeModule(record.moduleKey).name}</p>
                     <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                       {Object.entries(record.data).map(([key, value]) => (
                         <div key={key}>
