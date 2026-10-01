@@ -15,10 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Gender } from '@/types';
-import { usersApi, extractArray } from '@/lib/api/endpoints';
-import { useQuery } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/constants';
-import { UserRole } from '@/types';
 
 export default function EditPatientPage() {
   const params = useParams();
@@ -27,14 +23,6 @@ export default function EditPatientPage() {
 
   const { data: patient, isLoading: patientLoading } = usePatient(patientId);
   const { mutate: updatePatient, isPending } = useUpdatePatient(patientId);
-
-  const { data: psychologists } = useQuery({
-    queryKey: [...QUERY_KEYS.USERS, { role: UserRole.PSICOLOGO }],
-    queryFn: async () => {
-      const response = await usersApi.list({ role: UserRole.PSICOLOGO, isActive: true });
-      return extractArray(response);
-    },
-  });
 
   const {
     register,
@@ -58,7 +46,6 @@ export default function EditPatientPage() {
         address: patient.address || '',
         emergencyContactName: patient.emergencyContactName || '',
         emergencyContactPhone: patient.emergencyContactPhone || '',
-        assignedPsychologistId: patient.assignedPsychologistId || '',
         notes: patient.notes || '',
       });
     }
@@ -188,25 +175,6 @@ export default function EditPatientPage() {
                   <Label htmlFor="emergencyContactPhone">Teléfono</Label>
                   <Input id="emergencyContactPhone" {...register('emergencyContactPhone')} />
                 </div>
-              </div>
-            </div>
-
-            <div className="border-t pt-6">
-              <h3 className="font-semibold mb-4">Asignación</h3>
-              <div className="space-y-2">
-                <Label htmlFor="assignedPsychologistId">Psicólogo/a Asignado</Label>
-                <select
-                  id="assignedPsychologistId"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  {...register('assignedPsychologistId')}
-                >
-                  <option value="">Sin asignar</option>
-                  {psychologists?.map((psychologist) => (
-                    <option key={psychologist.id} value={psychologist.id}>
-                      {psychologist.firstName} {psychologist.lastName}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

@@ -31,6 +31,16 @@ export function toCanonicalRole(role: UserRole): UserRole {
   return role;
 }
 
+export function canAddPatientTeamMember(user: User): boolean {
+  const role = toCanonicalRole(user.role);
+  return role === UserRole.ADMIN || role === UserRole.ASISTENTE || role === UserRole.PROFESIONAL;
+}
+
+export function canRemovePatientTeamMember(user: User): boolean {
+  const role = toCanonicalRole(user.role);
+  return role === UserRole.ADMIN || role === UserRole.ASISTENTE;
+}
+
 export function hasActiveProfessionalProfile(user: User): boolean {
   return user.professionalProfile?.isActive === true;
 }
