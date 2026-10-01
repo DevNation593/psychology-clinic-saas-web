@@ -3,8 +3,7 @@
 // ==========================================
 
 export enum UserRole {
-  CLIENTE = 'CLIENTE',
-  PSICOLOGO = 'PSICOLOGO',
+  MASTER = 'MASTER',
   ADMIN = 'ADMIN',
   PROFESIONAL = 'PROFESIONAL',
   ASISTENTE = 'ASISTENTE',
@@ -426,7 +425,10 @@ export interface User {
   updatedAt: string;
 }
 
-export type TenantTeamRole = UserRole.ADMIN | UserRole.PROFESIONAL | UserRole.ASISTENTE;
+/** Roles that appear in the clinic team list. */
+export type TenantTeamRole = UserRole.MASTER | UserRole.PROFESIONAL | UserRole.ASISTENTE;
+/** Roles the account holder can give to a team member. MASTER is never assignable. */
+export type AssignableTeamRole = UserRole.PROFESIONAL | UserRole.ASISTENTE;
 
 export interface TenantTeamProfessionalProfileInput {
   specialtyId: string;
@@ -442,7 +444,7 @@ export interface CreateTenantUserInput {
   firstName: string;
   lastName: string;
   phone?: string;
-  role: TenantTeamRole;
+  role: AssignableTeamRole;
   professionalProfile?: TenantTeamProfessionalProfileInput;
 }
 
@@ -843,7 +845,7 @@ export interface ClinicOnboardingAdmin {
   email: string;
   firstName: string;
   lastName: string;
-  role: UserRole.ADMIN;
+  role: UserRole.MASTER;
   professionalProfile: {
     isActive: boolean;
     specialty: Pick<SpecialtyCatalogItem, 'id' | 'code' | 'name'>;

@@ -41,7 +41,7 @@ export function FeatureLockedNotice({ featureName }: FeatureLockedNoticeProps) {
         <p className="text-sm text-muted-foreground mt-1">
           {canUpgrade
             ? 'Actualiza tu plan o activa el módulo para usar esta función.'
-            : 'Pide al administrador del consultorio que active este módulo.'}
+            : 'Contacta al titular de la cuenta para activar este módulo.'}
         </p>
         {canUpgrade && (
           <Button asChild className="mt-4">

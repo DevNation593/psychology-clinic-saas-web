@@ -112,7 +112,7 @@ beforeEach(() => {
   mocks.search = '';
   mocks.updateHookIds.length = 0;
   useAuthStore.setState({
-    user: { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' } as User,
+    user: { id: 'admin-1', role: UserRole.MASTER, tenantId: 'tenant-1' } as User,
   });
 });
 

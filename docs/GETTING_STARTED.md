@@ -179,7 +179,7 @@ After logging in, you'll see:
 | 📊 | Dashboard | Overview and stats |
 | 📅 | Calendar | Manage appointments |
 | 👤 | Patients | Patient records |
-| ⚙️ | Admin | Team, subscription, settings (ADMIN only) |
+| ⚙️ | Admin | Team, subscription, settings (MASTER only) |
 
 ### Try These Actions
 
@@ -200,7 +200,7 @@ After logging in, you'll see:
    - Click "Activar notificaciones push"
    - Allow browser permission
 
-4. **Invite Team Member** (if you're TENANT_ADMIN)
+4. **Invite Team Member** (if you're MASTER)
    - Go to "Admin" → "Equipo"
    - Click "Invitar Usuario"
    - Enter email, name, role

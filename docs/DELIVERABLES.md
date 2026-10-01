@@ -10,7 +10,7 @@
 
 Full-stack multi-tenant SaaS platform for psychology clinics with:
 - **Multi-tenancy**: Clinic as organization with data isolation
-- **RBAC**: 3 roles (TENANT_ADMIN, PSYCHOLOGIST, ASSISTANT)
+- **RBAC**: 3 roles (MASTER, PROFESIONAL, ASISTENTE)
 - **Seat-based pricing**: Plans priced by number of psychologists
 - **Core modules**: Calendar, Patients, Notifications, Admin area
 
@@ -297,7 +297,7 @@ Full-stack multi-tenant SaaS platform for psychology clinics with:
 - [x] Onboarding wizard for new clinics
 
 ### RBAC (Role-Based Access Control) ✅
-- [x] 3 roles: TENANT_ADMIN, PSYCHOLOGIST, ASSISTANT
+- [x] 3 roles: MASTER, PROFESIONAL, ASISTENTE
 - [x] Permission guards in types/guards.ts
 - [x] Component-level RBAC rendering
 - [x] Route protection by role

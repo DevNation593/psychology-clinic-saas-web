@@ -114,7 +114,7 @@ function appointment(overrides: Partial<Appointment> = {}): Appointment {
 
 function renderDialog({
   currentAppointment = null,
-  role = UserRole.ADMIN,
+  role = UserRole.MASTER,
   actorId = 'admin-1',
   onOpenChange = vi.fn(),
 }: {
@@ -263,10 +263,10 @@ describe('AppointmentDialog canonical cascade', () => {
   });
 
   it.each([
-    [UserRole.ADMIN, 'admin-1', ['Noa Nutrición', 'Ada Clínica']],
+    [UserRole.MASTER, 'admin-1', ['Noa Nutrición', 'Ada Clínica']],
     [UserRole.ASISTENTE, 'assistant-1', ['Noa Nutrición', 'Ada Clínica']],
     [UserRole.PROFESIONAL, 'nutrition-1', ['Noa Nutrición']],
-    [UserRole.PSICOLOGO, 'nutrition-1', ['Noa Nutrición']],
+    [UserRole.PROFESIONAL, 'nutrition-1', ['Noa Nutrición']],
   ] as const)('filters eligible professionals for actor role %s', (role, actorId, visibleNames) => {
     renderDialog({ role, actorId });
     select('Paciente', 'patient-1');
@@ -274,7 +274,7 @@ describe('AppointmentDialog canonical cascade', () => {
 
     const options = within(screen.getByLabelText('Profesional')).getAllByRole('option').map((option) => option.textContent);
     for (const name of visibleNames) expect(options).toContain(name);
-    expect(options.includes('Ada Clínica')).toBe(role === UserRole.ADMIN || role === UserRole.ASISTENTE);
+    expect(options.includes('Ada Clínica')).toBe(role === UserRole.MASTER || role === UserRole.ASISTENTE);
   });
 
   it('keeps values and the dialog open when the server rejects the create', async () => {

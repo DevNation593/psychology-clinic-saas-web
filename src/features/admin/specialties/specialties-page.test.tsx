@@ -14,19 +14,19 @@ const signIn = (role: UserRole) =>
 beforeEach(() => useAuthStore.setState({ user: null }));
 
 describe('SpecialtiesPage access', () => {
-  it.each([UserRole.ADMIN, UserRole.CLIENTE, UserRole.SOPORTE])('opens for %s', (role) => {
+  it.each([UserRole.MASTER, UserRole.SOPORTE])('opens for %s', (role) => {
     signIn(role);
     render(<SpecialtiesPage />);
     expect(screen.getByTestId('specialty-manager')).toBeInTheDocument();
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.PSICOLOGO])(
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])(
     'tells %s the section is restricted instead of showing it',
     (role) => {
       signIn(role);
       render(<SpecialtiesPage />);
       expect(screen.queryByTestId('specialty-manager')).not.toBeInTheDocument();
-      expect(screen.getByRole('alert')).toHaveTextContent('Solo los administradores pueden gestionar los módulos clínicos.');
+      expect(screen.getByRole('alert')).toHaveTextContent('Solo el titular de la cuenta puede acceder a esta sección.');
     },
   );
 

@@ -18,7 +18,7 @@ import {
 } from '@/features/patients/specialty-record-entry-form';
 import { PatientTeamTab } from '@/features/patients/patient-team-tab';
 import { describeModule } from '@/features/admin/specialties/module-labels';
-import { canAccessClinicalNotes, canDeletePatient, isAdminRole, isProfessionalRole } from '@/types/guards';
+import { canAccessClinicalNotes, canDeletePatient, isMasterRole, isProfessionalRole } from '@/types/guards';
 import { PatientInvoicesTab } from '@/features/billing/patient-invoices-tab';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
@@ -125,7 +125,7 @@ export default function PatientDetailPage() {
   const { data: patient, isLoading } = usePatient(patientId);
   const deletePatient = useDeletePatient();
   // Invoices are shown to the roles that can issue them.
-  const canSeeInvoices = !!user && (isAdminRole(user.role) || isProfessionalRole(user.role));
+  const canSeeInvoices = !!user && (isMasterRole(user.role) || isProfessionalRole(user.role));
   const visibleTabs = TABS.filter((tab) => tab.id !== 'billing' || canSeeInvoices);
 
   const handleDelete = () => {
@@ -411,7 +411,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           <Lock className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-lg font-medium">Acceso restringido</p>
           <p className="text-sm text-muted-foreground">
-            Solo los psicólogos y administradores pueden ver la historia clínica.
+            Solo los profesionales y el titular de la cuenta pueden ver la historia clínica.
           </p>
         </CardContent>
       </Card>
@@ -462,7 +462,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
                     <Button variant="ghost" size="icon" onClick={() => setViewNote(note)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {(isAdminRole(user.role) || note.psychologistId === user.id) && (
+                    {(isMasterRole(user.role) || note.psychologistId === user.id) && (
                       <Button
                         variant="ghost"
                         size="icon"

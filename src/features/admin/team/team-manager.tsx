@@ -13,7 +13,7 @@ import { useTenantSpecialties } from '@/hooks/useSpecialties';
 import { subscriptionApi, usersApi, extractArray } from '@/lib/api/endpoints';
 import { countActiveProfessionalProfiles } from '@/lib/professional-profiles';
 import { QUERY_KEYS, ROLE_LABELS } from '@/lib/constants';
-import { isAdminRole, isClinicPlan, toCanonicalRole } from '@/types/guards';
+import { isMasterRole, isClinicPlan } from '@/types/guards';
 import { UserRole, type TenantTeamProfessionalProfileInput, type UpdateTenantUserInput, type UsageMetrics, type User } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { TeamMemberDialog } from './team-member-dialog';
@@ -29,10 +29,8 @@ type ActionError = {
 };
 
 const TEAM_USER_ROLES = new Set<UserRole>([
-  UserRole.ADMIN,
-  UserRole.CLIENTE,
+  UserRole.MASTER,
   UserRole.PROFESIONAL,
-  UserRole.PSICOLOGO,
   UserRole.ASISTENTE,
 ]);
 
@@ -79,7 +77,7 @@ export function TeamManager() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const hasTeamModule = isClinicPlan(tenant);
-  const canManage = !!currentUser && isAdminRole(currentUser.role);
+  const canManage = !!currentUser && isMasterRole(currentUser.role);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<User | null>(null);
   const [actionError, setActionError] = useState<ActionError | null>(null);
@@ -256,7 +254,7 @@ export function TeamManager() {
       </div>
 
       {!canManage && (
-        <Alert title="Vista de solo lectura" description="Solo un administrador del consultorio puede modificar el equipo." />
+        <Alert title="Vista de solo lectura" description="Solo el titular de la cuenta puede modificar el equipo." />
       )}
 
       {actionError?.tenantId === tenantId && (
@@ -320,8 +318,8 @@ export function TeamManager() {
                   {users.map((user) => {
                     const profile = user.professionalProfile;
                     const name = memberName(user);
-                    const canonicalRole = toCanonicalRole(user.role);
-                    const roleLabel = ROLE_LABELS[canonicalRole] ?? String(user.role);
+                    const roleLabel = ROLE_LABELS[user.role] ?? String(user.role);
+                    const isHolder = isMasterRole(user.role);
                     const specialtyName = profile
                       ? profile.specialty?.name ?? enabledSpecialties.find((specialty) => specialty.id === profile.specialtyId)?.name ?? profile.specialtyId
                       : 'Sin perfil clínico';
@@ -373,7 +371,7 @@ export function TeamManager() {
                                     <Stethoscope className="h-4 w-4" aria-hidden="true" />
                                   </Button>
                                 )}
-                                {user.isActive ? (
+                                {!isHolder && (user.isActive ? (
                                   <Button
                                     type="button"
                                     size="sm"
@@ -395,7 +393,7 @@ export function TeamManager() {
                                   >
                                     <UserCheck className="h-4 w-4" aria-hidden="true" />
                                   </Button>
-                                )}
+                                ))}
                               </>
                             )}
                           </div>

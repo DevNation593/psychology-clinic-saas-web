@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { useTenantModules } from '@/hooks/useSpecialties';
-import { canManageUsers, canManageSubscription, isAdminRole, isProfessionalRole, isClinicPlan } from '@/types/guards';
+import { canManageUsers, canManageSubscription, isMasterRole, isProfessionalRole, isClinicPlan } from '@/types/guards';
 import {
   LayoutDashboard,
   Calendar,
@@ -40,7 +40,7 @@ export function Sidebar() {
     { name: 'Pacientes', href: '/patients', icon: Users, show: true },
     { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: true },
     { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: user ? canManageUsers(user) : false },
-    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user ? isAdminRole(user.role) || isProfessionalRole(user.role) : false },
+    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user ? isMasterRole(user.role) || isProfessionalRole(user.role) : false },
   ].filter((item) => item.show);
 
   const adminNavigation = [

@@ -50,7 +50,7 @@ function actor(role: UserRole, id = 'actor-1'): User {
 }
 
 function renderDetails({
-  user = actor(UserRole.ADMIN),
+  user = actor(UserRole.MASTER),
   currentAppointment = appointment(),
   onOpenChange = vi.fn(),
   onEdit = vi.fn(),
@@ -79,13 +79,10 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('appointment permissions', () => {
   it.each([
-    [UserRole.ADMIN, 'anyone', true],
-    [UserRole.CLIENTE, 'anyone', true],
+    [UserRole.MASTER, 'anyone', true],
     [UserRole.ASISTENTE, 'anyone', true],
     [UserRole.PROFESIONAL, 'professional-1', true],
     [UserRole.PROFESIONAL, 'professional-2', false],
-    [UserRole.PSICOLOGO, 'professional-1', true],
-    [UserRole.PSICOLOGO, 'professional-2', false],
     [UserRole.PACIENTE, 'professional-1', false],
     [UserRole.SOPORTE, 'professional-1', false],
   ] as const)('allows %s actor %s: %s', (role, id, expected) => {

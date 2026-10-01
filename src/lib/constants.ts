@@ -224,8 +224,7 @@ export const QUERY_KEYS = {
 // ==========================================
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.CLIENTE]: 'Administrador',
-  [UserRole.PSICOLOGO]: 'Psicólogo/a',
+  [UserRole.MASTER]: 'Titular de la cuenta',
   [UserRole.ADMIN]: 'Administrador',
   [UserRole.PROFESIONAL]: 'Profesional',
   [UserRole.ASISTENTE]: 'Asistente',

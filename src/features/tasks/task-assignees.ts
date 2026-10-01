@@ -1,4 +1,3 @@
-import { toCanonicalRole } from '@/types/guards';
 import { UserRole, type User } from '@/types';
 
 /**
@@ -7,6 +6,6 @@ import { UserRole, type User } from '@/types';
  */
 export function assignableUsers(users: User[] | undefined, actor: User | null): User[] {
   if (!actor) return [];
-  if (toCanonicalRole(actor.role) !== UserRole.PROFESIONAL) return users ?? [];
+  if (actor.role !== UserRole.PROFESIONAL) return users ?? [];
   return [users?.find((user) => user.id === actor.id) ?? actor];
 }

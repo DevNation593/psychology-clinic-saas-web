@@ -28,7 +28,7 @@ const admin = {
   email: 'admin@example.com',
   firstName: 'Ana',
   lastName: 'Vega',
-  role: UserRole.ADMIN,
+  role: UserRole.MASTER,
   tenantId: 'tenant-a',
 } as User;
 
@@ -55,13 +55,13 @@ beforeEach(() => {
 });
 
 describe('Sidebar clinical modules entry', () => {
-  it.each([UserRole.ADMIN, UserRole.CLIENTE, UserRole.SOPORTE])('is shown to %s', async (role) => {
+  it.each([UserRole.MASTER, UserRole.SOPORTE])('is shown to %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Módulos clínicos' })).toHaveAttribute('href', '/admin/specialties');
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.PSICOLOGO])('is hidden from %s', async (role) => {
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])('is hidden from %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('Sidebar billing entry', () => {
     expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
   });
 
-  it.each([UserRole.ADMIN, UserRole.PROFESIONAL])('is shown to %s', async (role) => {
+  it.each([UserRole.MASTER, UserRole.PROFESIONAL])('is shown to %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Facturación' })).toBeInTheDocument();
@@ -94,5 +94,37 @@ describe('Sidebar tenant module visibility', () => {
 
     await waitFor(() => expect(tenantModulesApi.list).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByRole('link', { name: 'Equipo' })).not.toBeInTheDocument());
+  });
+});
+
+describe('Sidebar administration section', () => {
+  const adminLinks = ['Equipo', 'Suscripción', 'Almacenamiento', 'Configuración'];
+
+  it('shows every administration entry to the account holder', async () => {
+    renderSidebar();
+    for (const name of adminLinks) {
+      expect(await screen.findByRole('link', { name })).toBeInTheDocument();
+    }
+  });
+
+  it.each([UserRole.PROFESIONAL, UserRole.ASISTENTE, UserRole.ADMIN])(
+    'hides the whole section from %s',
+    async (role) => {
+      useAuthStore.setState({ user: { ...admin, role } });
+      renderSidebar();
+      expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+      for (const name of [...adminLinks, 'Módulos clínicos']) {
+        expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+      }
+      expect(screen.queryByText('Administración')).not.toBeInTheDocument();
+    },
+  );
+
+  // ADMIN is reserved: it is neither the account holder nor a professional.
+  it('hides billing from ADMIN', async () => {
+    useAuthStore.setState({ user: { ...admin, role: UserRole.ADMIN } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
   });
 });

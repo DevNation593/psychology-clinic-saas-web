@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePatientTeam, useEligiblePatientProfessionals, useAssignPatientProfessional, useRemovePatientProfessional } from '@/hooks/usePatientTeam';
 import { useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
-import { canAddPatientTeamMember, canRemovePatientTeamMember, toCanonicalRole } from '@/types/guards';
+import { canAddPatientTeamMember, canRemovePatientTeamMember } from '@/types/guards';
 import { UserRole, type PatientTeamMember } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -193,7 +193,7 @@ export function PatientTeamTab({ patientId }: { patientId: string }) {
   // A professional may read any team but only refer colleagues for patients they treat;
   // the API rejects the candidate list otherwise.
   const isOutsideProfessional = !!actor
-    && toCanonicalRole(actor.role) === UserRole.PROFESIONAL
+    && actor.role === UserRole.PROFESIONAL
     && !members.some((member) => member.isActive && member.professionalId === actor.id);
   const canAdd = !!actor && canAddPatientTeamMember(actor) && !isOutsideProfessional;
   const activeGroups = specialtyGroups(members.filter((member) => member.isActive));

@@ -6,7 +6,6 @@ import { useTasks, useCreateTask, useDeleteTask } from '@/hooks/useTasks';
 import { tasksApi, usersApi, patientsApi, extractArray } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
 import { assignableUsers } from '@/features/tasks/task-assignees';
-import { toCanonicalRole } from '@/types/guards';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { QUERY_KEYS, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/lib/constants';
 import { TaskStatus, TaskPriority, UserRole } from '@/types';
@@ -536,7 +535,7 @@ function CreateTaskDialog({
     defaultValues: {
       priority: TaskPriority.MEDIUM,
       // A professional's tasks are their own, so the assignee starts as themselves.
-      ...(actor && toCanonicalRole(actor.role) === UserRole.PROFESIONAL && { assignedToId: actor.id }),
+      ...(actor && actor.role === UserRole.PROFESIONAL && { assignedToId: actor.id }),
     },
   });
 
