@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTasks, useCreateTask, useDeleteTask } from '@/hooks/useTasks';
 import { tasksApi, usersApi, patientsApi, extractArray } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
+import { assignableUsers } from '@/features/tasks/task-assignees';
+import { toCanonicalRole } from '@/types/guards';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { QUERY_KEYS, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/lib/constants';
 import { TaskStatus, TaskPriority, UserRole } from '@/types';
@@ -504,6 +506,7 @@ function CreateTaskDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { mutate: createTask, isPending } = useCreateTask();
+  const actor = useAuthStore((state) => state.user);
 
   const { data: users } = useQuery({
     queryKey: [...QUERY_KEYS.USERS, 'active'],
@@ -532,6 +535,8 @@ function CreateTaskDialog({
     resolver: zodResolver(taskSchema),
     defaultValues: {
       priority: TaskPriority.MEDIUM,
+      // A professional's tasks are their own, so the assignee starts as themselves.
+      ...(actor && toCanonicalRole(actor.role) === UserRole.PROFESIONAL && { assignedToId: actor.id }),
     },
   });
 
@@ -584,7 +589,7 @@ function CreateTaskDialog({
                 {...register('assignedToId')}
               >
                 <option value="">Seleccionar usuario</option>
-                {users?.map((u) => (
+                {assignableUsers(users, actor).map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.firstName} {u.lastName} ({u.role})
                   </option>

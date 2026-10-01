@@ -54,6 +54,36 @@ beforeEach(() => {
   useAuthStore.setState({ user: admin, tenant: clinicTenant('tenant-a') });
 });
 
+describe('Sidebar clinical modules entry', () => {
+  it.each([UserRole.ADMIN, UserRole.CLIENTE, UserRole.SOPORTE])('is shown to %s', async (role) => {
+    useAuthStore.setState({ user: { ...admin, role } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Módulos clínicos' })).toHaveAttribute('href', '/admin/specialties');
+  });
+
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.PSICOLOGO])('is hidden from %s', async (role) => {
+    useAuthStore.setState({ user: { ...admin, role } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Módulos clínicos' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar billing entry', () => {
+  it('is hidden from assistants, who cannot issue invoices', async () => {
+    useAuthStore.setState({ user: { ...admin, role: UserRole.ASISTENTE } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
+  });
+
+  it.each([UserRole.ADMIN, UserRole.PROFESIONAL])('is shown to %s', async (role) => {
+    useAuthStore.setState({ user: { ...admin, role } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Facturación' })).toBeInTheDocument();
+  });
+});
+
 describe('Sidebar tenant module visibility', () => {
   it('drops tenant A module access after switching to tenant B', async () => {
     renderSidebar();

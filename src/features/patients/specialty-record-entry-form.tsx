@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { describeModule } from '@/features/admin/specialties/module-labels';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert } from '@/components/ui/alert';
 
@@ -137,7 +138,7 @@ function SpecialtyRecordEntryFormState({
             <option value="">Selecciona un módulo</option>
             {moduleOptions.map((option) => (
               <option key={option.moduleKey} value={option.moduleKey}>
-                {option.name} · {option.moduleKey.split('.')[1]}
+                {option.name} · {describeModule(option.moduleKey).name}
               </option>
             ))}
           </select>

@@ -107,7 +107,8 @@ describe('PatientTeamTab', () => {
     [UserRole.PACIENTE, false, false],
     [UserRole.SOPORTE, false, false],
   ] as const)('applies add/remove UI permissions for %s', async (role, canAdd, canRemove) => {
-    renderTeam({ role, team: [member('nutrition-1', nutrition)] });
+    // The actor is on the team, so a professional role is allowed to refer colleagues.
+    renderTeam({ role, team: [member('nutrition-1', nutrition), member('actor-1', psychology)] });
     await screen.findByText('Nutricionista Uno');
 
     expect(!!screen.queryByRole('button', { name: 'Agregar al equipo' })).toBe(canAdd);
@@ -164,7 +165,8 @@ describe('PatientTeamTab', () => {
   });
 
   it('allows professional referral but exposes no remove action', async () => {
-    renderTeam({ role: UserRole.PROFESIONAL, team: [member('psych-1', psychology)], eligible: [candidate('nutrition-1')] });
+    // The acting professional already treats this patient, so they may refer a colleague.
+    renderTeam({ role: UserRole.PROFESIONAL, team: [member('actor-1', psychology)], eligible: [candidate('nutrition-1')] });
     await selectNutritionSpecialty();
     const professional = await screen.findByLabelText('Profesional');
     await screen.findByRole('option', { name: 'Nutricionista Uno' });
@@ -173,6 +175,20 @@ describe('PatientTeamTab', () => {
     await waitFor(() => expect(http.put).toHaveBeenCalledWith('/tenants/tenant-1/patients/patient-1/team/nutrition-1'));
     expect(screen.queryByRole('button', { name: /Retirar/ })).not.toBeInTheDocument();
   });
+
+  it.each([UserRole.PROFESIONAL, UserRole.PSICOLOGO])(
+    'shows the team read-only to a %s who does not treat the patient',
+    async (role) => {
+      renderTeam({ role, team: [member('psych-1', psychology), member('actor-1', nutrition, false)] });
+
+      expect(await screen.findAllByTestId('team-member')).toHaveLength(2);
+      expect(screen.getByText('Solo los profesionales que atienden a este paciente pueden agregar integrantes.')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Especialidad')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Agregar al equipo' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Retirar/ })).not.toBeInTheDocument();
+      expect(http.get.mock.calls.some(([url]) => String(url).includes('/team/eligible'))).toBe(false);
+    },
+  );
 
   it('disables candidate controls while an assignment is pending', async () => {
     let finish!: (value: PatientTeamMember) => void;

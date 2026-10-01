@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePatientTeam, useEligiblePatientProfessionals, useAssignPatientProfessional, useRemovePatientProfessional } from '@/hooks/usePatientTeam';
 import { useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
-import { canAddPatientTeamMember, canRemovePatientTeamMember } from '@/types/guards';
-import type { PatientTeamMember } from '@/types';
+import { canAddPatientTeamMember, canRemovePatientTeamMember, toCanonicalRole } from '@/types/guards';
+import { UserRole, type PatientTeamMember } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -187,10 +187,15 @@ export function PatientTeamTab({ patientId }: { patientId: string }) {
   const [selectedMember, setSelectedMember] = useState<PatientTeamMember | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [blockedAppointments, setBlockedAppointments] = useState<FutureAppointment[] | null>(null);
-  const canAdd = !!actor && canAddPatientTeamMember(actor);
   const canRemove = !!actor && canRemovePatientTeamMember(actor);
   const pending = assign.isPending || remove.isPending;
   const members = team.data ?? [];
+  // A professional may read any team but only refer colleagues for patients they treat;
+  // the API rejects the candidate list otherwise.
+  const isOutsideProfessional = !!actor
+    && toCanonicalRole(actor.role) === UserRole.PROFESIONAL
+    && !members.some((member) => member.isActive && member.professionalId === actor.id);
+  const canAdd = !!actor && canAddPatientTeamMember(actor) && !isOutsideProfessional;
   const activeGroups = specialtyGroups(members.filter((member) => member.isActive));
   const inactiveGroups = specialtyGroups(members.filter((member) => !member.isActive));
 
@@ -271,6 +276,11 @@ export function PatientTeamTab({ patientId }: { patientId: string }) {
               pending={pending}
               onAssign={handleAssign}
             />
+          )}
+          {isOutsideProfessional && (
+            <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              Solo los profesionales que atienden a este paciente pueden agregar integrantes.
+            </p>
           )}
           {actionError && <div role="alert" className="space-y-2">
             <p>{actionError}</p>
