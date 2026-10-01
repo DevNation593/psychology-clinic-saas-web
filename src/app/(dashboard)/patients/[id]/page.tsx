@@ -18,7 +18,8 @@ import {
 } from '@/features/patients/specialty-record-entry-form';
 import { PatientTeamTab } from '@/features/patients/patient-team-tab';
 import { describeModule } from '@/features/admin/specialties/module-labels';
-import { canAccessClinicalNotes, canDeletePatient, isAdminRole } from '@/types/guards';
+import { canAccessClinicalNotes, canDeletePatient, isAdminRole, isProfessionalRole } from '@/types/guards';
+import { PatientInvoicesTab } from '@/features/billing/patient-invoices-tab';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
@@ -84,12 +85,13 @@ import {
   Eye,
   Lock,
   Users,
+  Receipt,
 } from 'lucide-react';
 
 // ==========================================
 // TAB TYPES
 // ==========================================
-type TabId = 'overview' | 'team' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
+type TabId = 'overview' | 'team' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan' | 'billing';
 
 interface Tab {
   id: TabId;
@@ -104,6 +106,7 @@ const TABS: Tab[] = [
   { id: 'specialties', label: 'Especialidades', icon: ClipboardList },
   { id: 'appointments', label: 'Citas', icon: Calendar },
   { id: 'tasks', label: 'Tareas', icon: ClipboardList },
+  { id: 'billing', label: 'Facturas', icon: Receipt },
   { id: 'session-plan', label: 'Plan de Sesión', icon: Target },
 ];
 
@@ -121,6 +124,9 @@ export default function PatientDetailPage() {
 
   const { data: patient, isLoading } = usePatient(patientId);
   const deletePatient = useDeletePatient();
+  // Invoices are shown to the roles that can issue them.
+  const canSeeInvoices = !!user && (isAdminRole(user.role) || isProfessionalRole(user.role));
+  const visibleTabs = TABS.filter((tab) => tab.id !== 'billing' || canSeeInvoices);
 
   const handleDelete = () => {
     deletePatient.mutate(patientId, {
@@ -188,7 +194,7 @@ export default function PatientDetailPage() {
       {/* Tabs */}
       <div className="border-b">
         <nav className="flex space-x-4" aria-label="Tabs">
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             // Hide clinical tabs for users without access
             if (tab.id === 'clinical' && user && !canAccessClinicalNotes(user)) {
               return null;
@@ -221,6 +227,7 @@ export default function PatientDetailPage() {
         {activeTab === 'specialties' && <SpecialtyRecordsTab patientId={patientId} />}
         {activeTab === 'appointments' && <AppointmentsTab patientId={patientId} />}
         {activeTab === 'tasks' && <TasksTab patientId={patientId} />}
+        {activeTab === 'billing' && canSeeInvoices && <PatientInvoicesTab patientId={patientId} />}
         {activeTab === 'session-plan' && <SessionPlanTab patientId={patientId} />}
       </div>
 

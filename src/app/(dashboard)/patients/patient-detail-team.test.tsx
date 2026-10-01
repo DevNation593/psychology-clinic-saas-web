@@ -85,6 +85,11 @@ vi.mock('@/hooks/usePatients', () => ({
   useUpdatePatient: vi.fn(),
   useDeletePatient: () => ({ mutate: mocks.removePatient, isPending: false }),
 }));
+vi.mock('@/features/billing/patient-invoices-tab', () => ({
+  PatientInvoicesTab: ({ patientId }: { patientId: string }) => (
+    <div data-testid="patient-invoices">{patientId}</div>
+  ),
+}));
 vi.mock('@/lib/api/client', () => ({
   apiClient: { get: mocks.get, put: vi.fn(), delete: vi.fn() },
 }));
@@ -112,6 +117,25 @@ beforeEach(() => {
 
 });
 
+describe('patient detail invoices tab', () => {
+  it.each([
+    [UserRole.ADMIN, true],
+    [UserRole.CLIENTE, true],
+    [UserRole.PROFESIONAL, true],
+    [UserRole.PSICOLOGO, true],
+    [UserRole.ASISTENTE, false],
+  ])('for %s is visible: %s', (role, visible) => {
+    useAuthStore.setState({ user: { id: 'user-1', tenantId: 'tenant-1', role } as User });
+    renderPage();
+
+    expect(!!screen.queryByRole('button', { name: 'Facturas' })).toBe(visible);
+    if (visible) {
+      fireEvent.click(screen.getByRole('button', { name: 'Facturas' }));
+      expect(screen.getByTestId('patient-invoices')).toHaveTextContent('patient-1');
+    }
+  });
+});
+
 describe('patient detail treating-team wiring', () => {
   it('places the team tab after General and removes only the legacy assignee overview card', async () => {
     renderPage();
@@ -125,6 +149,7 @@ describe('patient detail treating-team wiring', () => {
       'Especialidades',
       'Citas',
       'Tareas',
+      'Facturas',
       'Plan de Sesión',
     ]);
     expect(screen.queryByText('Psicólogo Asignado')).not.toBeInTheDocument();
