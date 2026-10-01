@@ -491,9 +491,24 @@ export const tenantSettingsApi = {
   },
 };
 
+export interface CreateInvoiceInput {
+  patientId: string;
+  subtotal: number;
+  tax?: number;
+  description: string;
+  idempotencyKey?: string;
+  /** Recipient for this invoice; anything omitted comes from the patient record. */
+  customer?: Partial<Record<'name' | 'taxIdType' | 'taxId' | 'email' | 'address', string>>;
+  saveCustomerToPatient?: boolean;
+}
+
 export const billingApi = {
-  listInvoices: () => apiClient.get<Invoice[]>(API_ENDPOINTS.BILLING_INVOICES(getTenantId())),
-  createInvoice: (data: { subtotal: number; tax?: number; description: string; idempotencyKey?: string }) =>
+  listInvoices: (params?: { patientId?: string }) =>
+    apiClient.get<Invoice[]>(
+      API_ENDPOINTS.BILLING_INVOICES(getTenantId()),
+      params?.patientId ? { params: { patientId: params.patientId } } : undefined,
+    ),
+  createInvoice: (data: CreateInvoiceInput) =>
     apiClient.post<Invoice>(API_ENDPOINTS.BILLING_INVOICES(getTenantId()), data),
 };
 
@@ -588,6 +603,7 @@ export const patientsApi = {
 const patientFields = [
   'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address',
   'emergencyContactName', 'emergencyContactPhone', 'notes',
+  'billingName', 'billingTaxIdType', 'billingTaxId', 'billingEmail', 'billingAddress',
 ] as const;
 
 function patientPayload(data: Partial<PatientInput>): Partial<PatientInput> {
