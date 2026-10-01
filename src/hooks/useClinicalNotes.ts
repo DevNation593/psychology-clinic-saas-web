@@ -5,6 +5,10 @@ import { clinicalNotesApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
 import { ClinicalNote } from '@/types';
 import { toast } from 'sonner';
+import { isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
+
+const retryUnlessLocked = (failureCount: number, error: unknown) =>
+  !isFeatureLockedError(error) && failureCount < 1;
 
 export function useClinicalNotes(params?: Parameters<typeof clinicalNotesApi.list>[0]) {
   return useQuery({
@@ -13,6 +17,7 @@ export function useClinicalNotes(params?: Parameters<typeof clinicalNotesApi.lis
       const response = await clinicalNotesApi.list(params);
       return extractArray(response);
     },
+    retry: retryUnlessLocked,
   });
 }
 
@@ -24,6 +29,7 @@ export function usePatientClinicalNotes(patientId: string) {
       return extractArray(response);
     },
     enabled: !!patientId,
+    retry: retryUnlessLocked,
   });
 }
 
@@ -32,6 +38,7 @@ export function useClinicalNote(noteId: string) {
     queryKey: ['clinical-notes', noteId],
     queryFn: () => clinicalNotesApi.get(noteId),
     enabled: !!noteId,
+    retry: retryUnlessLocked,
   });
 }
 

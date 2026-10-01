@@ -387,7 +387,7 @@ function OverviewTab({ patient }: { patient: any }) {
 // ==========================================
 function ClinicalHistoryTab({ patientId }: { patientId: string }) {
   const user = useAuthStore((state) => state.user);
-  const { data: notes, isLoading } = usePatientClinicalNotes(patientId);
+  const { data: notes, isLoading, error: notesError } = usePatientClinicalNotes(patientId);
   const createNote = useCreateClinicalNote();
   const deleteNote = useDeleteClinicalNote();
 
@@ -432,6 +432,10 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
         </CardContent>
       </Card>
     );
+  }
+
+  if (isFeatureLockedError(notesError)) {
+    return <FeatureLockedNotice featureName="El módulo de notas clínicas" />;
   }
 
   return (
