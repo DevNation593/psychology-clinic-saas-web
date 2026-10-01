@@ -27,6 +27,16 @@ describe('page metadata', () => {
     expect(metadata.twitter).toMatchObject({ card: 'summary_large_image' });
   });
 
+  it('attaches the social sharing image with alternative text to every page', () => {
+    for (const key of keys) {
+      const metadata = buildMetadata(key);
+      expect(metadata.openGraph?.images).toEqual([
+        expect.objectContaining({ url: '/opengraph-image', width: 1200, height: 630, alt: expect.stringMatching(/\S/) }),
+      ]);
+      expect(metadata.twitter?.images).toEqual(['/opengraph-image']);
+    }
+  });
+
   it('joins the base URL and path with exactly one slash', () => {
     const content = withContent({ brand: { ...site.brand, baseUrl: 'https://example.com' } });
     expect(absoluteUrl('/', content)).toBe('https://example.com/');

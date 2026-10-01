@@ -44,6 +44,11 @@ export function buildMetadata(key: PageKey, content: SiteContent = site): Metada
   const page = PAGES[key];
   const url = absoluteUrl(page.path, content);
   const indexable = isIndexable(key, content);
+  // A page-level openGraph object replaces the root one, so the image must be repeated here.
+  const image = {
+    url: '/opengraph-image', width: 1200, height: 630,
+    alt: `${content.brand.name}: ${content.brand.tagline}`,
+  };
   return {
     title: page.title,
     description: page.description,
@@ -51,9 +56,9 @@ export function buildMetadata(key: PageKey, content: SiteContent = site): Metada
     robots: { index: indexable, follow: indexable },
     openGraph: {
       type: 'website', url, title: page.title, description: page.description,
-      siteName: content.brand.name, locale: 'es_EC',
+      siteName: content.brand.name, locale: 'es_EC', images: [image],
     },
-    twitter: { card: 'summary_large_image', title: page.title, description: page.description },
+    twitter: { card: 'summary_large_image', title: page.title, description: page.description, images: [image.url] },
   };
 }
 
