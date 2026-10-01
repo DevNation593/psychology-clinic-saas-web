@@ -36,7 +36,7 @@ export function hasActiveProfessionalProfile(user: User): boolean {
 }
 
 export function canAccessClinicalNotes(user: User): boolean {
-  return [UserRole.CLIENTE, UserRole.PSICOLOGO, UserRole.SOPORTE].includes(user.role);
+  return isAdminRole(user.role) || isProfessionalRole(user.role) || user.role === UserRole.SOPORTE;
 }
 
 export function canManageUsers(user: User): boolean {

@@ -100,6 +100,14 @@ function enabledRows(codes: string[]): TenantSpecialty[] {
   return [psychologySelection, nutritionSelection].filter((specialty) => codes.includes(specialty.code));
 }
 
+// Specialty buttons render as soon as the catalog loads but stay disabled until the
+// tenant selection has loaded too; clicking earlier is silently ignored.
+async function findEnabledButton(name: RegExp) {
+  const button = await screen.findByRole('button', { name });
+  await waitFor(() => expect(button).toBeEnabled());
+  return button;
+}
+
 function renderManager() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -198,7 +206,7 @@ describe('SpecialtyManager', () => {
 
   it('treats a draft toggled back to server state as clean before the next refetch', async () => {
     const { client } = renderManager();
-    fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
+    fireEvent.click(await findEnabledButton(/Psicología/));
     fireEvent.click(screen.getByRole('button', { name: /Psicología/ }));
     expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true');
 
@@ -217,7 +225,7 @@ describe('SpecialtyManager', () => {
     vi.mocked(tenantSpecialtiesApi.list).mockImplementation(async (requestedTenantId) =>
       requestedTenantId === 'tenant-2' ? [nutritionSelection] : [psychologySelection]);
     renderManager();
-    fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
+    fireEvent.click(await findEnabledButton(/Psicología/));
     expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'false');
 
     act(() => {
@@ -233,7 +241,7 @@ describe('SpecialtyManager', () => {
 
   it('prevents saving an empty specialty selection', async () => {
     renderManager();
-    fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
+    fireEvent.click(await findEnabledButton(/Psicología/));
 
     const save = screen.getByRole('button', { name: 'Guardar especialidades' });
     expect(save).toBeDisabled();
@@ -243,7 +251,7 @@ describe('SpecialtyManager', () => {
 
   it('shows the estimated add-on price after applying included specialty credits', async () => {
     renderManager();
-    fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
+    fireEvent.click(await findEnabledButton(/Nutrición/));
 
     expect(screen.getByText('Estimado mensual: $15.50 USD / mes')).toBeInTheDocument();
   });
@@ -256,7 +264,7 @@ describe('SpecialtyManager', () => {
     });
     renderManager();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Psicología/ }));
+    fireEvent.click(await findEnabledButton(/Psicología/));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('La especialidad tiene profesionales activos.');
@@ -272,7 +280,7 @@ describe('SpecialtyManager', () => {
     });
     renderManager();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
+    fireEvent.click(await findEnabledButton(/Nutrición/));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
 
     expect(await screen.findByText('Precio mensual por especialidades: $47.25 USD / mes')).toBeInTheDocument();
@@ -303,7 +311,7 @@ describe('SpecialtyManager', () => {
     });
     renderManager();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
+    fireEvent.click(await findEnabledButton(/Nutrición/));
     const nutritionSwitch = await screen.findByRole('checkbox', { name: 'nutrition.assessments' });
     expect(nutritionSwitch).toBeDisabled();
     expect(nutritionSwitch).toHaveAccessibleDescription('Guarda las especialidades antes de activar sus módulos.');
@@ -388,7 +396,7 @@ describe('SpecialtyManager', () => {
       requestedTenantId === 'tenant-2' ? [nutritionSelection] : [psychologySelection]);
     renderManager();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Nutrición/ }));
+    fireEvent.click(await findEnabledButton(/Nutrición/));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar especialidades' }));
     await waitFor(() => expect(tenantSpecialtiesApi.replace).toHaveBeenCalledWith(
       ['PSYCHOLOGY', 'NUTRITION'],

@@ -128,6 +128,10 @@ class ApiClient {
         status: error.response.status,
       };
       if (typeof data.code === 'string') normalized.code = data.code;
+      // Guards report their machine-readable code in `error` (e.g. FEATURE_NOT_AVAILABLE).
+      else if (typeof data.error === 'string' && /^[A-Z][A-Z0-9_]+$/.test(data.error)) {
+        normalized.code = data.error;
+      }
       if (typeof data.field === 'string') normalized.field = data.field;
       if (data.details && typeof data.details === 'object' && !Array.isArray(data.details)) {
         normalized.details = data.details as Record<string, unknown>;

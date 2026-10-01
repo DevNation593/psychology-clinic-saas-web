@@ -13,5 +13,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
+    // Local git worktrees carry their own copy of the suite.
+    exclude: ['**/node_modules/**', '**/.next/**', '**/.worktrees/**'],
   },
 });

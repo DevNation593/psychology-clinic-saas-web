@@ -6,6 +6,10 @@ import { QUERY_KEYS } from '@/lib/constants';
 import { Task, TaskStatus } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
+import { isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
+
+const retryUnlessLocked = (failureCount: number, error: unknown) =>
+  !isFeatureLockedError(error) && failureCount < 1;
 
 export function useTasks(params?: Parameters<typeof tasksApi.list>[0]) {
   return useQuery({
@@ -14,6 +18,7 @@ export function useTasks(params?: Parameters<typeof tasksApi.list>[0]) {
       const response = await tasksApi.list(params);
       return extractArray(response);
     },
+    retry: retryUnlessLocked,
   });
 }
 
@@ -28,6 +33,7 @@ export function useMyTasks() {
       return extractArray(response);
     },
     enabled: !!user?.id,
+    retry: retryUnlessLocked,
   });
 }
 
@@ -41,6 +47,7 @@ export function useOverdueTasks() {
         (t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== TaskStatus.COMPLETED
       );
     },
+    retry: retryUnlessLocked,
   });
 }
 

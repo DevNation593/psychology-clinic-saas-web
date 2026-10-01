@@ -186,7 +186,12 @@ export default function AdminSettingsPage() {
         fakturEnvironment,
         fakturEstablishment,
         fakturEmissionPoint,
-        fakturNextSequential,
+        // Sent only when edited: a stale form value must not roll back
+        // sequentials already consumed by issued invoices.
+        fakturNextSequential:
+          fakturNextSequential !== (settings?.fakturNextSequential || 1)
+            ? fakturNextSequential
+            : undefined,
         fakturBusinessName,
         fakturBusinessAddress,
         fakturSpecialTaxpayer,
