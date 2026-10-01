@@ -25,7 +25,10 @@ export function Avatar({ src, alt, fallback, size = 'md', className }: AvatarPro
       )}
     >
       {src ? (
-        <img src={src} alt={alt || fallback} className="h-full w-full object-cover" />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={alt || fallback} className="h-full w-full object-cover" />
+        </>
       ) : (
         <span className="font-medium text-muted-foreground">{fallback}</span>
       )}

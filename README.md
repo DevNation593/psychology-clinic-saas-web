@@ -16,7 +16,7 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:4200](http://localhost:4200) in your browser.
 
 ## 📋 Table of Contents
 
@@ -155,7 +155,7 @@ web-push generate-vapid-keys
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000)
+Visit [http://localhost:4200](http://localhost:4200)
 
 ### First Login
 
@@ -185,6 +185,17 @@ Visit [http://localhost:3000](http://localhost:3000)
 | `npm start` | Start production server |
 | `npm run lint` | Run ESLint |
 | `npm run type-check` | Run TypeScript compiler check |
+| `npm test` | Run the Vitest unit test suite |
+| `npm run test:watch` | Run Vitest in watch mode |
+
+Quality checks:
+
+```bash
+npm run lint
+npm run type-check
+npm test
+npm run build
+```
 
 ## 🔐 Environment Variables
 
@@ -302,7 +313,7 @@ Set environment variables in Vercel Dashboard.
 
 ```bash
 docker build -t psychology-clinic-web .
-docker run -p 3000:3000 psychology-clinic-web
+docker run -p 4200:4200 psychology-clinic-web
 ```
 
 ### Build Output
@@ -317,11 +328,11 @@ npm start
 
 ## 🧪 Testing
 
-Testing setup is planned. Future tests will include:
+The unit-test baseline uses Vitest, jsdom, and React Testing Library.
 
-- Unit tests (Jest + React Testing Library)
-- Integration tests (Playwright)
-- E2E tests (Playwright)
+- Implemented: unit tests (Vitest + React Testing Library)
+- Planned: integration tests (Playwright)
+- Planned: E2E tests (Playwright)
 
 ## 🔒 Security
 

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
 import { QUERY_KEYS } from '@/lib/constants';
-import { User, UserProfile } from '@/types';
+import { UpdateSelfProfileInput, User, UserProfile } from '@/types';
 import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 
@@ -29,9 +29,9 @@ export function useUpdateProfile() {
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
-    mutationFn: async (data: Partial<UserProfile>) => {
-      if (!user?.id) throw new Error('No user');
-      return usersApi.update(user.id, data);
+    mutationFn: async (data: UpdateSelfProfileInput) => {
+      if (!user?.tenantId) throw new Error('No tenant');
+      return usersApi.updateSelf(data);
     },
     onSuccess: (updatedUser) => {
       setUser(updatedUser);

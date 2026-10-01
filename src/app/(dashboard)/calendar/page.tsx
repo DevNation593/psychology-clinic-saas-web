@@ -1,163 +1,152 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { appointmentsApi, extractArray } from '@/lib/api/endpoints';
-import { QUERY_KEYS, APPOINTMENT_STATUS_LABELS, APPOINTMENT_STATUS_COLORS } from '@/lib/constants';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { AppointmentDialog } from '@/features/calendar/appointment-dialog';
+import { AppointmentDetailsDialog } from '@/features/calendar/appointment-details-dialog';
+import { useAppointments, useUpdateAppointment } from '@/hooks/useAppointments';
 import { useTenantSettings } from '@/hooks/useTenantSettings';
-import { toast } from 'sonner';
-import { formatDate } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
+import { canEditAppointment } from '@/types/guards';
 import type { Appointment } from '@/types';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import dynamic from 'next/dynamic';
+import { Button } from '@/components/ui/button';
 
-// Dynamic import for FullCalendar to avoid SSR issues
 const FullCalendarComponent = dynamic(() => import('@/features/calendar/calendar-view'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-[600px]">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    <div className="flex h-[600px] items-center justify-center" role="status" aria-label="Cargando calendario">
+      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
     </div>
   ),
 });
 
+interface RescheduleRequest {
+  id: string;
+  startTime: string;
+  duration: number;
+}
+
 export default function CalendarPage() {
-  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const deepLinkedAppointmentId = searchParams.get('appointmentId') ?? '';
+  const user = useAuthStore((state) => state.user);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [rescheduleRequest, setRescheduleRequest] = useState<RescheduleRequest | null>(null);
+  const appointments = useAppointments();
   const { data: settings } = useTenantSettings();
+  const updateAppointment = useUpdateAppointment(rescheduleRequest?.id ?? '');
+  const updateAppointmentRef = useRef(updateAppointment.mutate);
+  updateAppointmentRef.current = updateAppointment.mutate;
+  const handledDeepLinkRef = useRef('');
 
-  const { data: appointmentsData, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.APPOINTMENTS,
-    queryFn: async () => {
-      const response = await appointmentsApi.list();
-      return extractArray(response);
-    },
-  });
+  useEffect(() => {
+    if (appointments.isLoading || !deepLinkedAppointmentId) return;
+    // Open each deep link once; later refetches must not reopen a dismissed appointment.
+    if (handledDeepLinkRef.current === deepLinkedAppointmentId) return;
+    const match = appointments.data?.find((appointment) => appointment.id === deepLinkedAppointmentId);
+    if (!match) return;
+    handledDeepLinkRef.current = deepLinkedAppointmentId;
+    setSelectedAppointment(match);
+  }, [appointments.data, appointments.isLoading, deepLinkedAppointmentId]);
 
-  const reschedule = useMutation({
-    mutationFn: ({ id, startTime, duration }: { id: string; startTime: string; duration: number }) =>
-      appointmentsApi.update(id, { startTime, duration }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
-      toast.success('Cita reprogramada');
-    },
-    onError: (error: any) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
-      toast.error(error.message || 'Error al reprogramar cita');
-    },
-  });
+  useEffect(() => {
+    if (!rescheduleRequest) return;
+    const { startTime, duration } = rescheduleRequest;
+    updateAppointmentRef.current({ startTime, duration });
+    setRescheduleRequest(null);
+  }, [rescheduleRequest]);
+
+  const actorCanEdit = (appointment: Appointment) =>
+    !!user && canEditAppointment(user, appointment);
 
   const handleDateSelect = (date: Date) => {
+    setEditingAppointment(null);
     setSelectedDate(date);
     setIsDialogOpen(true);
   };
 
-  const handleEventDrop = (appointmentId: string, newStart: string, newEnd: string) => {
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    setIsDialogOpen(nextOpen);
+    if (!nextOpen) {
+      setEditingAppointment(null);
+      setSelectedDate(null);
+    }
+  };
+
+  const handleReschedule = (appointmentId: string, newStart: string, newEnd: string) => {
+    const appointment = appointments.data?.find((item) => item.id === appointmentId);
+    if (!appointment || !actorCanEdit(appointment)) return;
     const start = new Date(newStart).getTime();
     const end = new Date(newEnd).getTime();
     const duration = Math.max(15, Math.round((end - start) / 60000));
-    reschedule.mutate({ id: appointmentId, startTime: newStart, duration });
+    setRescheduleRequest({ id: appointmentId, startTime: newStart, duration });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-bold">Calendario</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona las citas de tus pacientes
-          </p>
+          <p className="mt-1 text-muted-foreground">Gestiona las citas de tus pacientes</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Cita
+        <Button onClick={() => {
+          setEditingAppointment(null);
+          setSelectedDate(null);
+          setIsDialogOpen(true);
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nueva cita
         </Button>
       </div>
 
-      <div className="bg-card rounded-lg border p-4">
-        <FullCalendarComponent
-          events={appointmentsData || []}
-          onDateSelect={handleDateSelect}
-          onEventClick={(appointment) => setSelectedAppointment(appointment)}
-          onEventDrop={handleEventDrop}
-          onEventResize={handleEventDrop}
-          settings={settings}
-        />
+      <div className="rounded-lg border bg-card p-4">
+        {appointments.isLoading ? (
+          <div className="flex h-96 items-center justify-center" role="status">Cargando citas...</div>
+        ) : appointments.isError ? (
+          <div className="flex h-96 flex-col items-center justify-center gap-3" role="alert">
+            <p>No se pudieron cargar las citas.</p>
+            <Button type="button" variant="outline" onClick={() => appointments.refetch()}>
+              Reintentar citas
+            </Button>
+          </div>
+        ) : (
+          <FullCalendarComponent
+            events={appointments.data ?? []}
+            onDateSelect={handleDateSelect}
+            onEventClick={setSelectedAppointment}
+            onEventDrop={handleReschedule}
+            onEventResize={handleReschedule}
+            canEdit={actorCanEdit}
+            settings={settings}
+          />
+        )}
       </div>
 
       <AppointmentDialog
         open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        onOpenChange={handleDialogOpenChange}
+        appointment={editingAppointment}
         initialDate={selectedDate}
       />
 
-      {/* Appointment Detail Dialog */}
-      <Dialog open={!!selectedAppointment} onOpenChange={() => setSelectedAppointment(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{selectedAppointment?.title || 'Detalle de Cita'}</DialogTitle>
-          </DialogHeader>
-          {selectedAppointment && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Paciente</p>
-                  <p className="font-medium">
-                    {selectedAppointment.patient.firstName} {selectedAppointment.patient.lastName}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Profesional</p>
-                  <p className="font-medium">
-                    {selectedAppointment.psychologist.firstName} {selectedAppointment.psychologist.lastName}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Inicio</p>
-                  <p className="font-medium">{formatDate(selectedAppointment.startTime, 'dd/MM/yyyy HH:mm')}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Fin</p>
-                  <p className="font-medium">{formatDate(selectedAppointment.endTime, 'dd/MM/yyyy HH:mm')}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Estado</p>
-                  <Badge className={APPOINTMENT_STATUS_COLORS[selectedAppointment.status]}>
-                    {APPOINTMENT_STATUS_LABELS[selectedAppointment.status]}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Modalidad</p>
-                  <p className="font-medium">{selectedAppointment.isOnline ? 'Online' : 'Presencial'}</p>
-                </div>
-              </div>
-              {selectedAppointment.description && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Descripción</p>
-                  <p className="text-sm">{selectedAppointment.description}</p>
-                </div>
-              )}
-              {selectedAppointment.notes && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Notas</p>
-                  <p className="text-sm">{selectedAppointment.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <AppointmentDetailsDialog
+        open={!!selectedAppointment}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setSelectedAppointment(null);
+        }}
+        appointment={selectedAppointment}
+        onEdit={(appointment) => {
+          setSelectedAppointment(null);
+          setEditingAppointment(appointment);
+          setSelectedDate(null);
+          setIsDialogOpen(true);
+        }}
+      />
     </div>
   );
 }

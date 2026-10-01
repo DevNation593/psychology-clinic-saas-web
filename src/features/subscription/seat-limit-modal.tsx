@@ -39,24 +39,24 @@ export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
         <DialogHeader>
           <div className="flex items-center gap-2 text-orange-600">
             <AlertCircle className="h-5 w-5" />
-            <DialogTitle>Límite de Psicólogos Alcanzado</DialogTitle>
+            <DialogTitle>Límite de Profesionales Alcanzado</DialogTitle>
           </div>
           <DialogDescription className="pt-4 space-y-4">
             <p>
               Has alcanzado el límite de tu plan {getPlanDisplayName(currentTier)}:{' '}
-              <strong>{currentLimit} psicólogo{currentLimit > 1 ? 's' : ''}</strong>
+              <strong>{currentLimit} profesional{currentLimit > 1 ? 'es' : ''}</strong>
             </p>
 
             {currentTier === PlanTier.BASIC && (
               <>
-                <p>Para invitar más psicólogos, actualiza a nuestro plan PRO.</p>
+                <p>Para invitar más profesionales, actualiza a nuestro plan PRO.</p>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
                   <h4 className="font-semibold text-blue-900">Plan PRO incluye:</h4>
                   <ul className="space-y-1 text-sm text-blue-800">
                     <li className="flex items-center gap-2">
                       <span className="text-green-600">✓</span>
-                      Hasta 15 psicólogos
+                      Hasta 15 profesionales
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-green-600">✓</span>
@@ -78,10 +78,10 @@ export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
                 </div>
 
                 <p className="text-sm text-gray-600">
-                  Precio: <strong className="text-gray-900">€79/mes</strong> para 2 psicólogos
+                  Precio: <strong className="text-gray-900">€79/mes</strong> para 2 profesionales
                   <br />
                   <span className="text-gray-500">
-                    (+€40/mes por psicólogo adicional)
+                    (+€40/mes por profesional adicional)
                   </span>
                 </p>
               </>
@@ -90,10 +90,10 @@ export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
             {currentTier === PlanTier.PROFESSIONAL && (
               <>
                 <p>
-                  Has alcanzado el límite de 15 psicólogos del plan PRO.
+                  Has alcanzado el límite de 15 profesionales del plan PRO.
                 </p>
                 <p>
-                  Para agregar más psicólogos, contacta con nuestro equipo para un plan
+                  Para agregar más profesionales, contacta con nuestro equipo para un plan
                   CUSTOM personalizado.
                 </p>
               </>

@@ -15,7 +15,7 @@ export function PsychologistsUsageWidget() {
 
   if (!subscription || !usage) return null;
 
-  const activePsychologists = usage.users.psychologists.active;
+  const activeProfessionals = usage.users.professionals.active;
   const limit = subscription.plan.limits.maxPsychologists;
   const remaining = getRemainingSeats(usage);
 
@@ -29,12 +29,12 @@ export function PsychologistsUsageWidget() {
 
   return (
     <UsageCard
-      title="Psicólogos"
+      title="Profesionales"
       description="Miembros del equipo activos"
       icon={Users}
-      current={activePsychologists}
+      current={activeProfessionals}
       limit={limit}
-      unit="psicólogos"
+      unit="profesionales"
       onUpgrade={handleUpgrade}
       onManage={handleManage}
       manageLabel="Ver Equipo"

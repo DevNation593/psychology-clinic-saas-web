@@ -2,13 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { specialtiesApi } from '@/lib/api/endpoints';
-import { QUERY_KEYS } from '@/lib/constants';
-import { canManageUsers, canManageSubscription, isClinicPlan } from '@/types/guards';
+import { useTenantModules } from '@/hooks/useSpecialties';
+import { canManageUsers, canManageSubscription, isAdminRole, isProfessionalRole, isClinicPlan } from '@/types/guards';
 import {
   LayoutDashboard,
   Calendar,
@@ -31,12 +29,7 @@ export function Sidebar() {
   const user = useAuthStore((state) => state.user);
   const tenant = useAuthStore((state) => state.tenant);
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
-  const { data: enabledModules = [] } = useQuery({
-    queryKey: QUERY_KEYS.TENANT_MODULES,
-    queryFn: () => specialtiesApi.modules(),
-    enabled: Boolean(tenant?.id),
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: enabledModules = [] } = useTenantModules();
   const hasTeamModule = enabledModules.some(
     (module) => module.moduleKey === 'core.team' && module.enabled,
   );
@@ -46,9 +39,9 @@ export function Sidebar() {
     { name: 'Calendario', href: '/calendar', icon: Calendar, show: true },
     { name: 'Pacientes', href: '/patients', icon: Users, show: true },
     { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: true },
-    { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: true },
-    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user?.role === 'CLIENTE' || user?.role === 'PSICOLOGO' },
-  ];
+    { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: user ? canManageUsers(user) : false },
+    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user ? isAdminRole(user.role) || isProfessionalRole(user.role) : false },
+  ].filter((item) => item.show);
 
   const adminNavigation = [
     {

@@ -323,6 +323,31 @@ Dashboard > Admin > Equipo
 Dashboard > Admin > Suscripción
 ```
 
+## Sitio público
+
+Rutas del grupo `(marketing)`, accesibles sin sesión:
+
+```
+/                       Página principal
+/planes                 Planes y precios
+/como-funciona          Recorrido paso a paso
+/casos-de-exito         Solo existe cuando hay casos cargados (si no, 404)
+/nosotros               Equipo y ubicación
+/contacto               Formulario de solicitud de demo
+/gracias                Confirmación tras el formulario (no indexada)
+/terminos               Términos y condiciones
+/privacidad             Política de privacidad
+/cookies                Política de cookies
+/tratamiento-de-datos   Política de tratamiento de datos
+/robots.txt, /sitemap.xml
+```
+
+El contenido editable vive en `src/content/site.ts`: datos de contacto, promesa de
+respuesta, planes, preguntas frecuentes, reseñas, casos de éxito, equipo, ubicación y
+datos del responsable legal. Reseñas, casos, equipo y ubicación no se muestran mientras
+estén vacíos. Las páginas legales llevan aviso de borrador y `noindex` hasta que
+`legal.reviewed` sea `true`.
+
 ## Future Routes (Roadmap)
 
 ```
