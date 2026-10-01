@@ -63,9 +63,9 @@
 - Datos compartimentados por organización
 
 #### RBAC (Role-Based Access Control)
-- **TENANT_ADMIN**: Administrador de la clínica
-- **PSYCHOLOGIST**: Psicólogo/a
-- **ASSISTANT**: Asistente
+- **MASTER**: Titular de la cuenta
+- **PROFESIONAL**: Psicólogo/a
+- **ASISTENTE**: Asistente
 
 #### Planes y Licencias (Seat-based)
 - **BASIC**: Plan básico con límites
@@ -241,15 +241,15 @@ web/
 | Ruta | Componente | Descripción | Roles |
 |------|------------|-------------|-------|
 | `/patients` | `app/(dashboard)/patients/page.tsx` | Lista de pacientes | Todos |
-| `/patients/new` | `app/(dashboard)/patients/new/page.tsx` | Crear paciente | ADMIN, PSYCHOLOGIST |
+| `/patients/new` | `app/(dashboard)/patients/new/page.tsx` | Crear paciente | MASTER, PROFESIONAL |
 | `/patients/[id]` | `app/(dashboard)/patients/[id]/page.tsx` | Detalle de paciente | Todos |
 
 #### Administración
 | Ruta | Componente | Descripción | Roles |
 |------|------------|-------------|-------|
-| `/admin/team` | `app/(dashboard)/admin/team/page.tsx` | Gestión de usuarios | TENANT_ADMIN |
-| `/admin/subscription` | `app/(dashboard)/admin/subscription/page.tsx` | Planes y facturación | TENANT_ADMIN |
-| `/admin/settings` | `app/(dashboard)/admin/settings/page.tsx` | Configuración clínica | TENANT_ADMIN |
+| `/admin/team` | `app/(dashboard)/admin/team/page.tsx` | Gestión de usuarios | MASTER (y SOPORTE) |
+| `/admin/subscription` | `app/(dashboard)/admin/subscription/page.tsx` | Planes y facturación | MASTER (y SOPORTE) |
+| `/admin/settings` | `app/(dashboard)/admin/settings/page.tsx` | Configuración clínica | MASTER (y SOPORTE) |
 
 ### Protección de Rutas
 

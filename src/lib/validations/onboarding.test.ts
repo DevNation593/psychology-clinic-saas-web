@@ -59,8 +59,12 @@ describe('clinicOnboardingSchema', () => {
 });
 
 describe('tenantTeamMemberSchema', () => {
-  it.each([UserRole.MASTER, UserRole.ASISTENTE])('accepts %s without a profile', (role) => {
-    expect(tenantTeamMemberSchema.safeParse(member({ role })).success).toBe(true);
+  it('accepts an assistant without a profile', () => {
+    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.ASISTENTE })).success).toBe(true);
+  });
+
+  it.each([UserRole.MASTER, UserRole.ADMIN, UserRole.SOPORTE])('rejects creating a %s member', (role) => {
+    expect(tenantTeamMemberSchema.safeParse(member({ role })).success).toBe(false);
   });
 
   it.each([UserRole.PROFESIONAL])('requires one specialty profile for %s', (role) => {
@@ -69,16 +73,15 @@ describe('tenantTeamMemberSchema', () => {
     expect(tenantTeamMemberSchema.safeParse(member({ role, professionalProfile: { specialtyId: '' } })).success).toBe(false);
   });
 
-  it('allows an admin clinical profile but prohibits one for an assistant', () => {
+  it('prohibits a clinical profile for an assistant', () => {
     const professionalProfile = { specialtyId: 'specialty-1', isActive: true };
-    expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.MASTER, professionalProfile })).success).toBe(true);
     expect(tenantTeamMemberSchema.safeParse(member({ role: UserRole.ASISTENTE, professionalProfile })).success).toBe(false);
   });
 
   it('requires clinical-profile activity metadata for create and update profiles', () => {
     const profileWithoutActivity = { specialtyId: 'specialty-1' };
     expect(tenantTeamMemberSchema.safeParse(member({
-      role: UserRole.MASTER,
+      role: UserRole.PROFESIONAL,
       professionalProfile: profileWithoutActivity,
     })).success).toBe(false);
     expect(tenantTeamMemberUpdateSchema.safeParse({
@@ -134,6 +137,20 @@ describe('tenantTeamMemberSchema', () => {
 });
 
 describe('tenantTeamMemberUpdateSchema', () => {
+  const holder = { email: 'ana@example.com', firstName: 'Ana', lastName: 'Vega', role: UserRole.MASTER };
+
+  it('accepts editing the account holder with or without a clinical profile', () => {
+    expect(tenantTeamMemberUpdateSchema.safeParse(holder).success).toBe(true);
+    expect(tenantTeamMemberUpdateSchema.safeParse({
+      ...holder,
+      professionalProfile: { specialtyId: 'specialty-1', isActive: true },
+    }).success).toBe(true);
+  });
+
+  it('rejects editing a member into ADMIN', () => {
+    expect(tenantTeamMemberUpdateSchema.safeParse({ ...holder, role: UserRole.ADMIN }).success).toBe(false);
+  });
+
   it('validates edits without requiring or accepting a password', () => {
     const result = tenantTeamMemberUpdateSchema.safeParse({
       email: ' Ana@Example.com ',

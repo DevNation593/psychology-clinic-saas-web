@@ -319,6 +319,7 @@ export function TeamManager() {
                     const profile = user.professionalProfile;
                     const name = memberName(user);
                     const roleLabel = ROLE_LABELS[user.role] ?? String(user.role);
+                    const isHolder = isMasterRole(user.role);
                     const specialtyName = profile
                       ? profile.specialty?.name ?? enabledSpecialties.find((specialty) => specialty.id === profile.specialtyId)?.name ?? profile.specialtyId
                       : 'Sin perfil clínico';
@@ -370,7 +371,7 @@ export function TeamManager() {
                                     <Stethoscope className="h-4 w-4" aria-hidden="true" />
                                   </Button>
                                 )}
-                                {user.isActive ? (
+                                {!isHolder && (user.isActive ? (
                                   <Button
                                     type="button"
                                     size="sm"
@@ -392,7 +393,7 @@ export function TeamManager() {
                                   >
                                     <UserCheck className="h-4 w-4" aria-hidden="true" />
                                   </Button>
-                                )}
+                                ))}
                               </>
                             )}
                           </div>

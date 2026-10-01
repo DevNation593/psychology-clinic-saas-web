@@ -444,7 +444,7 @@ export interface CreateTenantUserInput {
   firstName: string;
   lastName: string;
   phone?: string;
-  role: TenantTeamRole;
+  role: AssignableTeamRole;
   professionalProfile?: TenantTeamProfessionalProfileInput;
 }
 

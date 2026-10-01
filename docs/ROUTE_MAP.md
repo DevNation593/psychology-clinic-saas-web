@@ -77,7 +77,7 @@
 │  ├─ /new                                                      │
 │  │   └─ Create new patient form                              │
 │  │       Fields: Name, contact, DOB, emergency contact        │
-│  │       Roles: TENANT_ADMIN, PSYCHOLOGIST                   │
+│  │       Roles: MASTER, PROFESIONAL                          │
 │  │                                                            │
 │  └─ /[id]                                                     │
 │      └─ Patient detail page                                  │
@@ -101,7 +101,7 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Admin Routes (TENANT_ADMIN Only)
+### Admin Routes (solo MASTER y SOPORTE)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -111,12 +111,12 @@
 │  /admin/team                                                  │
 │  └─ Team management                                          │
 │     Features:                                                │
-│       - Users list (psychologists, assistants)               │
+│       - Users list (professionals, assistants)               │
 │       - Invite user dialog                                   │
 │       - Deactivate user                                      │
 │       - Seats usage alert                                    │
 │       - Role assignment                                      │
-│     RBAC: TENANT_ADMIN only                                  │
+│     RBAC: solo MASTER (y SOPORTE)                            │
 │                                                               │
 │  /admin/subscription                                         │
 │  └─ Subscription and billing                                 │
@@ -126,7 +126,7 @@
 │       - Available plans comparison                           │
 │       - Upgrade flow (with payment - TODO)                   │
 │       - Billing history (TODO)                               │
-│     RBAC: TENANT_ADMIN only                                  │
+│     RBAC: solo MASTER (y SOPORTE)                            │
 │                                                               │
 │  /admin/settings                                             │
 │  └─ Clinic settings                                          │
@@ -136,7 +136,7 @@
 │       - Reminder rules (Email, SMS, Push)                    │
 │       - Timezone and locale                                  │
 │       - Clinic branding (TODO)                               │
-│     RBAC: TENANT_ADMIN only                                  │
+│     RBAC: solo MASTER (y SOPORTE)                            │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```

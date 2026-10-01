@@ -146,10 +146,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('TeamManager', () => {
-  it.each(['array', 'paginated'])('shows only team-role users and their actions for a %s response', async (shape) => {
+  it.each(['array', 'paginated'])('shows only account holder, professional and assistant rows for a %s response', async (shape) => {
     const rows = [
-      makeUser({ id: 'legacy-admin', firstName: 'Legacy', lastName: 'Admin', role: UserRole.MASTER, professionalProfile: undefined }),
-      makeUser({ id: 'legacy-professional', firstName: 'Legacy', lastName: 'Professional', role: UserRole.PROFESIONAL }),
+      makeUser({ id: 'holder-row', firstName: 'Tina', lastName: 'Titular', role: UserRole.MASTER, professionalProfile: undefined }),
+      makeUser({ id: 'professional-row', firstName: 'Pablo', lastName: 'Profesional', role: UserRole.PROFESIONAL }),
       makeUser({ id: 'assistant', firstName: 'Team', lastName: 'Assistant', role: UserRole.ASISTENTE, professionalProfile: undefined }),
       makeUser({ id: 'patient', firstName: 'Patient', lastName: 'Outside', role: UserRole.PACIENTE }),
       makeUser({ id: 'support', firstName: 'Support', lastName: 'Outside', role: UserRole.SOPORTE }),
@@ -159,8 +159,8 @@ describe('TeamManager', () => {
       : { data: rows, total: rows.length, page: 1, limit: rows.length };
     renderManager(response);
 
-    expect(await screen.findByText('Legacy Admin')).toBeInTheDocument();
-    expect(screen.getByText('Legacy Professional')).toBeInTheDocument();
+    expect(await screen.findByText('Tina Titular')).toBeInTheDocument();
+    expect(screen.getByText('Pablo Profesional')).toBeInTheDocument();
     expect(screen.getByText('Team Assistant')).toBeInTheDocument();
     expect(screen.queryByText('Patient Outside')).not.toBeInTheDocument();
     expect(screen.queryByText('Support Outside')).not.toBeInTheDocument();
@@ -283,6 +283,7 @@ describe('TeamManager', () => {
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nora' } });
     fireEvent.change(screen.getByLabelText('Apellido'), { target: { value: 'Ríos' } });
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'Secret123' } });
+    fireEvent.change(screen.getByLabelText('Rol'), { target: { value: UserRole.ASISTENTE } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear miembro' }));
 
     await waitFor(() => expect(api.createUser).toHaveBeenCalledWith({
@@ -290,7 +291,7 @@ describe('TeamManager', () => {
       password: 'Secret123',
       firstName: 'Nora',
       lastName: 'Ríos',
-      role: UserRole.MASTER,
+      role: UserRole.ASISTENTE,
     }, 'tenant-1'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expectCoreInvalidations(client);
@@ -335,18 +336,17 @@ describe('TeamManager', () => {
     expect(invalidate).toHaveBeenCalled();
   });
 
-  it('deactivates accounts through DELETE and keeps the row when the API protects the last admin', async () => {
-    const user = makeUser({ id: 'admin-2', firstName: 'Elena', lastName: 'Ríos', role: UserRole.MASTER });
-    api.deleteUser.mockRejectedValueOnce({
-      code: 'LAST_ACTIVE_ADMIN_REQUIRED',
-      message: 'El consultorio debe conservar al menos un administrador activo.',
+  it('keeps the row and shows the API message when an edit is rejected with MASTER_IMMUTABLE', async () => {
+    const user = makeUser({ id: 'pro-9', firstName: 'Elena', lastName: 'Ríos' });
+    api.updateUser.mockRejectedValueOnce({
+      code: 'MASTER_IMMUTABLE',
+      message: 'El rol y el estado del titular de la cuenta no se pueden modificar.',
     });
     renderManager([user]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar cuenta de Elena Ríos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar atención clínica de Elena Ríos' }));
 
-    expect(api.deleteUser).toHaveBeenCalledWith('admin-2', 'tenant-1');
-    const protectedActionMessage = await screen.findByText('El consultorio debe conservar al menos un administrador activo.');
-    expect(protectedActionMessage.closest('[role="alert"]')).toHaveTextContent('El consultorio debe conservar al menos un administrador activo.');
+    const message = await screen.findByText('El rol y el estado del titular de la cuenta no se pueden modificar.');
+    expect(message.closest('[role="alert"]')).toBeInTheDocument();
     expect(screen.getByText('Elena Ríos')).toBeInTheDocument();
     expect(screen.getByText('Cuenta activa')).toBeInTheDocument();
   });
@@ -411,7 +411,7 @@ describe('TeamManager', () => {
     expect(api.listSpecialties).not.toHaveBeenCalled();
   });
 
-  it('renders a read-only table for users without the admin role', async () => {
+  it('renders a read-only table for users who are not the account holder', async () => {
     useAuthStore.setState({ user: { id: 'professional-actor', role: UserRole.PROFESIONAL, tenantId: 'tenant-1' } as User });
     renderManager([makeUser()]);
 
@@ -456,5 +456,30 @@ describe('TeamManager', () => {
     await waitFor(() => expect(api.deleteUser).toHaveBeenCalledTimes(1));
     expect(deactivate).toBeDisabled();
     resolve();
+  });
+});
+
+describe('TeamManager account holder row', () => {
+  const holder = makeUser({
+    id: 'master-1', firstName: 'Tina', lastName: 'Titular', role: UserRole.MASTER,
+    professionalProfile: undefined,
+  });
+  const assistant = makeUser({
+    id: 'assistant-1', firstName: 'Abel', lastName: 'Asistente', role: UserRole.ASISTENTE,
+    professionalProfile: undefined,
+  });
+
+  it('labels the account holder and offers no deactivation for that row', async () => {
+    useAuthStore.setState({ user: holder });
+    renderManager([holder, assistant]);
+
+    expect(await screen.findByText('Titular de la cuenta')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar Tina Titular' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Desactivar cuenta de Tina Titular' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Desactivar cuenta de Abel Asistente' }),
+    ).toBeInTheDocument();
   });
 });

@@ -64,7 +64,7 @@ describe('specialty onboarding wire contracts', () => {
       firstName: string;
       lastName: string;
       phone?: string;
-      role: UserRole.MASTER | UserRole.PROFESIONAL | UserRole.ASISTENTE;
+      role: UserRole.PROFESIONAL | UserRole.ASISTENTE;
       professionalProfile?: {
         specialtyId: string;
         professionalTitle?: string;

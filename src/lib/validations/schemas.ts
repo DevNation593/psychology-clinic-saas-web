@@ -125,18 +125,18 @@ const teamProfileSchema = z.object({
   isActive: z.boolean(),
 }).strict();
 
-const tenantTeamMemberFields = {
+const tenantTeamMemberBaseFields = {
   email: onboardingEmail,
   firstName: z.string().trim().min(1, 'Ingresa el nombre'),
   lastName: z.string().trim().min(1, 'Ingresa el apellido'),
   phone: z.string().trim().optional(),
-  role: z.union([
-    z.literal(UserRole.MASTER),
-    z.literal(UserRole.PROFESIONAL),
-    z.literal(UserRole.ASISTENTE),
-  ]),
   professionalProfile: teamProfileSchema.optional(),
 };
+
+const assignableTeamRole = z.union([
+  z.literal(UserRole.PROFESIONAL),
+  z.literal(UserRole.ASISTENTE),
+]);
 
 function refineTenantTeamMember(
   data: { role: UserRole; professionalProfile?: { specialtyId: string } },
@@ -150,14 +150,18 @@ function refineTenantTeamMember(
   }
 }
 
+/** New members can only be professionals or assistants. */
 export const tenantTeamMemberSchema = z.object({
-  ...tenantTeamMemberFields,
+  ...tenantTeamMemberBaseFields,
+  role: assignableTeamRole,
   password: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
 }).strict().superRefine(refineTenantTeamMember);
 
-export const tenantTeamMemberUpdateSchema = z.object(tenantTeamMemberFields)
-  .strict()
-  .superRefine(refineTenantTeamMember);
+/** Editing also accepts MASTER, because the account holder's own row resends its role. */
+export const tenantTeamMemberUpdateSchema = z.object({
+  ...tenantTeamMemberBaseFields,
+  role: z.union([z.literal(UserRole.MASTER), assignableTeamRole]),
+}).strict().superRefine(refineTenantTeamMember);
 
 export type TenantTeamMemberFormData = z.infer<typeof tenantTeamMemberSchema>;
 
