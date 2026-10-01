@@ -160,7 +160,7 @@ describe('SpecialtyManager', () => {
     });
     await act(async () => catalog.resolve([psychology, nutrition]));
 
-    const nutritionButton = await screen.findByRole('button', { name: /Nutrición/ });
+    const nutritionButton = await findEnabledButton(/Nutrición/);
     expect(nutritionButton).toHaveAttribute('aria-pressed', 'false');
     expect(nutritionButton).toBeDisabled();
 
@@ -171,7 +171,7 @@ describe('SpecialtyManager', () => {
   it('renders catalog specialties that are not enabled for the tenant', async () => {
     renderManager();
 
-    const nutritionButton = await screen.findByRole('button', { name: /Nutrición/ });
+    const nutritionButton = await findEnabledButton(/Nutrición/);
     expect(nutritionButton).toHaveAttribute('aria-pressed', 'false');
     expect(nutritionButton).toHaveTextContent('Inactiva');
     expect(screen.getByRole('button', { name: /Psicología/ })).toHaveAttribute('aria-pressed', 'true');
@@ -179,7 +179,7 @@ describe('SpecialtyManager', () => {
 
   it('keeps local specialty edits when a background refetch returns different tenant data', async () => {
     const { client } = renderManager();
-    const psychologyButton = await screen.findByRole('button', { name: /Psicología/ });
+    const psychologyButton = await findEnabledButton(/Psicología/);
     fireEvent.click(psychologyButton);
     expect(psychologyButton).toHaveAttribute('aria-pressed', 'false');
 
