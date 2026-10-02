@@ -102,7 +102,12 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({
-    user: { id: 'admin-1', tenantId: 'tenant-1', role: UserRole.MASTER } as User,
+    user: {
+      id: 'admin-1',
+      tenantId: 'tenant-1',
+      role: UserRole.MASTER,
+      professionalProfile: { isActive: true },
+    } as User,
     tenant: { id: 'tenant-1' } as ReturnType<typeof useAuthStore.getState>['tenant'],
   });
   mocks.get.mockImplementation((url: string) => {
@@ -131,6 +136,23 @@ describe('patient detail invoices tab', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Facturas' }));
       expect(screen.getByTestId('patient-invoices')).toHaveTextContent('patient-1');
     }
+  });
+});
+
+describe('patient detail clinical tabs', () => {
+  it.each([
+    ['a MASTER without a professional profile', UserRole.MASTER, undefined],
+    ['a PROFESIONAL with an inactive profile', UserRole.PROFESIONAL, { isActive: false }],
+    ['an ASISTENTE', UserRole.ASISTENTE, undefined],
+  ])('are hidden from %s', (_label, role, professionalProfile) => {
+    useAuthStore.setState({
+      user: { id: 'user-1', tenantId: 'tenant-1', role, professionalProfile } as User,
+    });
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Historia Clínica' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Especialidades' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Equipo tratante' })).toBeInTheDocument();
   });
 });
 

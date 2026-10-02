@@ -68,9 +68,16 @@ describe('permission matrix', () => {
     expect(allowed(guard)).toEqual([UserRole.MASTER, UserRole.SOPORTE].sort());
   });
 
-  it('opens clinical notes to the account holder, professionals and support', () => {
-    expect(allowed(canAccessClinicalNotes)).toEqual(
-      [UserRole.MASTER, UserRole.PROFESIONAL, UserRole.SOPORTE].sort(),
+  it('opens clinical notes only to an account holder or professional with an active profile', () => {
+    const withProfile = (role: UserRole, isActive: boolean) =>
+      ({ id: 'user-1', role, professionalProfile: { isActive } }) as User;
+
+    expect(allowed(canAccessClinicalNotes)).toEqual([]);
+    expect(
+      ALL_ROLES.filter((role) => canAccessClinicalNotes(withProfile(role, true))).sort(),
+    ).toEqual([UserRole.MASTER, UserRole.PROFESIONAL].sort());
+    expect(ALL_ROLES.filter((role) => canAccessClinicalNotes(withProfile(role, false)))).toEqual(
+      [],
     );
   });
 

@@ -126,7 +126,12 @@ export default function PatientDetailPage() {
   const deletePatient = useDeletePatient();
   // Invoices are shown to the roles that can issue them.
   const canSeeInvoices = !!user && (isMasterRole(user.role) || isProfessionalRole(user.role));
-  const visibleTabs = TABS.filter((tab) => tab.id !== 'billing' || canSeeInvoices);
+  // Specialty records are clinical content: the API refuses them without an active professional profile.
+  const canSeeClinical = !!user && canAccessClinicalNotes(user);
+  const visibleTabs = TABS.filter(
+    (tab) =>
+      (tab.id !== 'billing' || canSeeInvoices) && (tab.id !== 'specialties' || canSeeClinical),
+  );
 
   const handleDelete = () => {
     deletePatient.mutate(patientId, {
@@ -379,6 +384,12 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
   const [viewNote, setViewNote] = useState<ClinicalNote | null>(null);
   const [noteForm, setNoteForm] = useState({ diagnosis: '', content: '' });
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
+  const closeDeleteDialog = () => {
+    setDeleteNoteId(null);
+    setDeleteReason('');
+  };
 
   const handleCreateNote = () => {
     createNote.mutate(
@@ -397,10 +408,10 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
   };
 
   const handleDeleteNote = () => {
-    if (!deleteNoteId) return;
+    if (!deleteNoteId || !deleteReason.trim()) return;
     deleteNote.mutate(
-      { noteId: deleteNoteId, patientId },
-      { onSuccess: () => setDeleteNoteId(null) }
+      { noteId: deleteNoteId, patientId, reason: deleteReason.trim() },
+      { onSuccess: closeDeleteDialog }
     );
   };
 
@@ -411,7 +422,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           <Lock className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-lg font-medium">Acceso restringido</p>
           <p className="text-sm text-muted-foreground">
-            Solo los profesionales y el titular de la cuenta pueden ver la historia clínica.
+            Solo las cuentas con un perfil profesional activo pueden ver la historia clínica.
           </p>
         </CardContent>
       </Card>
@@ -422,14 +433,19 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
     return <FeatureLockedNotice featureName="El módulo de notas clínicas" />;
   }
 
+  // The API accepts new notes only from the PROFESIONAL role.
+  const canWriteNotes = isProfessionalRole(user.role);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Notas Clínicas</h3>
-        <Button onClick={() => setShowNewNote(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Nota
-        </Button>
+        {canWriteNotes && (
+          <Button onClick={() => setShowNewNote(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Nota
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -462,7 +478,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
                     <Button variant="ghost" size="icon" onClick={() => setViewNote(note)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {(isMasterRole(user.role) || note.psychologistId === user.id) && (
+                    {note.psychologistId === user.id && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -482,10 +498,12 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No hay notas clínicas registradas</p>
-            <Button className="mt-4" variant="outline" onClick={() => setShowNewNote(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear primera nota
-            </Button>
+            {canWriteNotes && (
+              <Button className="mt-4" variant="outline" onClick={() => setShowNewNote(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear primera nota
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -554,18 +572,35 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
       </Dialog>
 
       {/* Delete Note Dialog */}
-      <AlertDialog open={!!deleteNoteId} onOpenChange={() => setDeleteNoteId(null)}>
+      <AlertDialog open={!!deleteNoteId} onOpenChange={(open) => !open && closeDeleteDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar nota clínica?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La nota clínica será eliminada permanentemente.
+              La nota dejará de mostrarse en la historia clínica. Se conserva en el registro de
+              auditoría junto con el motivo.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div>
+            <Label htmlFor="note-delete-reason">Motivo de la eliminación</Label>
+            <Textarea
+              id="note-delete-reason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Ej: Nota registrada en el paciente equivocado"
+              maxLength={500}
+              rows={3}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteNote}
+              onClick={(e) => {
+                // Keep the dialog open until the API confirms.
+                e.preventDefault();
+                handleDeleteNote();
+              }}
+              disabled={!deleteReason.trim() || deleteNote.isPending}
               className="bg-destructive text-destructive-foreground"
             >
               Eliminar
@@ -584,6 +619,7 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
   const { data: records = [], isLoading } = usePatientSpecialtyRecords(patientId);
   const createRecord = useCreateSpecialtyRecord(patientId);
   const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
+  const ownSpecialtyId = useAuthStore((state) => state.user?.professionalProfile?.specialtyId);
   const specialtiesQuery = useTenantSpecialties();
   const modulesQuery = useTenantModules();
   const specialties = specialtiesQuery.data ?? [];
@@ -600,7 +636,10 @@ function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
     .find(Boolean);
 
   const enabledKeys = new Set(enabledModules.filter((module) => module.enabled).map((module) => module.moduleKey));
-  const moduleOptions: SpecialtyRecordModuleOption[] = specialties.flatMap((specialty) =>
+  // The history is shared for reading, but each professional records only under their own specialty.
+  const moduleOptions: SpecialtyRecordModuleOption[] = specialties
+    .filter((specialty) => specialty.id === ownSpecialtyId)
+    .flatMap((specialty) =>
     (specialty.modules || [])
       .filter((module) => enabledKeys.has(module.moduleKey) && SPECIALTY_MODULE_FIELDS[module.moduleKey])
       .map((module) => ({

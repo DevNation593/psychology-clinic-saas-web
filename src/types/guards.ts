@@ -43,8 +43,11 @@ export function hasActiveProfessionalProfile(user: User): boolean {
   return user.professionalProfile?.isActive === true;
 }
 
+/** Clinical content needs an active professional profile; the role alone is not enough. */
 export function canAccessClinicalNotes(user: User): boolean {
-  return isMasterRole(user.role) || isProfessionalRole(user.role) || user.role === UserRole.SOPORTE;
+  return (
+    (isMasterRole(user.role) || isProfessionalRole(user.role)) && hasActiveProfessionalProfile(user)
+  );
 }
 
 export function canManageUsers(user: User): boolean {
