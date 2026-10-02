@@ -17,6 +17,7 @@ import {
   AppointmentFilters,
   Task,
   ClinicalNote,
+  ClinicalNoteCorrection,
   SessionPlan,
   Notification,
   UsageMetrics,
@@ -28,6 +29,8 @@ import {
   OnboardingTenantInput,
   OnboardingAdminInput,
   UpgradeRequest,
+  PlanCatalog,
+  SubscriptionPayment,
   UpgradeResponse,
   DowngradeRequest,
   DowngradeResponse,
@@ -189,7 +192,7 @@ function normalizeSubscription(raw: any): Subscription {
     name: planType,
     description: `${planType} plan`,
     basePrice: Math.round(Number(raw.basePrice ?? 0) * 100),
-    currency: 'EUR',
+    currency: typeof raw.currency === 'string' ? raw.currency : 'USD',
     billingInterval: 'MONTHLY',
     limits,
     features,
@@ -201,6 +204,7 @@ function normalizeSubscription(raw: any): Subscription {
     id: raw.id,
     tenantId: raw.tenantId,
     plan,
+    apiPlanType: raw.planType,
     status: mapSubscriptionStatus(raw.status),
     trialEndsAt: raw.trialEndsAt ?? null,
     currentPeriodStart: raw.currentPeriodStart ?? raw.startDate ?? new Date().toISOString(),
@@ -706,11 +710,15 @@ export const clinicalNotesApi = {
   create: (data: Partial<ClinicalNote>) =>
     apiClient.post<ClinicalNote>(API_ENDPOINTS.CLINICAL_NOTES(getTenantId()), data),
 
-  update: (noteId: string, data: Partial<ClinicalNote>) =>
+  // A correction needs a reason and cannot move the note to another patient or appointment.
+  update: (noteId: string, data: ClinicalNoteCorrection) =>
     apiClient.patch<ClinicalNote>(API_ENDPOINTS.CLINICAL_NOTE_DETAIL(getTenantId(), noteId), data),
 
-  delete: (noteId: string) =>
-    apiClient.delete<void>(API_ENDPOINTS.CLINICAL_NOTE_DETAIL(getTenantId(), noteId)),
+  // Soft delete: the API keeps the note for audit and requires the reason.
+  delete: (noteId: string, reason: string) =>
+    apiClient.delete<void>(API_ENDPOINTS.CLINICAL_NOTE_DETAIL(getTenantId(), noteId), {
+      data: { reason },
+    }),
 };
 
 // ==========================================
@@ -763,11 +771,23 @@ export const notificationsApi = {
   list: (params?: { unreadOnly?: boolean; page?: number; limit?: number }) =>
     apiClient.get<PaginatedResponse<Notification>>(API_ENDPOINTS.NOTIFICATIONS(getTenantId()), { params }),
 
-  registerFcmToken: (token: string) =>
-    apiClient.post<void>(`${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/fcm-token`, { token }),
+  // Web Push. The FCM token endpoints belong to the mobile app: a browser endpoint is not a token.
+  getWebPushKey: () =>
+    apiClient.get<{ enabled: boolean; publicKey: string | null }>(
+      `${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/web-push/public-key`,
+    ),
 
-  removeFcmToken: () =>
-    apiClient.delete<void>(`${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/fcm-token`),
+  subscribeWebPush: (subscription: PushSubscriptionJSON) =>
+    apiClient.post<void>(
+      `${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/web-push/subscriptions`,
+      { endpoint: subscription.endpoint, keys: subscription.keys },
+    ),
+
+  unsubscribeWebPush: (endpoint: string) =>
+    apiClient.delete<void>(
+      `${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/web-push/subscriptions`,
+      { data: { endpoint } },
+    ),
 
   markAsRead: (notificationId: string) =>
     apiClient.post<void>(API_ENDPOINTS.NOTIFICATION_READ(getTenantId(), notificationId)),
@@ -869,15 +889,19 @@ export const subscriptionApi = {
       } as UsageMetrics;
     }),
 
-  upgrade: (data: UpgradeRequest) =>
-    apiClient.post<any>(API_ENDPOINTS.SUBSCRIPTION_UPGRADE(getTenantId()), {
-      newPlan: data.targetTier === 'CUSTOM' ? 'CUSTOM' : 'PRO',
-    }) as Promise<UpgradeResponse>,
+  // Plans, prices and limits. Every screen that shows them reads this catalog.
+  getPlans: () => apiClient.get<PlanCatalog>(API_ENDPOINTS.SUBSCRIPTION_PLANS(getTenantId())),
 
+  getPayments: () =>
+    apiClient.get<SubscriptionPayment[]>(API_ENDPOINTS.SUBSCRIPTION_PAYMENTS(getTenantId())),
+
+  // Registers a pending payment; the plan changes when support confirms it.
+  upgrade: (data: UpgradeRequest) =>
+    apiClient.post<UpgradeResponse>(API_ENDPOINTS.SUBSCRIPTION_UPGRADE(getTenantId()), data),
+
+  // Scheduled for the end of the current period.
   downgrade: (data: DowngradeRequest) =>
-    apiClient.post<any>(API_ENDPOINTS.SUBSCRIPTION_DOWNGRADE(getTenantId()), {
-      newPlan: data.targetTier === 'BASIC' ? 'BASIC' : 'TRIAL',
-    }) as Promise<DowngradeResponse>,
+    apiClient.post<DowngradeResponse>(API_ENDPOINTS.SUBSCRIPTION_DOWNGRADE(getTenantId()), data),
 };
 
 // ==========================================

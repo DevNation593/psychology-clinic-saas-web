@@ -129,6 +129,8 @@ export const API_ENDPOINTS = {
   SUBSCRIPTION_USAGE: (tenantId: string) => `/tenants/${tenantId}/subscription/usage`,
   SUBSCRIPTION_UPGRADE: (tenantId: string) => `/tenants/${tenantId}/subscription/upgrade`,
   SUBSCRIPTION_DOWNGRADE: (tenantId: string) => `/tenants/${tenantId}/subscription/downgrade`,
+  SUBSCRIPTION_PLANS: (tenantId: string) => `/tenants/${tenantId}/subscription/plans`,
+  SUBSCRIPTION_PAYMENTS: (tenantId: string) => `/tenants/${tenantId}/subscription/payments`,
   BILLING_INVOICES: (tenantId: string) => `/tenants/${tenantId}/billing/invoices`,
   BILLING_INVOICE: (tenantId: string, invoiceId: string) => `/tenants/${tenantId}/billing/invoices/${invoiceId}`,
 
@@ -202,6 +204,7 @@ export const QUERY_KEYS = {
   SUBSCRIPTION: ['subscription'],
   SUBSCRIPTION_SCOPED: (tenantId: string) => ['subscription', 'tenant', tenantId],
   SUBSCRIPTION_USAGE: ['subscription', 'usage'],
+  SUBSCRIPTION_PAYMENTS: ['subscription', 'payments'],
   SUBSCRIPTION_USAGE_SCOPED: (tenantId: string, period: string) => ['subscription', 'usage', tenantId, period],
   
   // Storage
@@ -313,9 +316,3 @@ export const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
   '20:00',
 ];
-
-// ==========================================
-// WEB PUSH
-// ==========================================
-
-export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';

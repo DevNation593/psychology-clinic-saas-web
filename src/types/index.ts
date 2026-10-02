@@ -144,6 +144,8 @@ export interface Subscription {
   id: string;
   tenantId: string;
   plan: Plan;
+  /** The plan as the API names it; `plan.planType` only keeps the tier. */
+  apiPlanType?: ApiPlanType;
   status: SubscriptionStatus;
   trialEndsAt: string | null;
   currentPeriodStart: string;
@@ -692,6 +694,8 @@ export interface ClinicalNote {
   observations?: string;
   sessionDuration?: number;
   sessionDate?: string;
+  /** Starts at 1 and grows with every correction. */
+  version: number;
   // Backward-compatibility fields used in some UI sections.
   title?: string;
   isConfidential?: boolean;
@@ -700,6 +704,13 @@ export interface ClinicalNote {
   createdBy: string;
   updatedBy: string;
 }
+
+export type ClinicalNoteCorrection = Partial<
+  Pick<
+    ClinicalNote,
+    'content' | 'diagnosis' | 'treatment' | 'observations' | 'sessionDuration' | 'sessionDate'
+  >
+> & { changeReason: string };
 
 export interface SpecialtyRecord {
   id: string;
@@ -887,32 +898,63 @@ export interface OnboardingInviteInput {
 // SUBSCRIPTION & BILLING
 // ==========================================
 
+/** Plan identifiers exactly as the API uses them. */
+export type ApiPlanType =
+  | 'TRIAL'
+  | 'PERSONAL_BASIC'
+  | 'PERSONAL_PRO'
+  | 'CLINIC_BASIC'
+  | 'CLINIC_PRO'
+  | 'CLINIC_ENTERPRISE';
+
+/** One plan of `GET /subscription/plans`: the only source of prices and limits. */
+export interface PlanCatalogEntry {
+  planType: ApiPlanType;
+  basePrice: number;
+  pricePerSeat: number;
+  seatsIncluded: number;
+  maxActivePatients: number;
+  storageGB: number;
+  monthlyNotificationsLimit: number;
+  includedModules: string[];
+  includedSpecialties: number;
+  specialtyPricePerMonth: number;
+}
+
+export interface PlanCatalog {
+  plans: PlanCatalogEntry[];
+  modulePricing: Record<string, number>;
+}
+
+/** A charge of the subscription. A paid plan is enabled only after its payment is confirmed. */
+export interface SubscriptionPayment {
+  id: string;
+  kind: 'PLAN_UPGRADE' | 'RENEWAL';
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELED' | 'EXPIRED';
+  amount: number | string;
+  currency: string;
+  targetPlan: ApiPlanType;
+  periodStart: string | null;
+  periodEnd: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface UpgradeRequest {
-  targetTier: 'PRO' | 'CUSTOM';
-  billingInterval?: 'MONTHLY' | 'ANNUAL';
-  addSeats?: number;
-  paymentMethodId?: string;
-  couponCode?: string;
+  newPlan: ApiPlanType;
 }
 
 export interface UpgradeResponse {
   success: boolean;
-  subscription: Subscription;
-  payment: {
-    proratedAmount: number; // cents
-    nextBillingAmount: number;
-    nextBillingDate: string;
-  };
+  status: 'PENDING_PAYMENT';
+  currentPlan: ApiPlanType;
+  requestedPlan: ApiPlanType;
+  payment: SubscriptionPayment;
   message: string;
 }
 
 export interface DowngradeRequest {
-  targetTier: 'BASIC';
-  scheduledFor?: 'immediate' | 'end_of_period';
-  acknowledgments: {
-    dataLoss: boolean;
-    featureLoss: boolean;
-  };
+  newPlan: ApiPlanType;
 }
 
 export interface ConstraintViolation {
@@ -924,17 +966,12 @@ export interface ConstraintViolation {
 
 export interface DowngradeResponse {
   success: boolean;
-  scheduledDowngrade: {
-    fromTier: PlanTier;
-    toTier: PlanTier;
-    effectiveDate: string;
-    daysUntilDowngrade: number;
-  };
-  impactSummary: {
-    featuresLost: string[];
-    constraintViolations: ConstraintViolation[];
-  };
-  creditIssued?: number;
+  effectiveDate: string | null;
+  daysUntilChange: number;
+  currentPlan: ApiPlanType;
+  newPlan: ApiPlanType;
+  warnings: string[];
+  message: string;
 }
 
 export interface AddSeatRequest {
