@@ -39,8 +39,6 @@ sw.addEventListener('push', (event) => {
   let data = {
     title: 'Nueva Notificación',
     body: 'Tienes una nueva actualización',
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
     tag: 'default',
     data: {},
   };
@@ -56,9 +54,8 @@ sw.addEventListener('push', (event) => {
   /** @type {NotificationOptions} */
   const options = {
     body: data.body,
-    icon: data.icon,
-    badge: data.badge,
-    tag: data.tag,
+    // Reminders about different things must not replace each other.
+    tag: data.data?.taskId || data.data?.appointmentId || data.tag,
     data: data.data,
     requireInteraction: false,
     vibrate: [200, 100, 200],

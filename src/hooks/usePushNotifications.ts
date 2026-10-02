@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { VAPID_PUBLIC_KEY } from '@/lib/constants';
 import { notificationsApi } from '@/lib/api/endpoints';
 import { toast } from 'sonner';
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
@@ -17,30 +16,26 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+/**
+ * Web Push for this browser. The API holds the VAPID key pair: the browser subscribes with
+ * the public key it serves and hands the whole subscription (endpoint and keys) back to it.
+ */
 export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    // Check if browser supports notifications and service workers
-    if ('Notification' in window && 'serviceWorker' in navigator) {
+    if ('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
       setIsSupported(true);
       setPermission(Notification.permission);
-
-      // Register service worker
       registerServiceWorker();
     }
   }, []);
 
   const registerServiceWorker = async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-      });
-      console.log('Service Worker registered:', registration);
-
-      // Check if already subscribed
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       const subscription = await registration.pushManager.getSubscription();
       setIsSubscribed(!!subscription);
     } catch (error) {
@@ -55,47 +50,46 @@ export function usePushNotifications() {
     }
 
     try {
-      const permission = await Notification.requestPermission();
-      setPermission(permission);
-
-      if (permission === 'granted') {
-        await subscribeToPush();
-        toast.success('Notificaciones activadas');
-        return true;
-      } else {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      if (result !== 'granted') {
         toast.error('Permiso denegado para notificaciones');
         return false;
       }
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
-      toast.error('Error al solicitar permisos');
+
+      await subscribeToPush();
+      toast.success('Notificaciones activadas');
+      return true;
+    } catch (error: any) {
+      console.error('Error enabling push notifications:', error);
+      toast.error(error?.message || 'No se pudieron activar las notificaciones');
       return false;
     }
   };
 
   const subscribeToPush = async () => {
+    const { enabled, publicKey } = await notificationsApi.getWebPushKey();
+    if (!enabled || !publicKey) {
+      throw new Error('Las notificaciones del navegador no están disponibles en este momento');
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+      });
+    }
+
     try {
-      const registration = await navigator.serviceWorker.ready;
-
-      // Check if already subscribed
-      let subscription = await registration.pushManager.getSubscription();
-
-      if (!subscription) {
-        // Subscribe to push
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-        });
-      }
-
-      // API currently stores FCM tokens; we persist endpoint to keep device opt-in state.
-      await notificationsApi.registerFcmToken(subscription.endpoint);
-
-      setIsSubscribed(true);
+      await notificationsApi.subscribeWebPush(subscription.toJSON());
     } catch (error) {
-      console.error('Error subscribing to push:', error);
+      // Without the server knowing it, the browser subscription would never receive anything.
+      await subscription.unsubscribe().catch(() => undefined);
       throw error;
     }
+    setIsSubscribed(true);
   };
 
   const unsubscribe = async () => {
@@ -104,7 +98,7 @@ export function usePushNotifications() {
       const subscription = await registration.pushManager.getSubscription();
 
       if (subscription) {
-        await notificationsApi.removeFcmToken();
+        await notificationsApi.unsubscribeWebPush(subscription.endpoint);
         await subscription.unsubscribe();
         setIsSubscribed(false);
         toast.success('Notificaciones desactivadas');
