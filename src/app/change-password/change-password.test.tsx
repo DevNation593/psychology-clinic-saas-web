@@ -1,15 +1,15 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { authApi } from '@/lib/api/endpoints';
+import { authApi, tenantsApi } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
-import { UserRole, type User } from '@/types';
+import { UserRole, type Tenant, type User } from '@/types';
 import ChangePasswordPage from './page';
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-vi.mock('@/lib/api/endpoints', () => ({ authApi: { changePassword: vi.fn() } }));
+vi.mock('@/lib/api/endpoints', () => ({ authApi: { changePassword: vi.fn() }, tenantsApi: { get: vi.fn() } }));
 
 const signIn = (role: UserRole) =>
   useAuthStore.setState({
@@ -27,6 +27,7 @@ function fill(current: string, next: string, confirm: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useAuthStore.setState({ tenant: null });
   signIn(UserRole.MASTER);
 });
 
@@ -57,13 +58,28 @@ describe('ChangePasswordPage', () => {
       newPassword: 'nueva-clave-9',
     });
     expect(useAuthStore.getState().user?.mustChangePassword).toBe(false);
+    expect(tenantsApi.get).not.toHaveBeenCalled();
   });
 
-  it('goes to the dashboard for a clinic user', async () => {
+  it('loads the tenant into the store and goes to the dashboard for a clinic user', async () => {
     vi.mocked(authApi.changePassword).mockResolvedValue(undefined);
+    vi.mocked(tenantsApi.get).mockResolvedValue({ id: 'tenant-1' } as Tenant);
     render(<ChangePasswordPage />);
     fill('temporal-1', 'nueva-clave-9', 'nueva-clave-9');
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    expect(tenantsApi.get).toHaveBeenCalledWith('tenant-1');
+    expect(useAuthStore.getState().tenant?.id).toBe('tenant-1');
+    expect(useAuthStore.getState().user?.mustChangePassword).toBe(false);
+  });
+
+  it('still navigates when the tenant request fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.mocked(authApi.changePassword).mockResolvedValue(undefined);
+    vi.mocked(tenantsApi.get).mockRejectedValue(new Error('boom'));
+    render(<ChangePasswordPage />);
+    fill('temporal-1', 'nueva-clave-9', 'nueva-clave-9');
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/dashboard'));
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
   it('shows the API message when the current password is wrong', async () => {

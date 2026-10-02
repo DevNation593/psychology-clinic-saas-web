@@ -28,8 +28,9 @@ export function useLogin() {
       // Set user immediately so getTenantId() works
       setUser(user);
       
-      // The platform admin has no clinic: the tenant endpoint answers PLATFORM_ONLY.
-      if (!isPlatformAdmin(user)) {
+      // The platform admin has no clinic (PLATFORM_ONLY) and a temporary password blocks
+      // every request but the change itself: the tenant loads after the password change.
+      if (!isPlatformAdmin(user) && !user.mustChangePassword) {
         try {
           const tenant = await tenantsApi.get(user.tenantId);
           setAuth(user, tenant);

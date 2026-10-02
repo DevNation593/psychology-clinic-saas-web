@@ -61,6 +61,7 @@ describe('useLogin', () => {
   it('goes to /change-password when the password is temporary', async () => {
     vi.mocked(tenantsApi.get).mockResolvedValue({ id: 'tenant-1' } as Tenant);
     await login({ role: UserRole.MASTER, mustChangePassword: true });
+    expect(tenantsApi.get).not.toHaveBeenCalled();
     expect(router.push).toHaveBeenCalledWith('/change-password');
   });
 });

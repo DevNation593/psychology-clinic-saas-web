@@ -59,7 +59,7 @@ class ApiClient {
           error.response?.status === 403 &&
           this.getErrorCode(error) === 'PASSWORD_CHANGE_REQUIRED' &&
           typeof window !== 'undefined' &&
-          !window.location.pathname.includes('/change-password')
+          window.location.pathname !== '/change-password'
         ) {
           window.location.href = '/change-password';
         }

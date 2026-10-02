@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { authApi } from '@/lib/api/endpoints';
+import { authApi, tenantsApi } from '@/lib/api/endpoints';
 import { PASSWORD_MIN_LENGTH, ROUTES } from '@/lib/constants';
 import { postLoginRoute } from '@/lib/post-login-route';
 import { useAuthStore } from '@/store/authStore';
+import { isPlatformAdmin } from '@/types/guards';
 
 const changePasswordSchema = z
   .object({
@@ -42,6 +43,7 @@ export default function ChangePasswordPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const setUser = useAuthStore((state) => state.setUser);
+  const setAuth = useAuthStore((state) => state.setAuth);
   const logout = useAuthStore((state) => state.logout);
 
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +71,15 @@ export default function ChangePasswordPage() {
       });
       const updated = { ...user, mustChangePassword: false };
       setUser(updated);
+      // The tenant was not loaded at login because the temporary password blocked it.
+      if (!isPlatformAdmin(updated)) {
+        try {
+          setAuth(updated, await tenantsApi.get(updated.tenantId));
+        } catch {
+          // Still signed in; the tenant loads on the next session refresh.
+          console.warn('Could not fetch tenant details');
+        }
+      }
       toast.success('Contraseña actualizada');
       router.replace(postLoginRoute(updated));
     } catch (err) {
