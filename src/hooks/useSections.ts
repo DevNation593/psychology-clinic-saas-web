@@ -16,7 +16,8 @@ export function useSections() {
   return {
     isEnabled: (key: SectionKey) => enabled.has(key),
     isLoading: isPending,
-    isError,
+    // A failed background refetch keeps the cached rows, which are still enough to decide.
+    isError: isError && data === undefined,
     refetch: () => {
       void refetch();
     },

@@ -2,13 +2,16 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SectionGate } from './section-gate';
 
-const sections = vi.hoisted(() => ({
-  state: {} as { isEnabled: (key: string) => boolean; isLoading: boolean; isError: boolean; refetch: () => void },
+type Row = { moduleKey: string; enabled: boolean };
+const modules = vi.hoisted(() => ({
+  state: {} as { data?: Row[]; isPending: boolean; isError: boolean; refetch: () => void },
 }));
-vi.mock('@/hooks/useSections', () => ({ useSections: () => sections.state }));
+vi.mock('@/hooks/useSpecialties', () => ({ useTenantModules: () => modules.state }));
+
+const tasksOn: Row[] = [{ moduleKey: 'core.tasks', enabled: true }];
 
 beforeEach(() => {
-  sections.state = { isEnabled: () => true, isLoading: false, isError: false, refetch: vi.fn() };
+  modules.state = { data: tasksOn, isPending: false, isError: false, refetch: vi.fn() };
 });
 
 const renderGate = () =>
@@ -16,23 +19,30 @@ const renderGate = () =>
 
 describe('SectionGate', () => {
   it('renders nothing while the sections load', () => {
-    sections.state = { ...sections.state, isEnabled: () => false, isLoading: true };
+    modules.state = { ...modules.state, data: undefined, isPending: true };
     const { container } = renderGate();
     expect(container).toBeEmptyDOMElement();
   });
 
   it('shows the retry alert, not the disabled notice, when the request fails', () => {
-    sections.state = { ...sections.state, isEnabled: () => false, isError: true };
+    modules.state = { ...modules.state, data: undefined, isError: true };
     renderGate();
     expect(screen.getByText('No se pudieron cargar las secciones')).toBeInTheDocument();
     expect(screen.queryByText('Sección no disponible')).not.toBeInTheDocument();
     expect(screen.queryByText('Contenido')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(sections.state.refetch).toHaveBeenCalledTimes(1);
+    expect(modules.state.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the children when only a background refetch failed', () => {
+    modules.state = { ...modules.state, data: tasksOn, isError: true };
+    renderGate();
+    expect(screen.getByText('Contenido')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las secciones')).not.toBeInTheDocument();
   });
 
   it('shows the disabled notice when the section is off', () => {
-    sections.state = { ...sections.state, isEnabled: () => false };
+    modules.state = { ...modules.state, data: [{ moduleKey: 'core.tasks', enabled: false }] };
     renderGate();
     expect(screen.getByText('Sección no disponible')).toBeInTheDocument();
     expect(screen.getByText('Esta sección no está habilitada para tu consultorio')).toBeInTheDocument();

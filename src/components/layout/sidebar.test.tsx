@@ -150,18 +150,23 @@ describe('Sidebar section visibility', () => {
   ])('hides %s when %s is off', async (name, key) => {
     vi.mocked(tenantModulesApi.list).mockResolvedValue(sectionRows([key]));
     renderSidebar();
-    expect(await screen.findByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
-    await waitFor(() => expect(tenantModulesApi.list).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByRole('link', { name })).not.toBeInTheDocument());
-    // Everything else stays.
+    // Dashboard is always on; Suscripción only shows once the account holder is known, and
+    // Configuración is never gated. Wait for an enabled gated entry so the data has landed.
+    const landed = name === 'Equipo' || name === 'Almacenamiento' ? 'Módulos clínicos' : 'Equipo';
+    expect(await screen.findByRole('link', { name: landed })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Suscripción' })).toBeInTheDocument();
   });
 
   it('always shows Dashboard, Suscripción and Configuración to the account holder', async () => {
-    vi.mocked(tenantModulesApi.list).mockResolvedValue(sectionRows([...SECTION_KEYS]));
+    // Only core.team stays on, so its link proves the rows were applied.
+    vi.mocked(tenantModulesApi.list).mockResolvedValue(
+      sectionRows(SECTION_KEYS.filter((key) => key !== 'core.team')),
+    );
     renderSidebar();
-    await waitFor(() => expect(tenantModulesApi.list).toHaveBeenCalled());
-    await waitFor(() => expect(screen.queryByRole('link', { name: 'Pacientes' })).not.toBeInTheDocument());
+    expect(await screen.findByRole('link', { name: 'Equipo' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Pacientes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Almacenamiento' })).not.toBeInTheDocument();
     for (const name of ['Dashboard', 'Suscripción', 'Configuración']) {
       expect(screen.getByRole('link', { name })).toBeInTheDocument();
     }
