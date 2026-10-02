@@ -55,13 +55,13 @@ beforeEach(() => {
 });
 
 describe('Sidebar clinical modules entry', () => {
-  it.each([UserRole.MASTER, UserRole.SOPORTE])('is shown to %s', async (role) => {
+  it.each([UserRole.MASTER])('is shown to %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Módulos clínicos' })).toHaveAttribute('href', '/admin/specialties');
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])('is hidden from %s', async (role) => {
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN, UserRole.SOPORTE])('is hidden from %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();

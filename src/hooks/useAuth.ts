@@ -8,6 +8,8 @@ import { LoginCredentials } from '@/types';
 import { apiClient } from '@/lib/api/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { isPlatformAdmin } from '@/types/guards';
+import { postLoginRoute } from '@/lib/post-login-route';
 
 export function useLogin() {
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -26,17 +28,18 @@ export function useLogin() {
       // Set user immediately so getTenantId() works
       setUser(user);
       
-      // Fetch tenant details
-      try {
-        const tenant = await tenantsApi.get(user.tenantId);
-        setAuth(user, tenant);
-      } catch {
-        // If tenant fetch fails, user is still authenticated
-        console.warn('Could not fetch tenant details');
+      // The platform admin has no clinic: the tenant endpoint answers PLATFORM_ONLY.
+      if (!isPlatformAdmin(user)) {
+        try {
+          const tenant = await tenantsApi.get(user.tenantId);
+          setAuth(user, tenant);
+        } catch {
+          // If tenant fetch fails, user is still authenticated
+          console.warn('Could not fetch tenant details');
+        }
       }
-      
-      // Redirect to dashboard
-      router.push('/dashboard');
+
+      router.push(postLoginRoute(user));
       toast.success('¡Bienvenido!');
     },
     onError: (error: any) => {

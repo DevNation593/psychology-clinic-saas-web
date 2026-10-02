@@ -308,6 +308,7 @@ function normalizeTenant(raw: any): Tenant {
 function normalizeUser(raw: any): User {
   return {
     ...raw,
+    mustChangePassword: raw?.mustChangePassword ?? false,
     isActive: raw?.isActive ?? true,
     emailVerified: raw?.emailVerified ?? true,
     managedByProvider: raw?.managedByProvider ?? false,
@@ -342,6 +343,9 @@ export const authApi = {
 
   logoutAll: () =>
     apiClient.post<void>(API_ENDPOINTS.LOGOUT_ALL),
+
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    apiClient.post<void>(API_ENDPOINTS.CHANGE_PASSWORD, input),
 };
 
 // ==========================================

@@ -22,6 +22,14 @@ export const ROUTES = {
   LOGIN: '/login',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
+  CHANGE_PASSWORD: '/change-password',
+
+  // Platform panel (ADMIN)
+  PLATFORM: '/platform',
+  PLATFORM_TENANTS: '/platform/tenants',
+  PLATFORM_TENANT_NEW: '/platform/tenants/new',
+  PLATFORM_TENANT_DETAIL: (id: string) => `/platform/tenants/${id}`,
+  PLATFORM_PAYMENTS: '/platform/payments',
   
   // Onboarding
   ONBOARDING: '/onboarding',

@@ -11,6 +11,16 @@ export enum UserRole {
   PACIENTE = 'PACIENTE',
 }
 
+export type SectionKey =
+  | 'core.calendar'
+  | 'core.patients'
+  | 'core.tasks'
+  | 'core.clinicalNotes'
+  | 'core.specialties'
+  | 'core.billing'
+  | 'core.team'
+  | 'core.storage';
+
 export enum TenantType {
   PERSONAL = 'PERSONAL',
   CLINIC = 'CLINIC',
@@ -418,6 +428,8 @@ export interface User {
   professionalProfile?: ProfessionalProfile;
   isActive: boolean;
   managedByProvider?: boolean;
+  /** True while the user still has the temporary password set by the platform. */
+  mustChangePassword?: boolean;
   invitedAt?: string;
   invitedBy?: string;
   activatedAt?: string;
