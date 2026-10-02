@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
-import { useTenantModules } from '@/hooks/useSpecialties';
-import { canManageUsers, canManageSubscription, isMasterRole, isProfessionalRole, isClinicPlan } from '@/types/guards';
+import { useSections } from '@/hooks/useSections';
+import { canManageUsers, canManageSubscription, isMasterRole, isProfessionalRole } from '@/types/guards';
 import {
   LayoutDashboard,
   Calendar,
@@ -29,18 +29,15 @@ export function Sidebar() {
   const user = useAuthStore((state) => state.user);
   const tenant = useAuthStore((state) => state.tenant);
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
-  const { data: enabledModules = [] } = useTenantModules();
-  const hasTeamModule = enabledModules.some(
-    (module) => module.moduleKey === 'core.team' && module.enabled,
-  );
+  const { isEnabled } = useSections();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
-    { name: 'Calendario', href: '/calendar', icon: Calendar, show: true },
-    { name: 'Pacientes', href: '/patients', icon: Users, show: true },
-    { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: true },
-    { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: user ? canManageUsers(user) : false },
-    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: user ? isMasterRole(user.role) || isProfessionalRole(user.role) : false },
+    { name: 'Calendario', href: '/calendar', icon: Calendar, show: isEnabled('core.calendar') },
+    { name: 'Pacientes', href: '/patients', icon: Users, show: isEnabled('core.patients') },
+    { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: isEnabled('core.tasks') },
+    { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: isEnabled('core.specialties') && (user ? canManageUsers(user) : false) },
+    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: isEnabled('core.billing') && (user ? isMasterRole(user.role) || isProfessionalRole(user.role) : false) },
   ].filter((item) => item.show);
 
   const adminNavigation = [
@@ -48,7 +45,7 @@ export function Sidebar() {
       name: 'Equipo',
       href: '/admin/team',
       icon: UserCog,
-      show: user && canManageUsers(user) && (hasTeamModule || isClinicPlan(tenant)),
+      show: isEnabled('core.team') && user && canManageUsers(user),
     },
     {
       name: 'Suscripción',
@@ -60,7 +57,7 @@ export function Sidebar() {
       name: 'Almacenamiento',
       href: '/admin/storage',
       icon: HardDrive,
-      show: user && canManageUsers(user),
+      show: isEnabled('core.storage') && user && canManageUsers(user),
     },
     {
       name: 'Configuración',

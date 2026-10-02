@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient } from '@/hooks/usePatients';
@@ -9,6 +10,7 @@ import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { usePatientSessionPlan, useCreateSessionPlan, useUpdateSessionPlan } from '@/hooks/useSessionPlans';
 import { usePatientSpecialtyRecords, useCreateSpecialtyRecord } from '@/hooks/useSpecialtyRecords';
 import { useTenantModules, useTenantSpecialties } from '@/hooks/useSpecialties';
+import { useSections } from '@/hooks/useSections';
 import { useAuthStore } from '@/store/authStore';
 import {
   SPECIALTY_FIELD_LABELS,
@@ -28,6 +30,7 @@ import {
   TaskPriority,
   type Appointment,
   type ClinicalNote,
+  type SectionKey,
   type Task,
 } from '@/types';
 import {
@@ -110,14 +113,25 @@ const TABS: Tab[] = [
   { id: 'session-plan', label: 'Plan de Sesión', icon: Target },
 ];
 
+// Tabs backed by an optional section; the rest belong to the patient record itself.
+const TAB_SECTIONS: Partial<Record<TabId, SectionKey>> = {
+  clinical: 'core.clinicalNotes',
+  'session-plan': 'core.clinicalNotes',
+  specialties: 'core.specialties',
+  appointments: 'core.calendar',
+  tasks: 'core.tasks',
+  billing: 'core.billing',
+};
+
 // ==========================================
 // MAIN PAGE
 // ==========================================
-export default function PatientDetailPage() {
+function PatientDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const patientId = params.id as string;
   const user = useAuthStore((state) => state.user);
+  const { isEnabled } = useSections();
 
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -130,7 +144,9 @@ export default function PatientDetailPage() {
   const canSeeClinical = !!user && canAccessClinicalNotes(user);
   const visibleTabs = TABS.filter(
     (tab) =>
-      (tab.id !== 'billing' || canSeeInvoices) && (tab.id !== 'specialties' || canSeeClinical),
+      (tab.id !== 'billing' || canSeeInvoices) &&
+      (tab.id !== 'specialties' || canSeeClinical) &&
+      (TAB_SECTIONS[tab.id] === undefined || isEnabled(TAB_SECTIONS[tab.id]!)),
   );
 
   const handleDelete = () => {
@@ -1373,5 +1389,13 @@ function PatientDetailSkeleton() {
         <Skeleton className="h-48" />
       </div>
     </div>
+  );
+}
+
+export default function PatientDetailPage() {
+  return (
+    <SectionGate section="core.patients">
+      <PatientDetailPageContent />
+    </SectionGate>
   );
 }

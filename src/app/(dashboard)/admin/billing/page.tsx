@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { FileText, Settings } from 'lucide-react';
@@ -65,7 +66,7 @@ function issueErrorMessage(error: unknown): string {
   return 'No fue posible emitir la factura';
 }
 
-export default function BillingPage() {
+function BillingPageContent() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const patients = usePatients();
@@ -417,5 +418,13 @@ export default function BillingPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <SectionGate section="core.billing">
+      <BillingPageContent />
+    </SectionGate>
   );
 }

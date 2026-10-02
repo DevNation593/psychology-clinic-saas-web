@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { RestrictedAccess } from '@/components/layout/restricted-access';
 import { SpecialtyManager } from '@/features/admin/specialties/specialty-manager';
 import { useCanManageAccount } from '@/hooks/useCanManageAccount';
@@ -11,5 +12,9 @@ export default function SpecialtiesPage() {
   if (!user) return null;
   // The menu entry is hidden for other roles; this covers direct navigation.
   if (!canManage) return <RestrictedAccess />;
-  return <SpecialtyManager />;
+  return (
+    <SectionGate section="core.specialties">
+      <SpecialtyManager />
+    </SectionGate>
+  );
 }
