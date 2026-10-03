@@ -51,6 +51,11 @@ import {
   Invoice,
   SpecialtyRecord,
   UpdateSelfProfileInput,
+  PlatformSummary,
+  PlatformTenantList,
+  PlatformTenantListParams,
+  PlatformTenantDetail,
+  SectionCatalog,
 } from '@/types';
 
 // ==========================================
@@ -396,6 +401,16 @@ export const tenantSpecialtiesApi = {
       API_ENDPOINTS.TENANT_SPECIALTIES(tenantId ?? getTenantId()),
       { specialtyCodes },
     ),
+};
+
+export const platformApi = {
+  getSummary: () => apiClient.get<PlatformSummary>(API_ENDPOINTS.PLATFORM_SUMMARY),
+  listTenants: (params?: PlatformTenantListParams) =>
+    apiClient.get<PlatformTenantList>(API_ENDPOINTS.PLATFORM_TENANTS, { params }),
+  getTenant: (id: string) =>
+    apiClient.get<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANT(id)),
+  getSectionCatalog: () =>
+    apiClient.get<SectionCatalog>(API_ENDPOINTS.PLATFORM_SECTION_CATALOG),
 };
 
 export const tenantModulesApi = {

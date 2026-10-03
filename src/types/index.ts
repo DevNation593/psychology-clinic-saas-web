@@ -1100,3 +1100,116 @@ export interface TaskSummary {
   dueDate?: string;
   patientName?: string;
 }
+
+// ==========================================
+// PLATFORM PANEL (mirrors the API's src/platform; dates arrive as ISO strings)
+// ==========================================
+
+/** Subscription statuses exactly as the API names them. */
+export type ApiSubscriptionStatus =
+  | 'TRIALING'
+  | 'ACTIVE'
+  | 'PAST_DUE'
+  | 'UNPAID'
+  | 'CANCELED'
+  | 'INCOMPLETE';
+
+export interface PlatformSummary {
+  tenants: { active: number; suspended: number };
+  /** blocked = UNPAID + CANCELED + INCOMPLETE. */
+  subscriptions: { trialing: number; active: number; pastDue: number; blocked: number };
+  pendingPayments: { count: number; amount: number; currency: string };
+  trialsEndingSoon: { id: string; name: string; trialEndsAt: string }[];
+  recentTenants: { id: string; name: string; planType: ApiPlanType | null; createdAt: string }[];
+}
+
+export interface PlatformTenantRow {
+  id: string;
+  name: string;
+  tenantType: TenantType;
+  isActive: boolean;
+  createdAt: string;
+  master: { firstName: string; lastName: string; email: string } | null;
+  planType: ApiPlanType | null;
+  status: ApiSubscriptionStatus | null;
+  seatsPsychologistsUsed: number;
+  seatsPsychologistsMax: number;
+  activePatientsCount: number;
+  maxActivePatients: number;
+}
+
+export interface PlatformTenantList {
+  items: PlatformTenantRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PlatformTenantListParams {
+  search?: string;
+  planType?: ApiPlanType;
+  status?: ApiSubscriptionStatus;
+  isActive?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PlatformTenantDetail {
+  tenant: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    address: string | null;
+    tenantType: TenantType;
+    isActive: boolean;
+    createdAt: string;
+  };
+  master: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    mustChangePassword: boolean;
+  } | null;
+  subscription: {
+    planType: ApiPlanType;
+    status: ApiSubscriptionStatus;
+    trialEndsAt: string | null;
+    currentPeriodStart: string;
+    currentPeriodEnd: string | null;
+    seatsPsychologistsMax: number;
+    maxActivePatients: number;
+    basePrice: number;
+    currency: string;
+  };
+  usage: {
+    seatsPsychologistsUsed: number;
+    activePatientsCount: number;
+    monthlyNotificationsSent: number;
+  };
+  specialties: { id: string; code: string; name: string }[];
+  sections: { key: SectionKey; name: string; enabled: boolean }[];
+}
+
+export interface SectionCatalog {
+  sections: { key: SectionKey; name: string; requires: SectionKey[] }[];
+  defaults: { planType: ApiPlanType; tenantType: TenantType; sections: SectionKey[] }[];
+}
+
+export interface CreatePlatformTenantInput {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  tenantType: TenantType;
+  timezone: string;
+  locale: string;
+  masterFirstName: string;
+  masterLastName: string;
+  masterEmail: string;
+  temporaryPassword: string;
+  planType: ApiPlanType;
+  specialtyCodes: string[];
+  sections?: SectionKey[];
+}

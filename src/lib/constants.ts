@@ -65,6 +65,10 @@ export const ROUTES = {
 // ==========================================
 
 export const API_ENDPOINTS = {
+  PLATFORM_SUMMARY: '/platform/summary',
+  PLATFORM_TENANTS: '/platform/tenants',
+  PLATFORM_TENANT: (tenantId: string) => `/platform/tenants/${tenantId}`,
+  PLATFORM_SECTION_CATALOG: '/platform/section-catalog',
   SPECIALTY_CATALOG: '/specialties',
   CLINIC_ONBOARDING: '/onboarding/tenants',
   // Auth (public, no tenantId)
@@ -166,6 +170,12 @@ export const STORAGE_KEYS = {
 // ==========================================
 
 export const QUERY_KEYS = {
+  // Platform panel
+  PLATFORM_SUMMARY: ['platform', 'summary'],
+  PLATFORM_TENANTS: ['platform', 'tenants'],
+  PLATFORM_TENANT: (id: string) => ['platform', 'tenants', id],
+  PLATFORM_SECTION_CATALOG: ['platform', 'section-catalog'],
+  PLATFORM_PAYMENTS: ['platform', 'payments'],
   SPECIALTY_CATALOG: ['specialties', 'catalog'],
   // Auth
   ME: ['me'],
