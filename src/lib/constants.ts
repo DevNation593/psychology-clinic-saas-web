@@ -69,6 +69,7 @@ export const API_ENDPOINTS = {
   PLATFORM_TENANTS: '/platform/tenants',
   PLATFORM_TENANT: (tenantId: string) => `/platform/tenants/${tenantId}`,
   PLATFORM_SECTION_CATALOG: '/platform/section-catalog',
+  PLATFORM_PAYMENTS: '/platform/subscription-payments',
   SPECIALTY_CATALOG: '/specialties',
   CLINIC_ONBOARDING: '/onboarding/tenants',
   // Auth (public, no tenantId)

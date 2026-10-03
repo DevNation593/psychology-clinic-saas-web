@@ -952,6 +952,11 @@ export interface SubscriptionPayment {
   createdAt: string;
 }
 
+/** A payment as the platform panel lists it, with the clinic that owes it. */
+export type PlatformPayment = SubscriptionPayment & {
+  tenant: { id: string; name: string; email: string };
+};
+
 export interface UpgradeRequest {
   newPlan: ApiPlanType;
 }

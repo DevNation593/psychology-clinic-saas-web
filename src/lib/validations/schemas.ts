@@ -160,6 +160,10 @@ export const changePlatformPlanSchema = z.object({
 
 export const suspendReasonSchema = z.string().trim().min(1, 'Indica el motivo de la suspensión');
 
+/** Platform panel: payment confirmation reference and rejection reason (same limits as the API). */
+export const paymentReferenceSchema = z.string().trim().min(1, 'Indica la referencia del pago').max(120, 'La referencia admite hasta 120 caracteres');
+export const paymentRejectReasonSchema = z.string().trim().min(1, 'Indica el motivo del rechazo').max(500, 'El motivo admite hasta 500 caracteres');
+
 /** Platform panel: temporary password reset. Never trimmed. */
 export const temporaryPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
 

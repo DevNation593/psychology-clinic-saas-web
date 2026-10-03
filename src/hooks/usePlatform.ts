@@ -7,9 +7,11 @@ import type {
   ApiError,
   ChangePlatformPlanInput,
   CreatePlatformTenantInput,
+  PlatformPayment,
   PlatformTenantDetail,
   PlatformTenantListParams,
   SectionKey,
+  SubscriptionPayment,
   UpdatePlatformTenantInput,
 } from '@/types';
 
@@ -117,5 +119,38 @@ export function useResetMasterPassword(id: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_TENANT(id) });
     },
+  });
+}
+
+export function usePlatformPayments(status: SubscriptionPayment['status'] | '') {
+  return useQuery<PlatformPayment[], ApiError>({
+    queryKey: [...QUERY_KEYS.PLATFORM_PAYMENTS, status],
+    queryFn: () => platformApi.listPayments(status || undefined),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** A resolved payment changes the payment lists and the summary counters. */
+function useInvalidatePayments() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_PAYMENTS });
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_SUMMARY });
+  };
+}
+
+export function useConfirmPayment() {
+  const invalidate = useInvalidatePayments();
+  return useMutation<void, ApiError, { id: string; reference: string; note?: string }>({
+    mutationFn: ({ id, ...input }) => platformApi.confirmPayment(id, input),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRejectPayment() {
+  const invalidate = useInvalidatePayments();
+  return useMutation<void, ApiError, { id: string; reason: string }>({
+    mutationFn: ({ id, reason }) => platformApi.rejectPayment(id, reason),
+    onSuccess: invalidate,
   });
 }

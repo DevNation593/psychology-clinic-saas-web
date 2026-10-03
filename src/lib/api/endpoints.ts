@@ -51,6 +51,7 @@ import {
   Invoice,
   SpecialtyRecord,
   UpdateSelfProfileInput,
+  PlatformPayment,
   PlatformSummary,
   PlatformTenantList,
   PlatformTenantListParams,
@@ -429,6 +430,12 @@ export const platformApi = {
     apiClient.put<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/sections`, { sections }),
   resetMasterPassword: (id: string, temporaryPassword: string) =>
     apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/master/reset-password`, { temporaryPassword }),
+  listPayments: (status?: SubscriptionPayment['status']) =>
+    apiClient.get<PlatformPayment[]>(API_ENDPOINTS.PLATFORM_PAYMENTS, { params: status ? { status } : undefined }),
+  confirmPayment: (id: string, input: { reference: string; note?: string }) =>
+    apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_PAYMENTS}/${id}/confirm`, input),
+  rejectPayment: (id: string, reason: string) =>
+    apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_PAYMENTS}/${id}/reject`, { reason }),
 };
 
 export const tenantModulesApi = {
