@@ -66,6 +66,7 @@ function useInvalidateTenant(id: string) {
     void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_TENANT(id) });
     void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_TENANTS });
     void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_SUMMARY });
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_TENANTS });
   };
 }
 
@@ -130,12 +131,16 @@ export function usePlatformPayments(status: SubscriptionPayment['status'] | '') 
   });
 }
 
-/** A resolved payment changes the payment lists and the summary counters. */
+/**
+ * A resolved payment changes the payment lists and the summary counters, and a confirmed upgrade
+ * can change a clinic's plan, so the clinic list and every clinic detail (prefix match) refresh too.
+ */
 function useInvalidatePayments() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_PAYMENTS });
     void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_SUMMARY });
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLATFORM_TENANTS });
   };
 }
 
