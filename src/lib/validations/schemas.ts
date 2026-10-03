@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { normalizeTaxId, patientBillingErrors, type TaxIdType } from '@/features/billing/billing-customer';
-import { UserRole, Gender, TaskStatus, TaskPriority, AppointmentStatus } from '@/types';
+import { UserRole, Gender, TaskStatus, TaskPriority, AppointmentStatus, TenantType, type CreatePlatformTenantInput } from '@/types';
 import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
 
 // ==========================================
@@ -114,6 +114,29 @@ export const clinicOnboardingSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminProvidesCare'], message: 'Los datos clínicos requieren atención a pacientes' });
   }
 });
+
+const sectionKeys = [
+  'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+  'core.specialties', 'core.billing', 'core.team', 'core.storage',
+] as const;
+
+/** Platform panel: a clinic together with its account holder. The password is never trimmed. */
+export const createPlatformTenantSchema: z.ZodType<CreatePlatformTenantInput> = z.object({
+  name: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
+  email: onboardingEmail,
+  phone: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  tenantType: z.nativeEnum(TenantType),
+  timezone: z.string().trim().min(1, 'Selecciona una zona horaria'),
+  locale: z.string().trim().min(1, 'Selecciona un idioma'),
+  masterFirstName: z.string().trim().min(1, 'Ingresa el nombre'),
+  masterLastName: z.string().trim().min(1, 'Ingresa el apellido'),
+  masterEmail: onboardingEmail,
+  temporaryPassword: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
+  planType: z.enum(['TRIAL', 'PERSONAL_BASIC', 'PERSONAL_PRO', 'CLINIC_BASIC', 'CLINIC_PRO', 'CLINIC_ENTERPRISE']),
+  specialtyCodes: z.array(specialtyCode).min(1, 'Selecciona al menos una especialidad'),
+  sections: z.array(z.enum(sectionKeys)).optional(),
+}).strict();
 
 export type ClinicOnboardingFormData = z.infer<typeof clinicOnboardingSchema>;
 

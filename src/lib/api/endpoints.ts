@@ -56,6 +56,7 @@ import {
   PlatformTenantListParams,
   PlatformTenantDetail,
   SectionCatalog,
+  CreatePlatformTenantInput,
 } from '@/types';
 
 // ==========================================
@@ -411,6 +412,8 @@ export const platformApi = {
     apiClient.get<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANT(id)),
   getSectionCatalog: () =>
     apiClient.get<SectionCatalog>(API_ENDPOINTS.PLATFORM_SECTION_CATALOG),
+  createTenant: (input: CreatePlatformTenantInput) =>
+    apiClient.post<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANTS, input),
 };
 
 export const tenantModulesApi = {
