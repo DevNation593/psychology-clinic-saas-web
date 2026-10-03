@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useLogout } from '@/hooks/useAuth';
 import { getInitials } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { isPlatformAdmin } from '@/types/guards';
 
 export function Header() {
   const user = useAuthStore((state) => state.user);
@@ -16,6 +17,8 @@ export function Header() {
   const router = useRouter();
 
   if (!user) return null;
+  // The platform panel has no notifications panel and no /profile page.
+  const showClinicControls = !isPlatformAdmin(user);
 
   return (
     <header className="min-h-16 border-b bg-card flex items-center justify-between gap-3 px-3 sm:px-6 py-3">
@@ -34,21 +37,26 @@ export function Header() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleNotificationsPanel}
-          className="relative"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-        </Button>
+        {showClinicControls && (
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleNotificationsPanel}
+              className="relative"
+              aria-label="Notificaciones"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+            </Button>
 
-        <Button variant="ghost" size="icon" onClick={() => router.push('/profile')}>
-          <User className="h-5 w-5" />
-        </Button>
+            <Button variant="ghost" size="icon" onClick={() => router.push('/profile')} aria-label="Perfil">
+              <User className="h-5 w-5" />
+            </Button>
+          </>
+        )}
 
-        <Button variant="ghost" size="icon" onClick={() => logout()}>
+        <Button variant="ghost" size="icon" onClick={() => logout()} aria-label="Cerrar sesión">
           <LogOut className="h-5 w-5" />
         </Button>
 
