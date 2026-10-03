@@ -7,13 +7,14 @@ interface TemporaryPasswordNoticeProps {
   email: string;
   password: string;
   onDone: () => void;
+  title?: string;
 }
 
-export function TemporaryPasswordNotice({ email, password, onDone }: TemporaryPasswordNoticeProps) {
+export function TemporaryPasswordNotice({ email, password, onDone, title = 'Consultorio creado' }: TemporaryPasswordNoticeProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Consultorio creado</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p>Entrega estas credenciales al titular. La contraseña no se volverá a mostrar.</p>

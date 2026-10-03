@@ -56,7 +56,10 @@ import {
   PlatformTenantListParams,
   PlatformTenantDetail,
   SectionCatalog,
+  SectionKey,
   CreatePlatformTenantInput,
+  UpdatePlatformTenantInput,
+  ChangePlatformPlanInput,
 } from '@/types';
 
 // ==========================================
@@ -414,6 +417,18 @@ export const platformApi = {
     apiClient.get<SectionCatalog>(API_ENDPOINTS.PLATFORM_SECTION_CATALOG),
   createTenant: (input: CreatePlatformTenantInput) =>
     apiClient.post<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANTS, input),
+  updateTenant: (id: string, input: UpdatePlatformTenantInput) =>
+    apiClient.patch<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANT(id), input),
+  changePlan: (id: string, input: ChangePlatformPlanInput) =>
+    apiClient.patch<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/subscription`, input),
+  suspendTenant: (id: string, reason: string) =>
+    apiClient.post<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/suspend`, { reason }),
+  reactivateTenant: (id: string) =>
+    apiClient.post<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/reactivate`),
+  setSections: (id: string, sections: SectionKey[]) =>
+    apiClient.put<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/sections`, { sections }),
+  resetMasterPassword: (id: string, temporaryPassword: string) =>
+    apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/master/reset-password`, { temporaryPassword }),
 };
 
 export const tenantModulesApi = {

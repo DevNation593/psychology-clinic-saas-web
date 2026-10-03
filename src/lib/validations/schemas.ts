@@ -138,6 +138,31 @@ export const createPlatformTenantSchema: z.ZodType<CreatePlatformTenantInput> = 
   sections: z.array(z.enum(sectionKeys)).optional(),
 }).strict();
 
+const planTypes = ['TRIAL', 'PERSONAL_BASIC', 'PERSONAL_PRO', 'CLINIC_BASIC', 'CLINIC_PRO', 'CLINIC_ENTERPRISE'] as const;
+
+/** Platform panel: the account data of an existing clinic. Blank phone and address clear the value. */
+export const updatePlatformTenantSchema = z.object({
+  name: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
+  email: onboardingEmail,
+  phone: z.string().trim(),
+  address: z.string().trim(),
+}).strict();
+
+const optionalLimit = (message: string) => z.number({ invalid_type_error: message }).int(message).min(1, message).optional();
+
+/** Platform panel: plan change. The limits are optional overrides of the plan's own. */
+export const changePlatformPlanSchema = z.object({
+  planType: z.enum(planTypes),
+  seatsPsychologistsMax: optionalLimit('Ingresa un número entero mayor que cero'),
+  maxActivePatients: optionalLimit('Ingresa un número entero mayor que cero'),
+  reason: z.string().trim().min(1, 'Indica el motivo del cambio'),
+}).strict();
+
+export const suspendReasonSchema = z.string().trim().min(1, 'Indica el motivo de la suspensión');
+
+/** Platform panel: temporary password reset. Never trimmed. */
+export const temporaryPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
+
 export type ClinicOnboardingFormData = z.infer<typeof clinicOnboardingSchema>;
 
 const teamProfileSchema = z.object({

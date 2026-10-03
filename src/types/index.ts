@@ -1154,6 +1154,20 @@ export interface PlatformTenantListParams {
   pageSize?: number;
 }
 
+export interface UpdatePlatformTenantInput {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface ChangePlatformPlanInput {
+  planType: ApiPlanType;
+  seatsPsychologistsMax?: number;
+  maxActivePatients?: number;
+  reason: string;
+}
+
 export interface PlatformTenantDetail {
   tenant: {
     id: string;
