@@ -120,6 +120,30 @@ describe('CreateTenantForm', () => {
     expect(checked('Tareas')).toBe(false);
   });
 
+  it('does not ask to replace the selection when the plan defaults hold the same keys in another order', async () => {
+    vi.mocked(platformApi.getSectionCatalog).mockResolvedValue({
+      ...catalog,
+      defaults: [
+        ...catalog.defaults,
+        {
+          planType: 'CLINIC_ENTERPRISE',
+          tenantType: TenantType.CLINIC,
+          sections: ['core.billing', 'core.tasks', 'core.patients', 'core.calendar'],
+        },
+      ],
+    });
+    renderForm();
+    await ready();
+    type('Plan', 'CLINIC_PRO');
+    await waitFor(() => expect(checked('Facturación')).toBe(true));
+    // Toggle by hand: the selection is now "edited" but holds the same keys.
+    fireEvent.click(screen.getByLabelText('Facturación'));
+    fireEvent.click(screen.getByLabelText('Facturación'));
+    type('Plan', 'CLINIC_ENTERPRISE');
+    expect(screen.queryByRole('button', { name: 'Reemplazar selección' })).not.toBeInTheDocument();
+    expect(checked('Facturación')).toBe(true);
+  });
+
   it('requires at least one specialty and an 8 character password', async () => {
     renderForm();
     await ready();
@@ -203,6 +227,8 @@ describe('CreateTenantForm', () => {
     expect((screen.getByLabelText('Correo del titular') as HTMLInputElement).value).toBe('rosa@sol.com');
     expect((screen.getByLabelText('Contraseña temporal') as HTMLInputElement).value).toBe('Temporal-123');
     expect(checked('Psicología')).toBe(true);
+    await waitFor(() => expect(client.getMutationCache().getAll()).toHaveLength(0));
+    expect(JSON.stringify(client.getMutationCache().getAll().map((m) => m.state.variables))).not.toContain('Temporal-123');
     expect(push).not.toHaveBeenCalled();
   });
 });

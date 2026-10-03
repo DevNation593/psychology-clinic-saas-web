@@ -46,6 +46,8 @@ const DEFAULT_VALUES: CreatePlatformTenantInput = {
   sections: [],
 };
 
+const sameKeys = (a: SectionKey[], b: SectionKey[]) => a.length === b.length && a.every((key) => b.includes(key));
+
 type FieldName = Exclude<keyof CreatePlatformTenantInput, 'specialtyCodes' | 'sections'>;
 
 /** The temporary password lives only here, in component state, until the admin leaves the notice. */
@@ -98,7 +100,7 @@ export function CreateTenantForm() {
     setValue('planType', plan);
     const defaults = defaultsFor(type, plan);
     if (!sectionsEdited.current) applySections(defaults);
-    else if (defaults.join() !== sections.join()) setPendingDefaults(defaults);
+    else if (!sameKeys(defaults, sections)) setPendingDefaults(defaults);
   }
 
   function changeType(type: TenantType) {
@@ -127,6 +129,7 @@ export function CreateTenantForm() {
       reset({ ...DEFAULT_VALUES, sections: defaultsFor(DEFAULT_VALUES.tenantType, DEFAULT_VALUES.planType) });
     } catch (error) {
       const message = (error as { message?: unknown } | null)?.message;
+      createTenant.reset(); // a failed mutation would keep the password in its variables
       setSubmitError(typeof message === 'string' && message ? message : 'No se pudo crear el consultorio');
     }
   });
