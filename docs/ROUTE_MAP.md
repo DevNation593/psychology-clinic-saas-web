@@ -24,12 +24,14 @@
 │  └─ Password reset with token                                │
 │                                                               │
 │  /onboarding                                                  │
-│  └─ Multi-step wizard for clinic setup                      │
-│     Steps:                                                   │
-│     1. Tenant info (clinic name, contact)                    │
-│     2. Admin profile (name, email, password)                 │
-│     3. Invite team (optional)                                │
-│     4. Completion                                            │
+│  └─ Redirects to /contacto (public sign-up is closed;         │
+│     clinics are created by the platform ADMIN in /platform)  │
+│                                                               │
+│  /change-password                                             │
+│  └─ Forced password change (users with mustChangePassword)   │
+│     Any signed-in user; leaves for their home route after    │
+│     the change                                                │
+│                                                               │
 │                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -141,6 +143,21 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Platform Routes (solo ADMIN)
+
+Layout `(platform)`: the platform administrator's panel. After login the `ADMIN`
+lands on `/platform`; any other role is sent back to its own home route.
+
+```
+/platform                       Resumen de la plataforma
+/platform/tenants               Lista de consultorios
+/platform/tenants/new           Alta de un consultorio y de su MASTER
+/platform/tenants/[tenantId]    Detalle: datos, plan, secciones, suspensión, contraseña
+/platform/payments              Pagos de suscripción (confirmar o rechazar)
+```
+
+Clinics are created only from `/platform/tenants/new`; there is no public sign-up.
+
 ### Profile Routes (TODO)
 
 ```
@@ -235,22 +252,18 @@ export default function PatientDetailPage({ params }: Props) {
 
 ## Navigation Flow
 
-### New User Journey
+### New Clinic Journey
 
 ```
-1. Visit site
+1. Visitor opens the public site
    │
-2. Redirect to /login (no auth)
+2. /contacto → "Solicitar demo"
    │
-3. Click "Crear clínica"
+3. The platform ADMIN creates the clinic in /platform/tenants/new
    │
-4. /onboarding
-   ├─ Step 1: Clinic info
-   ├─ Step 2: Admin profile
-   ├─ Step 3: Invite team (optional)
-   └─ Step 4: Complete
+4. The clinic MASTER logs in with the temporary password
    │
-5. Auto-login after onboarding
+5. /change-password (forced)
    │
 6. Redirect to /dashboard
 ```
@@ -362,6 +375,6 @@ estén vacíos. Las páginas legales llevan aviso de borrador y `noindex` hasta 
 ---
 
 **Total Routes**: 12+ implemented, 8+ planned  
-**Protected Routes**: All except /login, /onboarding  
+**Protected Routes**: All except /login and the public site (/onboarding redirects to /contacto)  
 **RBAC Routes**: 3 (admin area)  
 **Dynamic Routes**: 1 (`/patients/[id]`)

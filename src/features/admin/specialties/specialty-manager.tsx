@@ -14,7 +14,7 @@ import {
 } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
 import { isMasterRole } from '@/types/guards';
-import { UserRole, type SpecialtyPricingSummary } from '@/types';
+import type { SpecialtyPricingSummary } from '@/types';
 import { describeModule } from './module-labels';
 
 interface SpecialtyDraft {
@@ -60,7 +60,7 @@ export function SpecialtyManager() {
   const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
   const tenant = useAuthStore((state) => state.tenant);
   const user = useAuthStore((state) => state.user);
-  const canConfigure = !!user && (isMasterRole(user.role) || user.role === UserRole.SOPORTE);
+  const canConfigure = !!user && (isMasterRole(user.role));
   const catalogQuery = useSpecialtyCatalog();
   const tenantSpecialtiesQuery = useTenantSpecialties();
   const tenantModulesQuery = useTenantModules();

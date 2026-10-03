@@ -14,6 +14,12 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+const sections = vi.hoisted(() => ({ rows: [] as { moduleKey: string; enabled: boolean }[] }));
+vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useSpecialties')>()),
+  useTenantModules: () => ({ data: sections.rows, isPending: false, isError: false, refetch: vi.fn() }),
+}));
+
 const professional = {
   id: 'user-1',
   email: 'pro@example.com',
@@ -33,6 +39,7 @@ function renderPage(Page: () => JSX.Element | null) {
 }
 
 beforeEach(() => {
+  sections.rows = [];
   useAuthStore.setState({
     user: professional,
     tenant: { id: 'tenant-a', name: 'tenant-a', tenantType: TenantType.CLINIC } as Tenant,
@@ -54,5 +61,19 @@ describe('administration pages opened by URL', () => {
     useAuthStore.setState({ user: { ...professional, role } });
     renderPage(TeamPage);
     expect(screen.getByText('Acceso restringido')).toBeInTheDocument();
+  });
+});
+
+describe('administration pages with the section off', () => {
+  it.each([
+    ['team', TeamPage, 'core.team'],
+    ['storage', StorageManagementPage, 'core.storage'],
+    ['specialties', SpecialtiesPage, 'core.specialties'],
+  ] as const)('%s tells the account holder the section is not available', (_name, Page, key) => {
+    useAuthStore.setState({ user: { ...professional, role: UserRole.MASTER } });
+    sections.rows = [{ moduleKey: key, enabled: false }];
+    renderPage(Page);
+    expect(screen.getByText('Sección no disponible')).toBeInTheDocument();
+    expect(screen.queryByText('Acceso restringido')).not.toBeInTheDocument();
   });
 });

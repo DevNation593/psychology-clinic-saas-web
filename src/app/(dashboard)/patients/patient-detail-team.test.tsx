@@ -9,7 +9,13 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   removePatient: vi.fn(),
   get: vi.fn(),
+  disabledSections: [] as string[],
 }));
+
+const SECTION_KEYS = [
+  'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+  'core.specialties', 'core.billing', 'core.team', 'core.storage',
+];
 
 const patient = {
   id: 'patient-1',
@@ -80,6 +86,15 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
   useParams: () => ({ id: 'patient-1' }),
 }));
+vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useSpecialties')>()),
+  useTenantModules: () => ({
+    data: SECTION_KEYS.map((moduleKey) => ({ moduleKey, enabled: !mocks.disabledSections.includes(moduleKey) })),
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
 vi.mock('@/hooks/usePatients', () => ({
   usePatient: () => ({ data: patient, isLoading: false }),
   useUpdatePatient: vi.fn(),
@@ -101,8 +116,14 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.disabledSections = [];
   useAuthStore.setState({
-    user: { id: 'admin-1', tenantId: 'tenant-1', role: UserRole.MASTER } as User,
+    user: {
+      id: 'admin-1',
+      tenantId: 'tenant-1',
+      role: UserRole.MASTER,
+      professionalProfile: { isActive: true },
+    } as User,
     tenant: { id: 'tenant-1' } as ReturnType<typeof useAuthStore.getState>['tenant'],
   });
   mocks.get.mockImplementation((url: string) => {
@@ -131,6 +152,23 @@ describe('patient detail invoices tab', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Facturas' }));
       expect(screen.getByTestId('patient-invoices')).toHaveTextContent('patient-1');
     }
+  });
+});
+
+describe('patient detail clinical tabs', () => {
+  it.each([
+    ['a MASTER without a professional profile', UserRole.MASTER, undefined],
+    ['a PROFESIONAL with an inactive profile', UserRole.PROFESIONAL, { isActive: false }],
+    ['an ASISTENTE', UserRole.ASISTENTE, undefined],
+  ])('are hidden from %s', (_label, role, professionalProfile) => {
+    useAuthStore.setState({
+      user: { id: 'user-1', tenantId: 'tenant-1', role, professionalProfile } as User,
+    });
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Historia Clínica' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Especialidades' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Equipo tratante' })).toBeInTheDocument();
   });
 });
 
@@ -171,5 +209,33 @@ describe('patient detail treating-team wiring', () => {
     expect(screen.queryByText(/Legacy Psych/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Dr\. Noa Paz/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Dr\. Luis Claro/)).not.toBeInTheDocument();
+  });
+});
+
+describe('patient detail section gating', () => {
+  it.each([
+    ['Historia Clínica', 'core.clinicalNotes'],
+    ['Especialidades', 'core.specialties'],
+    ['Tareas', 'core.tasks'],
+    ['Facturas', 'core.billing'],
+  ])('hides the %s tab when %s is off', (label, key) => {
+    mocks.disabledSections = [key];
+    renderPage();
+    expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'General' })).toBeInTheDocument();
+  });
+
+  it('hides Citas when core.calendar is off and Plan de Sesión when core.clinicalNotes is off', () => {
+    mocks.disabledSections = ['core.calendar', 'core.clinicalNotes'];
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Citas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Plan de Sesión' })).not.toBeInTheDocument();
+  });
+
+  it('shows the section notice instead of the page when core.patients is off', () => {
+    mocks.disabledSections = ['core.patients'];
+    renderPage();
+    expect(screen.getByText('Sección no disponible')).toBeInTheDocument();
+    expect(screen.queryByText('Información Personal')).not.toBeInTheDocument();
   });
 });

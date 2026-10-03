@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
@@ -28,7 +29,7 @@ interface RescheduleRequest {
   duration: number;
 }
 
-export default function CalendarPage() {
+function CalendarPageContent() {
   const searchParams = useSearchParams();
   const deepLinkedAppointmentId = searchParams.get('appointmentId') ?? '';
   const user = useAuthStore((state) => state.user);
@@ -148,5 +149,13 @@ export default function CalendarPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <SectionGate section="core.calendar">
+      <CalendarPageContent />
+    </SectionGate>
   );
 }

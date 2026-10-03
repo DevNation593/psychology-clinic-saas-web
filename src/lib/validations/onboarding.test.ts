@@ -1,20 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { UserRole } from '@/types';
-import { clinicOnboardingSchema, tenantTeamMemberSchema, tenantTeamMemberUpdateSchema } from './schemas';
-
-const clinic = (overrides: Record<string, unknown> = {}) => ({
-  clinicName: 'Centro Integral',
-  contactEmail: 'contacto@example.com',
-  timezone: 'America/Guayaquil',
-  locale: 'es',
-  specialtyCodes: ['PSYCHOLOGY'],
-  adminFirstName: 'Ana',
-  adminLastName: 'Vega',
-  adminEmail: 'ana@example.com',
-  adminPassword: 'Secret123',
-  adminProvidesCare: false,
-  ...overrides,
-});
+import { tenantTeamMemberSchema, tenantTeamMemberUpdateSchema } from './schemas';
 
 const member = (overrides: Record<string, unknown> = {}) => ({
   email: 'member@example.com',
@@ -23,39 +9,6 @@ const member = (overrides: Record<string, unknown> = {}) => ({
   lastName: 'Paz',
   role: UserRole.ASISTENTE,
   ...overrides,
-});
-
-describe('clinicOnboardingSchema', () => {
-  it('normalizes emails and specialty codes, removing duplicates', () => {
-    const result = clinicOnboardingSchema.parse(clinic({
-      contactEmail: ' Contacto@Example.com ',
-      adminEmail: ' Ana@Example.com ',
-      specialtyCodes: [' psychology ', 'NUTRITION', 'PSYCHOLOGY'],
-    }));
-    expect(result.contactEmail).toBe('contacto@example.com');
-    expect(result.adminEmail).toBe('ana@example.com');
-    expect(result.specialtyCodes).toEqual(['PSYCHOLOGY', 'NUTRITION']);
-  });
-
-  it('requires at least one nonblank specialty after normalization', () => {
-    expect(clinicOnboardingSchema.safeParse(clinic({ specialtyCodes: ['  ', ''] })).success).toBe(false);
-  });
-
-  it('requires the clinical admin specialty to belong to the selection', () => {
-    expect(clinicOnboardingSchema.safeParse(clinic({ adminProvidesCare: true })).success).toBe(false);
-    expect(clinicOnboardingSchema.safeParse(clinic({ adminProvidesCare: true, adminSpecialtyCode: 'NUTRITION' })).success).toBe(false);
-    expect(clinicOnboardingSchema.parse(clinic({ adminProvidesCare: true, adminSpecialtyCode: ' psychology ' })).adminSpecialtyCode).toBe('PSYCHOLOGY');
-  });
-
-  it('allows a nonclinical admin without clinical metadata and rejects contradictory metadata', () => {
-    expect(clinicOnboardingSchema.safeParse(clinic()).success).toBe(true);
-    expect(clinicOnboardingSchema.safeParse(clinic({ adminProfessionalTitle: 'Psicóloga' })).success).toBe(false);
-  });
-
-  it('requires valid emails and the existing minimum password length', () => {
-    expect(clinicOnboardingSchema.safeParse(clinic({ adminEmail: 'invalid' })).success).toBe(false);
-    expect(clinicOnboardingSchema.safeParse(clinic({ adminPassword: 'short' })).success).toBe(false);
-  });
 });
 
 describe('tenantTeamMemberSchema', () => {

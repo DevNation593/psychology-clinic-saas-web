@@ -42,6 +42,18 @@ vi.mock('next/dynamic', () => ({
     );
   },
 }));
+vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useSpecialties')>()),
+  useTenantModules: () => ({
+    data: [
+      'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+      'core.specialties', 'core.billing', 'core.team', 'core.storage',
+    ].map((moduleKey) => ({ moduleKey, enabled: true })),
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
 vi.mock('@/hooks/useAppointments', () => ({
   useAppointments: () => ({ data: mocks.appointments, isLoading: mocks.isLoading }),
   useUpdateAppointment: (id: string) => {

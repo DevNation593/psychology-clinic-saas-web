@@ -12,6 +12,18 @@ vi.mock('@/lib/api/endpoints', () => ({
   billingApi: { listInvoices: api.listInvoices, createInvoice: api.createInvoice },
 }));
 vi.mock('@/hooks/usePatients', () => ({ usePatients: () => patients }));
+vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useSpecialties')>()),
+  useTenantModules: () => ({
+    data: [
+      'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+      'core.specialties', 'core.billing', 'core.team', 'core.storage',
+    ].map((moduleKey) => ({ moduleKey, enabled: true })),
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const patient = (overrides: Partial<Patient>): Patient => ({

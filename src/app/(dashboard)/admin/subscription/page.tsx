@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { subscriptionApi } from '@/lib/api/endpoints';
@@ -14,238 +13,11 @@ import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { RestrictedAccess } from '@/components/layout/restricted-access';
 import { useCanManageAccount } from '@/hooks/useCanManageAccount';
-import {
-  Check,
-  X,
-  Users,
-  HardDrive,
-  Calendar,
-  TrendingUp,
-  CreditCard,
-  Shield,
-  Zap,
-  Crown,
-  AlertTriangle,
-  Clock,
-  BarChart3,
-  FileText,
-  Video,
-  Bell,
-  Globe,
-  Lock,
-} from 'lucide-react';
+import { Check, Users, HardDrive, Shield, Zap, Crown, AlertTriangle, Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { PlanTier, type FeatureFlags } from '@/types';
-import {
-  getStatusDisplayName,
-  getStatusColor,
-  canUpgradeTo,
-  getPlanDisplayName,
-} from '@/types/guards';
-import { useUpgradePlan } from '@/hooks/useSubscription';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-
-// ==========================================
-// Plan definitions for comparison table
-// ==========================================
-
-interface PlanDefinition {
-  planType: PlanTier;
-  name: string;
-  description: string;
-  priceMonthly: string;
-  priceYearly: string;
-  highlighted?: boolean;
-  specialties?: string[];
-  limits: {
-    psychologists: string;
-    patients: string;
-    storage: string;
-  };
-  features: {
-    label: string;
-    icon: React.ReactNode;
-    included: boolean;
-  }[];
-}
-
-const SPECIALTIES_BY_PLAN: Record<string, string[]> = {
-  'individual-BASIC': ['Cualquier especialidad (1 incluida)'],
-  'individual-PROFESSIONAL': ['Cualquier especialidad (2 incluidas)'],
-  'individual-ENTERPRISE': ['Cualquier especialidad (2 incluidas)'],
-  'clinic-BASIC': ['Cualquier especialidad (2 incluidas)'],
-  'clinic-PROFESSIONAL': ['Cualquier especialidad (3 incluidas)'],
-  'clinic-ENTERPRISE': ['Cualquier especialidad (cupo ampliado)'],
-};
-
-// ==========================================
-// Individual Plans (1 psychologist, no team module)
-// ==========================================
-
-const INDIVIDUAL_PLANS: PlanDefinition[] = [
-  {
-    planType: PlanTier.BASIC,
-    name: 'Básico',
-    description: 'Para psicólogos independientes que comienzan su práctica.',
-    priceMonthly: '$29',
-    priceYearly: '$24',
-    limits: {
-      psychologists: '1',
-      patients: '50',
-      storage: '2 GB',
-    },
-    features: [
-      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
-      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: false },
-      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: false },
-      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: false },
-      { label: 'Sincronización calendario', icon: <Calendar className="h-4 w-4" />, included: false },
-      { label: 'Reportes personalizados', icon: <Globe className="h-4 w-4" />, included: false },
-    ],
-  },
-  {
-    planType: PlanTier.PROFESSIONAL,
-    name: 'Profesional',
-    description: 'Para psicólogos que buscan herramientas avanzadas.',
-    priceMonthly: '$49',
-    priceYearly: '$39',
-    highlighted: true,
-    limits: {
-      psychologists: '1',
-      patients: '150',
-      storage: '10 GB',
-    },
-    features: [
-      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
-      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
-      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
-      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
-      { label: 'Sincronización calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Reportes personalizados', icon: <Globe className="h-4 w-4" />, included: true },
-    ],
-  },
-  {
-    planType: PlanTier.ENTERPRISE,
-    name: 'Personalizado',
-    description: 'Para profesionales con necesidades específicas.',
-    priceMonthly: 'Personalizado',
-    priceYearly: 'Personalizado',
-    limits: {
-      psychologists: '1',
-      patients: 'Ilimitados',
-      storage: '50 GB',
-    },
-    features: [
-      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
-      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
-      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
-      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
-      { label: 'Sincronización calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Reportes personalizados', icon: <Globe className="h-4 w-4" />, included: true },
-    ],
-  },
-];
-
-// ==========================================
-// Clinic/Enterprise Plans (multiple psychologists, team module)
-// ==========================================
-
-const CLINIC_PLANS: PlanDefinition[] = [
-  {
-    planType: PlanTier.BASIC,
-    name: 'Básico',
-    description: 'Para clínicas pequeñas que inician con su equipo.',
-    priceMonthly: '$79',
-    priceYearly: '$65',
-    limits: {
-      psychologists: 'Hasta 3',
-      patients: '100',
-      storage: '5 GB',
-    },
-    features: [
-      { label: 'Gestión de equipo', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
-      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: false },
-      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: false },
-      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: false },
-      { label: 'SSO / MFA', icon: <Lock className="h-4 w-4" />, included: false },
-    ],
-  },
-  {
-    planType: PlanTier.PROFESSIONAL,
-    name: 'Profesional',
-    description: 'Para clínicas en crecimiento con equipo de psicólogos.', 
-    priceMonthly: '$149',
-    priceYearly: '$125',
-    highlighted: true,
-    limits: {
-      psychologists: 'Hasta 15',
-      patients: '500',
-      storage: '50 GB',
-    },
-    features: [
-      { label: 'Gestión de equipo', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
-      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
-      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
-      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
-      { label: 'SSO / MFA', icon: <Lock className="h-4 w-4" />, included: false },
-    ],
-  },
-  {
-    planType: PlanTier.ENTERPRISE,
-    name: 'Personalizado',
-    description: 'Para grandes organizaciones con necesidades avanzadas.',
-    priceMonthly: 'Personalizado',
-    priceYearly: 'Personalizado',
-    limits: {
-      psychologists: 'Ilimitados',
-      patients: 'Ilimitados',
-      storage: '500 GB',
-    },
-    features: [
-      { label: 'Gestión de equipo', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Gestión de pacientes', icon: <Users className="h-4 w-4" />, included: true },
-      { label: 'Agenda y calendario', icon: <Calendar className="h-4 w-4" />, included: true },
-      { label: 'Notas clínicas', icon: <FileText className="h-4 w-4" />, included: true },
-      { label: 'Tareas', icon: <BarChart3 className="h-4 w-4" />, included: true },
-      { label: 'Notificaciones push', icon: <Bell className="h-4 w-4" />, included: true },
-      { label: 'Encriptación de notas', icon: <Lock className="h-4 w-4" />, included: true },
-      { label: 'Analíticas avanzadas', icon: <TrendingUp className="h-4 w-4" />, included: true },
-      { label: 'Integraciones de video', icon: <Video className="h-4 w-4" />, included: true },
-      { label: 'SSO / MFA', icon: <Lock className="h-4 w-4" />, included: true },
-    ],
-  },
-];
+import { getStatusDisplayName, getStatusColor, getPlanDisplayName } from '@/types/guards';
+import { PlanCatalogSection } from '@/features/subscription/plan-catalog-section';
 
 // ==========================================
 // Subcomponents
@@ -310,124 +82,6 @@ function UsageGauge({
   );
 }
 
-function PlanCard({
-  plan,
-  currentPlanType,
-  isAnnual,
-  onSelect,
-  isLoading,
-  category,
-}: {
-  plan: PlanDefinition;
-  currentPlanType: PlanTier;
-  isAnnual: boolean;
-  onSelect: (planType: PlanTier) => void;
-  isLoading: boolean;
-  category: 'individual' | 'clinic';
-}) {
-  const isCurrent = plan.planType === currentPlanType;
-  const isUpgrade = canUpgradeTo(currentPlanType, plan.planType);
-  const price = isAnnual ? plan.priceYearly : plan.priceMonthly;
-  const specialties = plan.specialties || SPECIALTIES_BY_PLAN[`${category}-${plan.planType}`] || [];
-
-  return (
-    <Card
-      className={`relative flex flex-col ${
-        plan.highlighted
-          ? 'border-primary shadow-lg ring-2 ring-primary/20'
-          : ''
-      } ${isCurrent ? 'bg-primary/5' : ''}`}
-    >
-      {plan.highlighted && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-          <Badge variant="default" className="gap-1">
-            <Zap className="h-3 w-3" />
-            Más Popular
-          </Badge>
-        </div>
-      )}
-      {isCurrent && (
-        <div className="absolute -top-3 right-4">
-          <Badge variant="success" className="gap-1">
-            <Check className="h-3 w-3" />
-            Plan Actual
-          </Badge>
-        </div>
-      )}
-
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-          {plan.planType === PlanTier.BASIC && <Shield className="h-6 w-6 text-primary" />}
-          {plan.planType === PlanTier.PROFESSIONAL && <Zap className="h-6 w-6 text-primary" />}
-          {plan.planType === PlanTier.ENTERPRISE && <Crown className="h-6 w-6 text-primary" />}
-        </div>
-        <CardTitle className="text-xl">{plan.name}</CardTitle>
-        <CardDescription>{plan.description}</CardDescription>
-        <div className="mt-4">
-          <span className="text-3xl font-bold">{price}</span>
-          {price !== 'Personalizado' && (
-            <span className="text-muted-foreground text-sm"> USD/mes</span>
-          )}
-        </div>
-        <div className="mt-3 text-left rounded-md bg-muted/50 p-3">
-          <p className="text-xs font-semibold text-muted-foreground">ESPECIALIDADES INCLUIDAS</p>
-          <p className="text-sm mt-1">{specialties.join(', ')}</p>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex-1 flex flex-col">
-        {/* Limits */}
-        <div className="space-y-2 mb-4 pb-4 border-b">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Psicólogos</span>
-            <span className="font-semibold">{plan.limits.psychologists}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Pacientes</span>
-            <span className="font-semibold">{plan.limits.patients}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Almacenamiento</span>
-            <span className="font-semibold">{plan.limits.storage}</span>
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="mt-4">
-          {isCurrent ? (
-            <Button variant="outline" className="w-full" disabled>
-              Plan Actual
-            </Button>
-          ) : plan.planType === PlanTier.ENTERPRISE ? (
-            <Button variant="outline" className="w-full gap-2">
-              <CreditCard className="h-4 w-4" />
-              Contactar Ventas
-            </Button>
-          ) : isUpgrade ? (
-            <Button
-              className="w-full gap-2"
-              onClick={() => onSelect(plan.planType)}
-              disabled={isLoading}
-            >
-              <TrendingUp className="h-4 w-4" />
-              Actualizar Plan
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => onSelect(plan.planType)}
-              disabled={isLoading}
-            >
-              Cambiar Plan
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function SubscriptionStatusBar({
   status,
   trialEndsAt,
@@ -470,7 +124,7 @@ function SubscriptionStatusBar({
       <Alert
         variant="destructive"
         title="Pago pendiente"
-        description="No pudimos procesar tu último pago. Actualiza tu método de pago para evitar la suspensión de tu cuenta."
+        description="Tu período terminó sin un pago confirmado. La cuenta está en modo de solo lectura; registra tu pago con soporte para evitar la suspensión."
       />
     );
   }
@@ -480,7 +134,7 @@ function SubscriptionStatusBar({
       <Alert
         variant="destructive"
         title="Cuenta suspendida"
-        description="Tu cuenta está suspendida por falta de pago. Actualiza tu método de pago para restaurar el acceso completo."
+        description="Tu cuenta está suspendida por falta de pago. Registra tu pago con soporte o solicita un plan para restaurar el acceso."
       />
     );
   }
@@ -495,10 +149,6 @@ function SubscriptionStatusBar({
 function SubscriptionPageContent() {
   const router = useRouter();
   const tenant = useAuthStore((state) => state.tenant);
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
-  const [planCategory, setPlanCategory] = useState<'individual' | 'clinic'>('individual');
-  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PlanTier | null>(null);
 
   const { data: usageData, isLoading: usageLoading } = useQuery({
     queryKey: QUERY_KEYS.SUBSCRIPTION_USAGE,
@@ -507,8 +157,6 @@ function SubscriptionPageContent() {
       return response;
     },
   });
-
-  const upgradeMutation = useUpgradePlan();
 
   // Guard: no tenant at all — still loading from persist
   if (!tenant) {
@@ -532,25 +180,6 @@ function SubscriptionPageContent() {
   const currentPlan = subscription?.plan ?? null;
   const currentPlanType = currentPlan?.planType ?? PlanTier.TRIAL;
   const hasSubscriptionData = !!subscription && !!currentPlan;
-
-  const handleSelectPlan = (planType: PlanTier) => {
-    setSelectedPlan(planType);
-    setUpgradeDialogOpen(true);
-  };
-
-  const handleConfirmUpgrade = async () => {
-    if (!selectedPlan) return;
-    try {
-      await upgradeMutation.mutateAsync({
-        targetTier: selectedPlan === PlanTier.PROFESSIONAL ? 'PRO' : 'CUSTOM',
-        billingInterval: billingInterval === 'annual' ? 'ANNUAL' : 'MONTHLY',
-      });
-      setUpgradeDialogOpen(false);
-      setSelectedPlan(null);
-    } catch {
-      // Error handled by mutation
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -688,113 +317,7 @@ function SubscriptionPageContent() {
         )}
       </div>
 
-      {/* Plan Comparison */}
-      <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-semibold">Planes Disponibles</h2>
-            <p className="text-muted-foreground text-sm mt-1">
-              Compara los planes y elige el que mejor se adapte a tus necesidades
-            </p>
-          </div>
-          <div className="flex items-center bg-muted rounded-lg p-1">
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                billingInterval === 'monthly'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setBillingInterval('monthly')}
-            >
-              Mensual
-            </button>
-            <button
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
-                billingInterval === 'annual'
-                  ? 'bg-background shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-              onClick={() => setBillingInterval('annual')}
-            >
-              Anual
-              <Badge variant="success" className="ml-2 text-[10px]">
-                -20%
-              </Badge>
-            </button>
-          </div>
-        </div>
-
-        {/* Category Tabs */}
-        <div className="flex items-center gap-2 mb-6">
-          <button
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
-              planCategory === 'individual'
-                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
-            }`}
-            onClick={() => setPlanCategory('individual')}
-          >
-            <Shield className="h-4 w-4" />
-            Individual
-          </button>
-          <button
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors border ${
-              planCategory === 'clinic'
-                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
-            }`}
-            onClick={() => setPlanCategory('clinic')}
-          >
-            <Crown className="h-4 w-4" />
-            Empresarial
-          </button>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-4">
-          {(planCategory === 'individual' ? INDIVIDUAL_PLANS : CLINIC_PLANS).map((plan) => (
-            <PlanCard
-              key={`${planCategory}-${plan.planType}`}
-              plan={plan}
-              currentPlanType={currentPlanType}
-              isAnnual={billingInterval === 'annual'}
-              onSelect={handleSelectPlan}
-              isLoading={upgradeMutation.isPending}
-              category={planCategory}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Upgrade Confirmation Dialog */}
-      <AlertDialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar cambio de plan</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>
-                  Estás a punto de cambiar al plan{' '}
-                  <strong>{selectedPlan ? getPlanDisplayName(selectedPlan) : ''}</strong>
-                  {billingInterval === 'annual' ? ' (facturación anual)' : ' (facturación mensual)'}.
-                </p>
-                <p>
-                  El cargo se prorrateará sobre tu periodo actual y el nuevo precio
-                  se aplicará en tu próxima factura.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmUpgrade}
-              disabled={upgradeMutation.isPending}
-            >
-              {upgradeMutation.isPending ? 'Procesando...' : 'Confirmar Cambio'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <PlanCatalogSection />
     </div>
   );
 }

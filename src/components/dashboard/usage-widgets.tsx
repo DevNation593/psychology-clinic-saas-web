@@ -6,6 +6,7 @@ import { UsageCard } from './usage-card';
 import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useSubscription, useUsageMetrics } from '@/hooks/useSubscription';
 import { getRemainingSeats, getRemainingPatients, getRemainingStorageGB, isClinicPlan } from '@/types/guards';
+import { useSections } from '@/hooks/useSections';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/lib/constants';
 
@@ -83,11 +84,12 @@ export function PatientsUsageWidget() {
 
 export function StorageUsageWidget() {
   const router = useRouter();
+  const { isEnabled } = useSections();
   const canManage = useCanManageAccount();
   const { data: subscription } = useSubscription();
   const { data: usage } = useUsageMetrics();
 
-  if (!subscription || !usage) return null;
+  if (!isEnabled('core.storage') || !subscription || !usage) return null;
 
   const usedGB = usage.storage.usedGB;
   const limitGB = subscription.plan.limits.storageGB;
