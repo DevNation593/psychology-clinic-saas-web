@@ -26,8 +26,6 @@ import {
   LoginCredentials,
   AuthResponse,
   PaginatedResponse,
-  OnboardingTenantInput,
-  OnboardingAdminInput,
   UpgradeRequest,
   PlanCatalog,
   SubscriptionPayment,
@@ -46,8 +44,6 @@ import {
   SpecialtyCatalogItem,
   SpecialtySelectionResult,
   TenantModule,
-  ClinicOnboardingResult,
-  CreateClinicOnboardingInput,
   Invoice,
   SpecialtyRecord,
   UpdateSelfProfileInput,
@@ -363,18 +359,6 @@ export const authApi = {
 // ==========================================
 
 export const tenantsApi = {
-  create: (data: OnboardingTenantInput & OnboardingAdminInput) =>
-    apiClient.post<Tenant>(API_ENDPOINTS.TENANT_CREATE, {
-      name: (data as any).clinicName ?? (data as any).name,
-      email: (data as any).contactEmail ?? (data as any).email,
-      phone: (data as any).contactPhone ?? (data as any).phone,
-      address: (data as any).address,
-      adminFirstName: (data as any).firstName,
-      adminLastName: (data as any).lastName,
-      adminEmail: (data as any).email,
-      adminPassword: (data as any).password,
-    }),
-
   get: (tenantId?: string) =>
     apiClient
       .get<Tenant>(API_ENDPOINTS.TENANT(tenantId ?? getTenantId()))
@@ -446,11 +430,6 @@ export const tenantModulesApi = {
       API_ENDPOINTS.TENANT_MODULE(tenantId ?? getTenantId(), moduleKey),
       { enabled },
     ),
-};
-
-export const onboardingApi = {
-  createClinic: (input: CreateClinicOnboardingInput) =>
-    apiClient.post<ClinicOnboardingResult>(API_ENDPOINTS.CLINIC_ONBOARDING, input),
 };
 
 export const specialtiesApi = {

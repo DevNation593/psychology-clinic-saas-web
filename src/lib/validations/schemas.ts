@@ -33,35 +33,6 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
-// ==========================================
-// ONBOARDING SCHEMAS
-// ==========================================
-
-export const onboardingTenantSchema = z.object({
-  clinicName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  contactEmail: z.string().email('Email inválido'),
-  contactPhone: z.string().optional(),
-  timezone: z.string().default('America/Mexico_City'),
-  locale: z.string().default('es'),
-});
-
-export const onboardingAdminSchema = z.object({
-  firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z
-    .string()
-    .min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`)
-    .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
-    .regex(/[a-z]/, 'Debe contener al menos una minúscula')
-    .regex(/[0-9]/, 'Debe contener al menos un número'),
-  confirmPassword: z.string(),
-  professionalTitle: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
-});
-
 const professionalProfileInputSchema = z.object({
   specialtyId: z.string().min(1),
   professionalTitle: z.string().optional(),
@@ -70,50 +41,8 @@ const professionalProfileInputSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export const onboardingInviteSchema = z.object({
-  email: z.string().email('Email inválido'),
-  firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  role: z.nativeEnum(UserRole),
-  specialtyId: z.string().optional(),
-  professionalProfile: professionalProfileInputSchema.optional(),
-});
-
-export type OnboardingTenantFormData = z.infer<typeof onboardingTenantSchema>;
-export type OnboardingAdminFormData = z.infer<typeof onboardingAdminSchema>;
-export type OnboardingInviteFormData = z.infer<typeof onboardingInviteSchema>;
-
 const onboardingEmail = z.string().trim().toLowerCase().email('Email inválido');
 const specialtyCode = z.string().trim().toUpperCase().min(1, 'Selecciona una especialidad');
-
-export const clinicOnboardingSchema = z.object({
-  clinicName: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
-  contactEmail: onboardingEmail,
-  contactPhone: z.string().trim().optional(),
-  address: z.string().trim().optional(),
-  timezone: z.string().trim().min(1, 'Selecciona una zona horaria'),
-  locale: z.string().trim().min(1, 'Selecciona un idioma'),
-  specialtyCodes: z.array(specialtyCode).min(1, 'Selecciona al menos una especialidad')
-    .transform((codes) => [...new Set(codes)]),
-  adminFirstName: z.string().trim().min(1, 'Ingresa el nombre'),
-  adminLastName: z.string().trim().min(1, 'Ingresa el apellido'),
-  adminEmail: onboardingEmail,
-  adminPassword: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
-  adminProvidesCare: z.boolean(),
-  adminSpecialtyCode: specialtyCode.optional(),
-  adminProfessionalTitle: z.string().trim().optional(),
-  adminLicenseNumber: z.string().trim().optional(),
-  adminBio: z.string().trim().optional(),
-}).strict().superRefine((data, context) => {
-  if (data.adminProvidesCare) {
-    if (!data.adminSpecialtyCode || !data.specialtyCodes.includes(data.adminSpecialtyCode)) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminSpecialtyCode'], message: 'Selecciona una especialidad habilitada' });
-    }
-  } else if (data.adminSpecialtyCode !== undefined || data.adminProfessionalTitle !== undefined ||
-    data.adminLicenseNumber !== undefined || data.adminBio !== undefined) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminProvidesCare'], message: 'Los datos clínicos requieren atención a pacientes' });
-  }
-});
 
 const sectionKeys = [
   'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
@@ -166,8 +95,6 @@ export const paymentRejectReasonSchema = z.string().trim().min(1, 'Indica el mot
 
 /** Platform panel: temporary password reset. Never trimmed. */
 export const temporaryPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
-
-export type ClinicOnboardingFormData = z.infer<typeof clinicOnboardingSchema>;
 
 const teamProfileSchema = z.object({
   specialtyId: z.string().trim().min(1, 'Selecciona una especialidad'),

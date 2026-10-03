@@ -1,7 +1,5 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import type {
-  ClinicOnboardingResult,
-  CreateClinicOnboardingInput,
   CreateTenantUserInput,
   SpecialtyCatalogItem,
   SpecialtyPricingSummary,
@@ -12,7 +10,7 @@ import type {
   TenantModuleSelection,
   UpdateTenantUserInput,
 } from './index';
-import type { ClinicOnboardingFormData, TenantTeamMemberFormData } from '@/lib/validations/schemas';
+import type { TenantTeamMemberFormData } from '@/lib/validations/schemas';
 import { tenantSpecialtiesApi, usersApi } from '@/lib/api/endpoints';
 import { UserRole } from './index';
 
@@ -32,7 +30,7 @@ describe('specialty onboarding wire contracts', () => {
     expectTypeOf<Awaited<ReturnType<typeof tenantSpecialtiesApi.list>>>().toEqualTypeOf<TenantSpecialty[]>();
   });
 
-  it('keeps the complete numeric pricing summary and safe onboarding projections', () => {
+  it('keeps the complete numeric pricing summary and the team member form contract', () => {
     expectTypeOf<SpecialtyPricingSummary>().toEqualTypeOf<{
       includedSpecialties: number;
       selectedSpecialties: number;
@@ -44,14 +42,6 @@ describe('specialty onboarding wire contracts', () => {
       totalMonthly: number;
       currency: string;
     }>();
-    expectTypeOf<ClinicOnboardingResult['tenant']>().toHaveProperty('onboardingCompleted');
-    expectTypeOf<ClinicOnboardingResult['admin']['professionalProfile']>().toEqualTypeOf<{
-      isActive: boolean;
-      specialty: { id: string; code: string; name: string };
-    } | null>();
-    expectTypeOf<ClinicOnboardingResult['admin']>().toHaveProperty('email');
-    expectTypeOf<ClinicOnboardingResult['admin']>().not.toHaveProperty('password');
-    expectTypeOf<ClinicOnboardingFormData>().toExtend<CreateClinicOnboardingInput>();
     expectTypeOf<TenantTeamMemberFormData>().toExtend<CreateTenantUserInput>();
   });
 

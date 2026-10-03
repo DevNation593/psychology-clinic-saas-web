@@ -71,7 +71,6 @@ export const API_ENDPOINTS = {
   PLATFORM_SECTION_CATALOG: '/platform/section-catalog',
   PLATFORM_PAYMENTS: '/platform/subscription-payments',
   SPECIALTY_CATALOG: '/specialties',
-  CLINIC_ONBOARDING: '/onboarding/tenants',
   // Auth (public, no tenantId)
   LOGIN: '/auth/login',
   REFRESH: '/auth/refresh',
@@ -82,7 +81,6 @@ export const API_ENDPOINTS = {
   CHANGE_PASSWORD: '/auth/change-password',
 
   // Tenants (partially public)
-  TENANT_CREATE: '/tenants',
   TENANT: (tenantId: string) => `/tenants/${tenantId}`,
   TENANT_UPDATE: (tenantId: string) => `/tenants/${tenantId}`,
   TENANT_COMPLETE_ONBOARDING: (tenantId: string) => `/tenants/${tenantId}/complete-onboarding`,
