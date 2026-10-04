@@ -23,6 +23,11 @@ export function isMasterRole(role: UserRole): boolean {
   return role === UserRole.MASTER;
 }
 
+/** The platform operator: only uses the /platform panel and never belongs to a clinic. */
+export function isPlatformAdmin(user: Pick<User, 'role'>): boolean {
+  return user.role === UserRole.ADMIN;
+}
+
 export function isProfessionalRole(role: UserRole): boolean {
   return role === UserRole.PROFESIONAL;
 }
@@ -43,16 +48,19 @@ export function hasActiveProfessionalProfile(user: User): boolean {
   return user.professionalProfile?.isActive === true;
 }
 
+/** Clinical content needs an active professional profile; the role alone is not enough. */
 export function canAccessClinicalNotes(user: User): boolean {
-  return isMasterRole(user.role) || isProfessionalRole(user.role) || user.role === UserRole.SOPORTE;
+  return (
+    (isMasterRole(user.role) || isProfessionalRole(user.role)) && hasActiveProfessionalProfile(user)
+  );
 }
 
 export function canManageUsers(user: User): boolean {
-  return isMasterRole(user.role) || user.role === UserRole.SOPORTE;
+  return isMasterRole(user.role);
 }
 
 export function canManageSubscription(user: User): boolean {
-  return isMasterRole(user.role) || user.role === UserRole.SOPORTE;
+  return isMasterRole(user.role);
 }
 
 export function canEditAppointment(
@@ -64,7 +72,7 @@ export function canEditAppointment(
 }
 
 export function canDeletePatient(user: User): boolean {
-  return isMasterRole(user.role) || user.role === UserRole.SOPORTE;
+  return isMasterRole(user.role);
 }
 
 export function isActiveAppointment(status: AppointmentStatus): boolean {

@@ -7,12 +7,17 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { NotificationsPanel } from '@/components/layout/notifications-panel';
 import { useUIStore } from '@/store/uiStore';
+import { postLoginRoute } from '@/lib/post-login-route';
+import { ROUTES } from '@/lib/constants';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const user = useAuthStore((state) => state.user);
+  // Anything other than the dashboard means this user does not belong in it.
+  const homeRoute = user ? postLoginRoute(user) : ROUTES.DASHBOARD;
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
 
   useEffect(() => {
@@ -22,13 +27,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!hasHydrated) return;
     if (!isAuthenticated) {
       router.replace('/login');
+      return;
     }
-  }, [isAuthenticated, hasHydrated, router]);
+    if (homeRoute !== ROUTES.DASHBOARD) {
+      router.replace(homeRoute);
+    }
+  }, [isAuthenticated, hasHydrated, homeRoute, router]);
 
   if (!hasHydrated) {
     return null;
   }
-  if (!isAuthenticated) {
+  if (!isAuthenticated || homeRoute !== ROUTES.DASHBOARD) {
     return null;
   }
 

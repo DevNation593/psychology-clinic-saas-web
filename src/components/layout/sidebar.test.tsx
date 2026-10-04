@@ -16,12 +16,21 @@ vi.mock('@/lib/api/endpoints', () => ({
   specialtiesApi: { modules: api.legacyListModules },
 }));
 
-const teamModule: TenantModule = {
-  id: 'team-module-a',
-  tenantId: 'tenant-a',
-  moduleKey: 'core.team',
-  enabled: true,
-};
+const SECTION_KEYS = [
+  'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+  'core.specialties', 'core.billing', 'core.team', 'core.storage',
+] as const;
+
+function sectionRows(disabled: string[] = []): TenantModule[] {
+  return SECTION_KEYS.map((moduleKey) => ({
+    id: `${moduleKey}-a`,
+    tenantId: 'tenant-a',
+    moduleKey,
+    enabled: !disabled.includes(moduleKey),
+  }));
+}
+
+const teamModule = sectionRows()[6];
 
 const admin = {
   id: 'admin-1',
@@ -48,20 +57,20 @@ function renderSidebar() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(tenantModulesApi.list).mockImplementation(async () =>
-    useAuthStore.getState().tenant?.id === 'tenant-a' ? [teamModule] : [],
+    useAuthStore.getState().tenant?.id === 'tenant-a' ? sectionRows() : [],
   );
   api.legacyListModules.mockResolvedValue([teamModule]);
   useAuthStore.setState({ user: admin, tenant: clinicTenant('tenant-a') });
 });
 
 describe('Sidebar clinical modules entry', () => {
-  it.each([UserRole.MASTER, UserRole.SOPORTE])('is shown to %s', async (role) => {
+  it.each([UserRole.MASTER])('is shown to %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Módulos clínicos' })).toHaveAttribute('href', '/admin/specialties');
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])('is hidden from %s', async (role) => {
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN, UserRole.SOPORTE])('is hidden from %s', async (role) => {
     useAuthStore.setState({ user: { ...admin, role } });
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
@@ -126,5 +135,53 @@ describe('Sidebar administration section', () => {
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar section visibility', () => {
+  it.each([
+    ['Calendario', 'core.calendar'],
+    ['Pacientes', 'core.patients'],
+    ['Tareas', 'core.tasks'],
+    ['Módulos clínicos', 'core.specialties'],
+    ['Facturación', 'core.billing'],
+    ['Equipo', 'core.team'],
+    ['Almacenamiento', 'core.storage'],
+  ])('hides %s when %s is off', async (name, key) => {
+    vi.mocked(tenantModulesApi.list).mockResolvedValue(sectionRows([key]));
+    renderSidebar();
+    // Dashboard is always on; Suscripción only shows once the account holder is known, and
+    // Configuración is never gated. Wait for an enabled gated entry so the data has landed.
+    const landed = name === 'Equipo' || name === 'Almacenamiento' ? 'Módulos clínicos' : 'Equipo';
+    expect(await screen.findByRole('link', { name: landed })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Suscripción' })).toBeInTheDocument();
+  });
+
+  it('always shows Dashboard, Suscripción and Configuración to the account holder', async () => {
+    // Only core.team stays on, so its link proves the rows were applied.
+    vi.mocked(tenantModulesApi.list).mockResolvedValue(
+      sectionRows(SECTION_KEYS.filter((key) => key !== 'core.team')),
+    );
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Equipo' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Pacientes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Almacenamiento' })).not.toBeInTheDocument();
+    for (const name of ['Dashboard', 'Suscripción', 'Configuración']) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument();
+    }
+  });
+
+  it('shows Equipo to a personal clinic when core.team is on', async () => {
+    useAuthStore.setState({ tenant: { ...clinicTenant('tenant-a'), tenantType: TenantType.PERSONAL } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Equipo' })).toBeInTheDocument();
+  });
+
+  it('shows no gated entry while the sections are loading', () => {
+    vi.mocked(tenantModulesApi.list).mockImplementation(() => new Promise(() => {}));
+    renderSidebar();
+    expect(screen.queryByRole('link', { name: 'Pacientes' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
   });
 });

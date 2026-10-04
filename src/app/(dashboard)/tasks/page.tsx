@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTasks, useCreateTask, useDeleteTask } from '@/hooks/useTasks';
@@ -65,7 +66,7 @@ type PriorityFilter = 'ALL' | TaskPriority;
 // ==========================================
 // MAIN PAGE
 // ==========================================
-export default function TasksPage() {
+function TasksPageContent() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
@@ -652,5 +653,13 @@ function CreateTaskDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <SectionGate section="core.tasks">
+      <TasksPageContent />
+    </SectionGate>
   );
 }

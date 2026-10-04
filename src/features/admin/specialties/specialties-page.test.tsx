@@ -4,6 +4,18 @@ import SpecialtiesPage from '@/app/(dashboard)/admin/specialties/page';
 import { useAuthStore } from '@/store/authStore';
 import { UserRole, type User } from '@/types';
 
+vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useSpecialties')>()),
+  useTenantModules: () => ({
+    data: [
+      'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+      'core.specialties', 'core.billing', 'core.team', 'core.storage',
+    ].map((moduleKey) => ({ moduleKey, enabled: true })),
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
 vi.mock('./specialty-manager', () => ({
   SpecialtyManager: () => <div data-testid="specialty-manager" />,
 }));
@@ -14,13 +26,13 @@ const signIn = (role: UserRole) =>
 beforeEach(() => useAuthStore.setState({ user: null }));
 
 describe('SpecialtiesPage access', () => {
-  it.each([UserRole.MASTER, UserRole.SOPORTE])('opens for %s', (role) => {
+  it.each([UserRole.MASTER])('opens for %s', (role) => {
     signIn(role);
     render(<SpecialtiesPage />);
     expect(screen.getByTestId('specialty-manager')).toBeInTheDocument();
   });
 
-  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])(
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN, UserRole.SOPORTE])(
     'tells %s the section is restricted instead of showing it',
     (role) => {
       signIn(role);

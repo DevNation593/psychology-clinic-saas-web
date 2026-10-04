@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from './client';
 
 const interceptor = vi.hoisted(() => ({
   onRejected: (error: unknown): Promise<never> => Promise.reject(error),
+  status: 409,
+  url: '/onboarding/tenants',
   responseData: {
     statusCode: 409, message: 'El correo electrónico ya está en uso',
     code: 'EMAIL_CONFLICT', field: 'adminEmail', details: { existing: true },
@@ -17,8 +19,8 @@ vi.mock('axios', () => ({
         response: { use: (_success: unknown, rejected: typeof interceptor.onRejected) => { interceptor.onRejected = rejected; } },
       },
       post: () => interceptor.onRejected({
-        config: { url: '/onboarding/tenants' },
-        response: { status: 409, data: interceptor.responseData },
+        config: { url: interceptor.url },
+        response: { status: interceptor.status, data: interceptor.responseData },
       }),
     }),
   },
@@ -26,6 +28,8 @@ vi.mock('axios', () => ({
 
 describe('ApiClient error normalization', () => {
   beforeEach(() => {
+    interceptor.status = 409;
+    interceptor.url = '/onboarding/tenants';
     interceptor.responseData = {
       statusCode: 409, message: 'El correo electrónico ya está en uso',
       code: 'EMAIL_CONFLICT', field: 'adminEmail', details: { existing: true },
@@ -86,5 +90,52 @@ describe('ApiClient error normalization', () => {
     interceptor.responseData = { statusCode: 403, error: 'Forbidden', message: 'Forbidden resource' };
     const error = await apiClient.post('/tasks', {}).catch((e) => e);
     expect(error).not.toHaveProperty('code');
+  });
+});
+
+describe('ApiClient temporary password redirect', () => {
+  const originalLocation = window.location;
+  const passwordRequired = {
+    statusCode: 403, code: 'PASSWORD_CHANGE_REQUIRED', message: 'Debes cambiar tu contraseña',
+  };
+  const setLocation = (pathname: string) =>
+    Object.defineProperty(window, 'location', { configurable: true, value: { pathname, href: pathname } });
+
+  beforeEach(() => {
+    interceptor.status = 403;
+    interceptor.url = '/tenants/t1/patients';
+    interceptor.responseData = passwordRequired;
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
+  });
+
+  it('redirects to /change-password on a 403 PASSWORD_CHANGE_REQUIRED and still rejects', async () => {
+    setLocation('/dashboard');
+    await expect(apiClient.post('/tenants/t1/patients', {})).rejects.toMatchObject({
+      status: 403, code: 'PASSWORD_CHANGE_REQUIRED',
+    });
+    expect(window.location.href).toBe('/change-password');
+  });
+
+  it('does not redirect when already on /change-password', async () => {
+    setLocation('/change-password');
+    await expect(apiClient.post('/tenants/t1/patients', {})).rejects.toMatchObject({
+      code: 'PASSWORD_CHANGE_REQUIRED',
+    });
+    expect(window.location.href).toBe('/change-password');
+    expect(window.location.pathname).toBe('/change-password');
+  });
+
+  it('does not refresh the token or log out when the current password is wrong', async () => {
+    setLocation('/change-password');
+    interceptor.status = 401;
+    interceptor.url = '/auth/change-password';
+    interceptor.responseData = { statusCode: 401, message: 'La contraseña actual es incorrecta' };
+    await expect(apiClient.post('/auth/change-password', {})).rejects.toMatchObject({
+      status: 401, message: 'La contraseña actual es incorrecta',
+    });
+    expect(window.location.href).toBe('/change-password');
   });
 });

@@ -11,6 +11,7 @@ import {
   canRemovePatientTeamMember,
   hasActiveProfessionalProfile,
   isMasterRole,
+  isPlatformAdmin,
   isProfessionalRole,
 } from './guards';
 
@@ -30,6 +31,10 @@ describe('role families', () => {
 
   it('classifies only PROFESIONAL as professional', () => {
     expect(ALL_ROLES.filter(isProfessionalRole)).toEqual([UserRole.PROFESIONAL]);
+  });
+
+  it('recognises only ADMIN as platform admin', () => {
+    expect(ALL_ROLES.filter((role) => isPlatformAdmin({ role }))).toEqual([UserRole.ADMIN]);
   });
 
   it('labels every role', () => {
@@ -64,13 +69,27 @@ describe('permission matrix', () => {
     ['canManageUsers', canManageUsers],
     ['canManageSubscription', canManageSubscription],
     ['canDeletePatient', canDeletePatient],
-  ] as const)('%s is limited to the account holder and support', (_name, guard) => {
-    expect(allowed(guard)).toEqual([UserRole.MASTER, UserRole.SOPORTE].sort());
+  ] as const)('%s is limited to the account holder', (_name, guard) => {
+    expect(allowed(guard)).toEqual([UserRole.MASTER]);
   });
 
-  it('opens clinical notes to the account holder, professionals and support', () => {
-    expect(allowed(canAccessClinicalNotes)).toEqual(
-      [UserRole.MASTER, UserRole.PROFESIONAL, UserRole.SOPORTE].sort(),
+  it('gives SOPORTE no management permission', () => {
+    const support = userWith(UserRole.SOPORTE);
+    expect(canManageUsers(support)).toBe(false);
+    expect(canManageSubscription(support)).toBe(false);
+    expect(canDeletePatient(support)).toBe(false);
+  });
+
+  it('opens clinical notes only to an account holder or professional with an active profile', () => {
+    const withProfile = (role: UserRole, isActive: boolean) =>
+      ({ id: 'user-1', role, professionalProfile: { isActive } }) as User;
+
+    expect(allowed(canAccessClinicalNotes)).toEqual([]);
+    expect(
+      ALL_ROLES.filter((role) => canAccessClinicalNotes(withProfile(role, true))).sort(),
+    ).toEqual([UserRole.MASTER, UserRole.PROFESIONAL].sort());
+    expect(ALL_ROLES.filter((role) => canAccessClinicalNotes(withProfile(role, false)))).toEqual(
+      [],
     );
   });
 
@@ -95,7 +114,7 @@ describe('permission matrix', () => {
     expect(canEditAppointment(userWith(UserRole.ASISTENTE), other)).toBe(true);
   });
 
-  // ADMIN is reserved for future use: inside a clinic it unlocks nothing.
+  // ADMIN is the platform role: inside a clinic it unlocks nothing.
   it('grants nothing to ADMIN', () => {
     const admin = userWith(UserRole.ADMIN);
     const guards = [

@@ -46,11 +46,22 @@ class ApiClient {
           requestUrl.includes('/auth/login') ||
           requestUrl.includes('/auth/refresh') ||
           requestUrl.includes('/auth/forgot-password') ||
-          requestUrl.includes('/auth/reset-password');
+          requestUrl.includes('/auth/reset-password') ||
+          requestUrl.includes('/auth/change-password');
 
         // Never try token refresh for auth endpoints (login/reset/etc.)
         if (error.response?.status === 401 && isAuthEndpoint) {
           return Promise.reject(this.normalizeError(error));
+        }
+
+        // A temporary password blocks every request but the change itself.
+        if (
+          error.response?.status === 403 &&
+          this.getErrorCode(error) === 'PASSWORD_CHANGE_REQUIRED' &&
+          typeof window !== 'undefined' &&
+          window.location.pathname !== '/change-password'
+        ) {
+          window.location.href = '/change-password';
         }
 
         // Handle 401 Unauthorized for protected endpoints
@@ -116,6 +127,13 @@ class ApiClient {
     const { accessToken, refreshToken: newRefreshToken } = response.data;
     this.setTokens(accessToken, newRefreshToken);
     return accessToken;
+  }
+
+  private getErrorCode(error: AxiosError): string | undefined {
+    const body: unknown = error.response?.data;
+    return body && typeof body === 'object' && 'code' in body && typeof body.code === 'string'
+      ? body.code
+      : undefined;
   }
 
   private normalizeError(error: AxiosError): ApiError {

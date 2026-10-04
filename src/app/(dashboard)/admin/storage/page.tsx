@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SectionGate } from '@/components/layout/section-gate';
 import { RestrictedAccess } from '@/components/layout/restricted-access';
 import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useAuthStore } from '@/store/authStore';
@@ -678,5 +679,9 @@ export default function StorageManagementPage() {
   if (!user) return null;
   // The menu entry is hidden for other roles; this covers direct navigation.
   if (!canManage) return <RestrictedAccess />;
-  return <StorageManagementPageContent />;
+  return (
+    <SectionGate section="core.storage">
+      <StorageManagementPageContent />
+    </SectionGate>
+  );
 }

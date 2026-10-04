@@ -17,6 +17,7 @@ import {
   AppointmentFilters,
   Task,
   ClinicalNote,
+  ClinicalNoteCorrection,
   SessionPlan,
   Notification,
   UsageMetrics,
@@ -25,9 +26,9 @@ import {
   LoginCredentials,
   AuthResponse,
   PaginatedResponse,
-  OnboardingTenantInput,
-  OnboardingAdminInput,
   UpgradeRequest,
+  PlanCatalog,
+  SubscriptionPayment,
   UpgradeResponse,
   DowngradeRequest,
   DowngradeResponse,
@@ -43,11 +44,19 @@ import {
   SpecialtyCatalogItem,
   SpecialtySelectionResult,
   TenantModule,
-  ClinicOnboardingResult,
-  CreateClinicOnboardingInput,
   Invoice,
   SpecialtyRecord,
   UpdateSelfProfileInput,
+  PlatformPayment,
+  PlatformSummary,
+  PlatformTenantList,
+  PlatformTenantListParams,
+  PlatformTenantDetail,
+  SectionCatalog,
+  SectionKey,
+  CreatePlatformTenantInput,
+  UpdatePlatformTenantInput,
+  ChangePlatformPlanInput,
 } from '@/types';
 
 // ==========================================
@@ -189,7 +198,7 @@ function normalizeSubscription(raw: any): Subscription {
     name: planType,
     description: `${planType} plan`,
     basePrice: Math.round(Number(raw.basePrice ?? 0) * 100),
-    currency: 'EUR',
+    currency: typeof raw.currency === 'string' ? raw.currency : 'USD',
     billingInterval: 'MONTHLY',
     limits,
     features,
@@ -201,6 +210,7 @@ function normalizeSubscription(raw: any): Subscription {
     id: raw.id,
     tenantId: raw.tenantId,
     plan,
+    apiPlanType: raw.planType,
     status: mapSubscriptionStatus(raw.status),
     trialEndsAt: raw.trialEndsAt ?? null,
     currentPeriodStart: raw.currentPeriodStart ?? raw.startDate ?? new Date().toISOString(),
@@ -304,6 +314,7 @@ function normalizeTenant(raw: any): Tenant {
 function normalizeUser(raw: any): User {
   return {
     ...raw,
+    mustChangePassword: raw?.mustChangePassword ?? false,
     isActive: raw?.isActive ?? true,
     emailVerified: raw?.emailVerified ?? true,
     managedByProvider: raw?.managedByProvider ?? false,
@@ -338,6 +349,9 @@ export const authApi = {
 
   logoutAll: () =>
     apiClient.post<void>(API_ENDPOINTS.LOGOUT_ALL),
+
+  changePassword: (input: { currentPassword: string; newPassword: string }) =>
+    apiClient.post<void>(API_ENDPOINTS.CHANGE_PASSWORD, input),
 };
 
 // ==========================================
@@ -345,18 +359,6 @@ export const authApi = {
 // ==========================================
 
 export const tenantsApi = {
-  create: (data: OnboardingTenantInput & OnboardingAdminInput) =>
-    apiClient.post<Tenant>(API_ENDPOINTS.TENANT_CREATE, {
-      name: (data as any).clinicName ?? (data as any).name,
-      email: (data as any).contactEmail ?? (data as any).email,
-      phone: (data as any).contactPhone ?? (data as any).phone,
-      address: (data as any).address,
-      adminFirstName: (data as any).firstName,
-      adminLastName: (data as any).lastName,
-      adminEmail: (data as any).email,
-      adminPassword: (data as any).password,
-    }),
-
   get: (tenantId?: string) =>
     apiClient
       .get<Tenant>(API_ENDPOINTS.TENANT(tenantId ?? getTenantId()))
@@ -390,6 +392,36 @@ export const tenantSpecialtiesApi = {
     ),
 };
 
+export const platformApi = {
+  getSummary: () => apiClient.get<PlatformSummary>(API_ENDPOINTS.PLATFORM_SUMMARY),
+  listTenants: (params?: PlatformTenantListParams) =>
+    apiClient.get<PlatformTenantList>(API_ENDPOINTS.PLATFORM_TENANTS, { params }),
+  getTenant: (id: string) =>
+    apiClient.get<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANT(id)),
+  getSectionCatalog: () =>
+    apiClient.get<SectionCatalog>(API_ENDPOINTS.PLATFORM_SECTION_CATALOG),
+  createTenant: (input: CreatePlatformTenantInput) =>
+    apiClient.post<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANTS, input),
+  updateTenant: (id: string, input: UpdatePlatformTenantInput) =>
+    apiClient.patch<PlatformTenantDetail>(API_ENDPOINTS.PLATFORM_TENANT(id), input),
+  changePlan: (id: string, input: ChangePlatformPlanInput) =>
+    apiClient.patch<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/subscription`, input),
+  suspendTenant: (id: string, reason: string) =>
+    apiClient.post<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/suspend`, { reason }),
+  reactivateTenant: (id: string) =>
+    apiClient.post<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/reactivate`),
+  setSections: (id: string, sections: SectionKey[]) =>
+    apiClient.put<PlatformTenantDetail>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/sections`, { sections }),
+  resetMasterPassword: (id: string, temporaryPassword: string) =>
+    apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_TENANT(id)}/master/reset-password`, { temporaryPassword }),
+  listPayments: (status?: SubscriptionPayment['status']) =>
+    apiClient.get<PlatformPayment[]>(API_ENDPOINTS.PLATFORM_PAYMENTS, { params: status ? { status } : undefined }),
+  confirmPayment: (id: string, input: { reference: string; note?: string }) =>
+    apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_PAYMENTS}/${id}/confirm`, input),
+  rejectPayment: (id: string, reason: string) =>
+    apiClient.post<void>(`${API_ENDPOINTS.PLATFORM_PAYMENTS}/${id}/reject`, { reason }),
+};
+
 export const tenantModulesApi = {
   list: (tenantId?: string) =>
     apiClient.get<TenantModule[]>(API_ENDPOINTS.TENANT_MODULES(tenantId ?? getTenantId())),
@@ -398,11 +430,6 @@ export const tenantModulesApi = {
       API_ENDPOINTS.TENANT_MODULE(tenantId ?? getTenantId(), moduleKey),
       { enabled },
     ),
-};
-
-export const onboardingApi = {
-  createClinic: (input: CreateClinicOnboardingInput) =>
-    apiClient.post<ClinicOnboardingResult>(API_ENDPOINTS.CLINIC_ONBOARDING, input),
 };
 
 export const specialtiesApi = {
@@ -706,11 +733,15 @@ export const clinicalNotesApi = {
   create: (data: Partial<ClinicalNote>) =>
     apiClient.post<ClinicalNote>(API_ENDPOINTS.CLINICAL_NOTES(getTenantId()), data),
 
-  update: (noteId: string, data: Partial<ClinicalNote>) =>
+  // A correction needs a reason and cannot move the note to another patient or appointment.
+  update: (noteId: string, data: ClinicalNoteCorrection) =>
     apiClient.patch<ClinicalNote>(API_ENDPOINTS.CLINICAL_NOTE_DETAIL(getTenantId(), noteId), data),
 
-  delete: (noteId: string) =>
-    apiClient.delete<void>(API_ENDPOINTS.CLINICAL_NOTE_DETAIL(getTenantId(), noteId)),
+  // Soft delete: the API keeps the note for audit and requires the reason.
+  delete: (noteId: string, reason: string) =>
+    apiClient.delete<void>(API_ENDPOINTS.CLINICAL_NOTE_DETAIL(getTenantId(), noteId), {
+      data: { reason },
+    }),
 };
 
 // ==========================================
@@ -763,11 +794,23 @@ export const notificationsApi = {
   list: (params?: { unreadOnly?: boolean; page?: number; limit?: number }) =>
     apiClient.get<PaginatedResponse<Notification>>(API_ENDPOINTS.NOTIFICATIONS(getTenantId()), { params }),
 
-  registerFcmToken: (token: string) =>
-    apiClient.post<void>(`${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/fcm-token`, { token }),
+  // Web Push. The FCM token endpoints belong to the mobile app: a browser endpoint is not a token.
+  getWebPushKey: () =>
+    apiClient.get<{ enabled: boolean; publicKey: string | null }>(
+      `${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/web-push/public-key`,
+    ),
 
-  removeFcmToken: () =>
-    apiClient.delete<void>(`${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/fcm-token`),
+  subscribeWebPush: (subscription: PushSubscriptionJSON) =>
+    apiClient.post<void>(
+      `${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/web-push/subscriptions`,
+      { endpoint: subscription.endpoint, keys: subscription.keys },
+    ),
+
+  unsubscribeWebPush: (endpoint: string) =>
+    apiClient.delete<void>(
+      `${API_ENDPOINTS.NOTIFICATIONS(getTenantId())}/web-push/subscriptions`,
+      { data: { endpoint } },
+    ),
 
   markAsRead: (notificationId: string) =>
     apiClient.post<void>(API_ENDPOINTS.NOTIFICATION_READ(getTenantId(), notificationId)),
@@ -869,15 +912,19 @@ export const subscriptionApi = {
       } as UsageMetrics;
     }),
 
-  upgrade: (data: UpgradeRequest) =>
-    apiClient.post<any>(API_ENDPOINTS.SUBSCRIPTION_UPGRADE(getTenantId()), {
-      newPlan: data.targetTier === 'CUSTOM' ? 'CUSTOM' : 'PRO',
-    }) as Promise<UpgradeResponse>,
+  // Plans, prices and limits. Every screen that shows them reads this catalog.
+  getPlans: () => apiClient.get<PlanCatalog>(API_ENDPOINTS.SUBSCRIPTION_PLANS(getTenantId())),
 
+  getPayments: () =>
+    apiClient.get<SubscriptionPayment[]>(API_ENDPOINTS.SUBSCRIPTION_PAYMENTS(getTenantId())),
+
+  // Registers a pending payment; the plan changes when support confirms it.
+  upgrade: (data: UpgradeRequest) =>
+    apiClient.post<UpgradeResponse>(API_ENDPOINTS.SUBSCRIPTION_UPGRADE(getTenantId()), data),
+
+  // Scheduled for the end of the current period.
   downgrade: (data: DowngradeRequest) =>
-    apiClient.post<any>(API_ENDPOINTS.SUBSCRIPTION_DOWNGRADE(getTenantId()), {
-      newPlan: data.targetTier === 'BASIC' ? 'BASIC' : 'TRIAL',
-    }) as Promise<DowngradeResponse>,
+    apiClient.post<DowngradeResponse>(API_ENDPOINTS.SUBSCRIPTION_DOWNGRADE(getTenantId()), data),
 };
 
 // ==========================================

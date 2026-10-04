@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useState } from 'react';
 import { usePatients } from '@/hooks/usePatients';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Plus, Search, Filter, X } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 
-export default function PatientsPage() {
+function PatientsPageContent() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -180,5 +181,13 @@ export default function PatientsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PatientsPage() {
+  return (
+    <SectionGate section="core.patients">
+      <PatientsPageContent />
+    </SectionGate>
   );
 }

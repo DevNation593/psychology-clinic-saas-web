@@ -22,6 +22,14 @@ export const ROUTES = {
   LOGIN: '/login',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
+  CHANGE_PASSWORD: '/change-password',
+
+  // Platform panel (ADMIN)
+  PLATFORM: '/platform',
+  PLATFORM_TENANTS: '/platform/tenants',
+  PLATFORM_TENANT_NEW: '/platform/tenants/new',
+  PLATFORM_TENANT_DETAIL: (id: string) => `/platform/tenants/${id}`,
+  PLATFORM_PAYMENTS: '/platform/payments',
   
   // Onboarding
   ONBOARDING: '/onboarding',
@@ -57,8 +65,12 @@ export const ROUTES = {
 // ==========================================
 
 export const API_ENDPOINTS = {
+  PLATFORM_SUMMARY: '/platform/summary',
+  PLATFORM_TENANTS: '/platform/tenants',
+  PLATFORM_TENANT: (tenantId: string) => `/platform/tenants/${tenantId}`,
+  PLATFORM_SECTION_CATALOG: '/platform/section-catalog',
+  PLATFORM_PAYMENTS: '/platform/subscription-payments',
   SPECIALTY_CATALOG: '/specialties',
-  CLINIC_ONBOARDING: '/onboarding/tenants',
   // Auth (public, no tenantId)
   LOGIN: '/auth/login',
   REFRESH: '/auth/refresh',
@@ -69,7 +81,6 @@ export const API_ENDPOINTS = {
   CHANGE_PASSWORD: '/auth/change-password',
 
   // Tenants (partially public)
-  TENANT_CREATE: '/tenants',
   TENANT: (tenantId: string) => `/tenants/${tenantId}`,
   TENANT_UPDATE: (tenantId: string) => `/tenants/${tenantId}`,
   TENANT_COMPLETE_ONBOARDING: (tenantId: string) => `/tenants/${tenantId}/complete-onboarding`,
@@ -129,6 +140,8 @@ export const API_ENDPOINTS = {
   SUBSCRIPTION_USAGE: (tenantId: string) => `/tenants/${tenantId}/subscription/usage`,
   SUBSCRIPTION_UPGRADE: (tenantId: string) => `/tenants/${tenantId}/subscription/upgrade`,
   SUBSCRIPTION_DOWNGRADE: (tenantId: string) => `/tenants/${tenantId}/subscription/downgrade`,
+  SUBSCRIPTION_PLANS: (tenantId: string) => `/tenants/${tenantId}/subscription/plans`,
+  SUBSCRIPTION_PAYMENTS: (tenantId: string) => `/tenants/${tenantId}/subscription/payments`,
   BILLING_INVOICES: (tenantId: string) => `/tenants/${tenantId}/billing/invoices`,
   BILLING_INVOICE: (tenantId: string, invoiceId: string) => `/tenants/${tenantId}/billing/invoices/${invoiceId}`,
 
@@ -156,6 +169,12 @@ export const STORAGE_KEYS = {
 // ==========================================
 
 export const QUERY_KEYS = {
+  // Platform panel
+  PLATFORM_SUMMARY: ['platform', 'summary'],
+  PLATFORM_TENANTS: ['platform', 'tenants'],
+  PLATFORM_TENANT: (id: string) => ['platform', 'tenants', id],
+  PLATFORM_SECTION_CATALOG: ['platform', 'section-catalog'],
+  PLATFORM_PAYMENTS: ['platform', 'payments'],
   SPECIALTY_CATALOG: ['specialties', 'catalog'],
   // Auth
   ME: ['me'],
@@ -202,6 +221,7 @@ export const QUERY_KEYS = {
   SUBSCRIPTION: ['subscription'],
   SUBSCRIPTION_SCOPED: (tenantId: string) => ['subscription', 'tenant', tenantId],
   SUBSCRIPTION_USAGE: ['subscription', 'usage'],
+  SUBSCRIPTION_PAYMENTS: ['subscription', 'payments'],
   SUBSCRIPTION_USAGE_SCOPED: (tenantId: string, period: string) => ['subscription', 'usage', tenantId, period],
   
   // Storage
@@ -313,9 +333,3 @@ export const TIME_SLOTS = [
   '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
   '20:00',
 ];
-
-// ==========================================
-// WEB PUSH
-// ==========================================
-
-export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';

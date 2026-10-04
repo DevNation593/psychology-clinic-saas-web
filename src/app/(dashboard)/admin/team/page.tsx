@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { RestrictedAccess } from '@/components/layout/restricted-access';
 import { TeamManager } from '@/features/admin/team/team-manager';
 import { useCanManageAccount } from '@/hooks/useCanManageAccount';
@@ -11,5 +12,9 @@ export default function TeamPage() {
   if (!user) return null;
   // The menu entry is hidden for other roles; this covers direct navigation.
   if (!canManage) return <RestrictedAccess />;
-  return <TeamManager />;
+  return (
+    <SectionGate section="core.team">
+      <TeamManager />
+    </SectionGate>
+  );
 }
