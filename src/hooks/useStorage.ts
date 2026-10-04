@@ -7,14 +7,9 @@ import { QUERY_KEYS } from '@/lib/constants';
 import { toast } from 'sonner';
 import type { StorageFile, PaginatedResponse } from '@/types';
 
+// Clinical files are opened and removed from the patient record, where each read and
+// removal is audited; this page only reports what the clinic stores.
 const STORAGE_API_AVAILABLE = false;
-
-// ==========================================
-// HELPER: Build tenant-scoped storage URL
-// Storage endpoints are not yet available in the API.
-// These are placeholder implementations that will work
-// once the backend adds storage endpoints.
-// ==========================================
 
 function getTenantId(): string {
   const tenant = useAuthStore.getState().tenant;
@@ -34,31 +29,41 @@ export function useStorageFiles(params?: {
 }) {
   return useQuery({
     queryKey: [...QUERY_KEYS.STORAGE_FILES, params],
-    queryFn: async () => {
-      // TODO: Replace with actual endpoint when backend adds storage support
-      const response = await apiClient.get<PaginatedResponse<StorageFile>>(
+    queryFn: () =>
+      apiClient.get<StorageFile[] | PaginatedResponse<StorageFile>>(
         `/tenants/${getTenantId()}/storage/files`,
-        { params }
-      );
-      return response;
-    },
+        { params },
+      ),
     staleTime: 1000 * 30,
-    enabled: false, // Disabled until backend supports this
   });
+}
+
+export interface StorageBreakdown {
+  total: number;
+  attachments: number;
+  avatars: number;
+  exports: number;
+}
+
+const BYTES_PER_GB = 1024 * 1024 * 1024;
+
+/** The API counts bytes; the storage page, like the plan limits, works in GB. */
+export function storageBreakdownInGB(bytes: StorageBreakdown): StorageBreakdown {
+  return {
+    total: bytes.total / BYTES_PER_GB,
+    attachments: bytes.attachments / BYTES_PER_GB,
+    avatars: bytes.avatars / BYTES_PER_GB,
+    exports: bytes.exports / BYTES_PER_GB,
+  };
 }
 
 export function useStorageBreakdown() {
   return useQuery({
     queryKey: QUERY_KEYS.STORAGE_BREAKDOWN,
-    queryFn: async () => {
-      // TODO: Replace with actual endpoint when backend adds storage support
-      const response = await apiClient.get<{ total: number; attachments: number; avatars: number; exports: number }>(
-        `/tenants/${getTenantId()}/storage/breakdown`
-      );
-      return response;
-    },
+    queryFn: () =>
+      apiClient.get<StorageBreakdown>(`/tenants/${getTenantId()}/storage/breakdown`),
+    select: storageBreakdownInGB,
     staleTime: 1000 * 30,
-    enabled: false, // Disabled until backend supports this
   });
 }
 
@@ -72,7 +77,7 @@ export function useDeleteFile() {
   return useMutation({
     mutationFn: async (_id: string) => {
       if (!STORAGE_API_AVAILABLE) {
-        throw new Error('La API de almacenamiento aún no está disponible');
+        throw new Error('Los archivos clínicos se eliminan desde la ficha del paciente');
       }
       return apiClient.delete<void>(`/tenants/${getTenantId()}/storage/files/${_id}`);
     },

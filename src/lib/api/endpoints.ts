@@ -58,6 +58,25 @@ import {
   UpdatePlatformTenantInput,
   ChangePlatformPlanInput,
 } from '@/types';
+import type {
+  Branch,
+  BranchInput,
+  BranchUpdate,
+  ClinicalModuleDefinition,
+  ClinicalRecordCorrection,
+  ClinicalRecordInput,
+  DiagnosisCode,
+  Encounter,
+  EncounterInput,
+  Medication,
+  MedicationInput,
+  MedicationUpdate,
+  PatientFile,
+  FormDefinition,
+  FormDefinitionInput,
+  FormDefinitionUpdate,
+  PatientClinicalAlert,
+} from '@/types/clinical';
 
 // ==========================================
 // HELPER: Get tenantId from auth store
@@ -545,17 +564,116 @@ export const specialtyRecordsApi = {
       API_ENDPOINTS.PATIENT_SPECIALTY_RECORDS(getTenantId(), patientId),
       moduleKey ? { params: { moduleKey } } : undefined,
     ),
-  create: (patientId: string, data: {
-    specialtyCode: string;
-    moduleKey: string;
-    data: Record<string, unknown>;
-    notes?: string;
-    recordDate?: string;
-    appointmentId?: string;
-  }) => apiClient.post<SpecialtyRecord>(
+  get: (patientId: string, recordId: string) =>
+    apiClient.get<SpecialtyRecord>(
+      API_ENDPOINTS.PATIENT_SPECIALTY_RECORD(getTenantId(), patientId, recordId),
+    ),
+  create: (patientId: string, data: ClinicalRecordInput) => apiClient.post<SpecialtyRecord>(
     API_ENDPOINTS.PATIENT_SPECIALTY_RECORDS(getTenantId(), patientId),
     data,
   ),
+  // A correction: the API requires a reason and keeps the previous version in the audit log.
+  update: (patientId: string, recordId: string, data: ClinicalRecordCorrection) =>
+    apiClient.patch<SpecialtyRecord>(
+      API_ENDPOINTS.PATIENT_SPECIALTY_RECORD(getTenantId(), patientId, recordId),
+      data,
+    ),
+  remove: (patientId: string, recordId: string, reason: string) =>
+    apiClient.delete<{ message: string }>(
+      API_ENDPOINTS.PATIENT_SPECIALTY_RECORD(getTenantId(), patientId, recordId),
+      { data: { reason } },
+    ),
+  alerts: (patientId: string) =>
+    apiClient.get<PatientClinicalAlert[]>(
+      API_ENDPOINTS.PATIENT_CLINICAL_ALERTS(getTenantId(), patientId),
+    ),
+};
+
+export const encountersApi = {
+  list: (patientId: string) =>
+    apiClient.get<Encounter[]>(API_ENDPOINTS.PATIENT_ENCOUNTERS(getTenantId(), patientId)),
+  start: (patientId: string, data: EncounterInput) =>
+    apiClient.post<Encounter>(API_ENDPOINTS.PATIENT_ENCOUNTERS(getTenantId(), patientId), data),
+  // Closing is the professional's sign-off: the encounter takes no more records.
+  close: (patientId: string, encounterId: string, summary?: string) =>
+    apiClient.post<Encounter>(
+      API_ENDPOINTS.PATIENT_ENCOUNTER_CLOSE(getTenantId(), patientId, encounterId),
+      summary ? { summary } : {},
+    ),
+  remove: (patientId: string, encounterId: string, reason: string) =>
+    apiClient.delete<{ message: string }>(
+      API_ENDPOINTS.PATIENT_ENCOUNTER(getTenantId(), patientId, encounterId),
+      { data: { reason } },
+    ),
+};
+
+export const branchesApi = {
+  list: (tenantId: string) => apiClient.get<Branch[]>(API_ENDPOINTS.BRANCHES(tenantId)),
+  create: (tenantId: string, data: BranchInput) =>
+    apiClient.post<Branch>(API_ENDPOINTS.BRANCHES(tenantId), data),
+  update: (tenantId: string, branchId: string, data: BranchUpdate) =>
+    apiClient.patch<Branch>(API_ENDPOINTS.BRANCH(tenantId, branchId), data),
+  // A professional tied to no branch attends in all of them.
+  setProfessionals: (tenantId: string, branchId: string, userIds: string[]) =>
+    apiClient.put<{ branchId: string; professionalIds: string[] }>(
+      API_ENDPOINTS.BRANCH_PROFESSIONALS(tenantId, branchId),
+      { userIds },
+    ),
+};
+
+export const patientFilesApi = {
+  list: (patientId: string) =>
+    apiClient.get<PatientFile[]>(API_ENDPOINTS.PATIENT_FILES(getTenantId(), patientId)),
+  upload: (
+    patientId: string,
+    file: File,
+    metadata: { category: string; description?: string; encounterId?: string },
+  ) =>
+    apiClient.upload<PatientFile>(
+      API_ENDPOINTS.PATIENT_FILES(getTenantId(), patientId),
+      file,
+      undefined,
+      metadata,
+    ),
+  // The bytes come through the API, which decrypts them and audits the read.
+  download: (patientId: string, fileId: string) =>
+    apiClient.get<Blob>(API_ENDPOINTS.PATIENT_FILE_DOWNLOAD(getTenantId(), patientId, fileId), {
+      responseType: 'blob',
+    }),
+  remove: (patientId: string, fileId: string, reason: string) =>
+    apiClient.delete<{ message: string }>(
+      API_ENDPOINTS.PATIENT_FILE(getTenantId(), patientId, fileId),
+      { data: { reason } },
+    ),
+};
+
+export const catalogsApi = {
+  searchDiagnosisCodes: (tenantId: string, search: string) =>
+    apiClient.get<DiagnosisCode[]>(API_ENDPOINTS.DIAGNOSIS_CODES(tenantId), { params: { search } }),
+  listMedications: (tenantId: string, search?: string) =>
+    apiClient.get<Medication[]>(
+      API_ENDPOINTS.MEDICATIONS(tenantId),
+      search ? { params: { search } } : undefined,
+    ),
+  createMedication: (tenantId: string, data: MedicationInput) =>
+    apiClient.post<Medication>(API_ENDPOINTS.MEDICATIONS(tenantId), data),
+  updateMedication: (tenantId: string, medicationId: string, data: MedicationUpdate) =>
+    apiClient.patch<Medication>(API_ENDPOINTS.MEDICATION(tenantId, medicationId), data),
+};
+
+export const clinicalModulesApi = {
+  list: (tenantId: string) =>
+    apiClient.get<ClinicalModuleDefinition[]>(API_ENDPOINTS.CLINICAL_MODULES(tenantId)),
+};
+
+export const formDefinitionsApi = {
+  list: (tenantId: string) =>
+    apiClient.get<FormDefinition[]>(API_ENDPOINTS.FORM_DEFINITIONS(tenantId)),
+  create: (tenantId: string, data: FormDefinitionInput) =>
+    apiClient.post<FormDefinition>(API_ENDPOINTS.FORM_DEFINITIONS(tenantId), data),
+  // A changed schema becomes a new version; earlier versions are never modified.
+  update: (tenantId: string, formId: string, data: FormDefinitionUpdate) =>
+    apiClient.patch<FormDefinition>(API_ENDPOINTS.FORM_DEFINITION(tenantId, formId), data),
 };
 
 // ==========================================
@@ -630,6 +748,10 @@ export const patientsApi = {
 const patientFields = [
   'firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address',
   'emergencyContactName', 'emergencyContactPhone', 'notes',
+  'identificationType', 'identificationNumber',
+  'maritalStatus', 'occupation', 'nationality', 'bloodType', 'disability',
+  'insuranceProvider', 'insurancePolicyNumber',
+  'guardianName', 'guardianRelationship', 'guardianIdentification', 'guardianPhone',
   'billingName', 'billingTaxIdType', 'billingTaxId', 'billingEmail', 'billingAddress',
 ] as const;
 
@@ -680,7 +802,7 @@ export const appointmentsApi = {
 };
 
 const appointmentFilterFields = [
-  'professionalId', 'specialtyId', 'patientId', 'status', 'from', 'to',
+  'professionalId', 'specialtyId', 'branchId', 'patientId', 'status', 'from', 'to',
 ] as const;
 
 function appointmentFilterParams(filters?: AppointmentFilters): AppointmentFilters | undefined {
@@ -692,7 +814,7 @@ function appointmentFilterParams(filters?: AppointmentFilters): AppointmentFilte
 
 const appointmentFields = [
   'patientId', 'professionalId', 'specialtyId', 'title', 'description', 'startTime',
-  'duration', 'isOnline', 'meetingUrl', 'location', 'status',
+  'duration', 'isOnline', 'meetingUrl', 'location', 'status', 'branchId',
 ] as const;
 
 function appointmentPayload(data: AppointmentUpdateInput): AppointmentUpdateInput {

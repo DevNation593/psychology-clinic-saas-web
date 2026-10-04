@@ -46,6 +46,8 @@ export enum SubscriptionStatus {
 export enum AppointmentStatus {
   SCHEDULED = 'SCHEDULED',
   CONFIRMED = 'CONFIRMED',
+  // Set while the appointment is being attended in an open encounter.
+  IN_PROGRESS = 'IN_PROGRESS',
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
   NO_SHOW = 'NO_SHOW',
@@ -537,6 +539,20 @@ export interface Patient {
   assignedPsychologist?: PatientAssignee | null;
   isActive: boolean;
   notes: string | null;
+  identificationType?: string | null;
+  identificationNumber?: string | null;
+  maritalStatus?: string | null;
+  occupation?: string | null;
+  nationality?: string | null;
+  bloodType?: string | null;
+  disability?: string | null;
+  insuranceProvider?: string | null;
+  insurancePolicyNumber?: string | null;
+  // Legal guardian; the API requires it for patients under 18.
+  guardianName?: string | null;
+  guardianRelationship?: string | null;
+  guardianIdentification?: string | null;
+  guardianPhone?: string | null;
   // Billing recipient for this patient's invoices; may be a third party.
   billingName: string | null;
   billingTaxIdType: string | null;
@@ -577,6 +593,19 @@ export interface PatientInput {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   notes?: string;
+  identificationType?: string | null;
+  identificationNumber?: string | null;
+  maritalStatus?: string;
+  occupation?: string;
+  nationality?: string;
+  bloodType?: string;
+  disability?: string;
+  insuranceProvider?: string;
+  insurancePolicyNumber?: string;
+  guardianName?: string;
+  guardianRelationship?: string;
+  guardianIdentification?: string;
+  guardianPhone?: string;
   billingName?: string | null;
   billingTaxIdType?: string | null;
   billingTaxId?: string | null;
@@ -643,6 +672,8 @@ export interface Appointment {
   professional: AppointmentProfessional | null;
   specialtyId: string | null;
   specialty: SpecialtySummary | null;
+  branchId?: string | null;
+  branch?: { id: string; name: string } | null;
   psychologistId: string;
   psychologist: AppointmentProfessional | null;
   title: string;
@@ -676,6 +707,8 @@ export interface AppointmentCreateInput {
   isOnline: boolean;
   meetingUrl?: string;
   location?: string;
+  /** Null on update takes the appointment out of any branch. */
+  branchId?: string | null;
 }
 
 export type AppointmentUpdateInput = Partial<AppointmentCreateInput> & { status?: AppointmentStatus };
@@ -683,6 +716,7 @@ export type AppointmentUpdateInput = Partial<AppointmentCreateInput> & { status?
 export interface AppointmentFilters {
   professionalId?: string;
   specialtyId?: string;
+  branchId?: string;
   patientId?: string;
   status?: AppointmentStatus;
   from?: string;
@@ -700,6 +734,8 @@ export interface ClinicalNote {
   psychologistId: string;
   psychologist: User;
   appointmentId?: string;
+  /** The encounter the note was written in, when one was open. */
+  encounterId?: string | null;
   content: string;
   diagnosis?: string;
   treatment?: string;
@@ -727,13 +763,28 @@ export type ClinicalNoteCorrection = Partial<
 export interface SpecialtyRecord {
   id: string;
   patientId: string;
+  professionalId?: string;
   specialtyId: string;
   moduleKey: string;
+  /** Version of the module or form definition the data follows. */
+  schemaVersion?: number;
+  /** Bumped by every correction. */
+  version?: number;
+  /** Printed on the document and encoded in its QR, for third parties to check it. */
+  verificationCode?: string | null;
   recordDate: string;
   data: Record<string, unknown>;
-  notes?: string;
+  notes?: string | null;
+  alerts?: { level: 'info' | 'warning' | 'critical'; message: string }[];
+  encounterId?: string | null;
+  encounter?: { id: string; encounterType: string; status: string; startedAt: string } | null;
   specialty?: { code: string; name: string };
-  professional?: { id: string; firstName: string; lastName: string };
+  professional?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    professionalProfile?: { professionalTitle: string | null; licenseNumber: string | null } | null;
+  };
   appointment?: { id: string; title: string; startTime: string };
 }
 
@@ -827,6 +878,8 @@ export interface ApiError {
   code?: string;
   field?: string;
   details?: Record<string, any>;
+  /** Per-field problems of a rejected clinical record or form definition. */
+  issues?: { field: string; message: string }[];
 }
 
 // ==========================================
