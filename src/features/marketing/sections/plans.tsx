@@ -3,8 +3,7 @@ import { Check } from 'lucide-react';
 import { planFullName, type Plan } from '@/content/site';
 
 export function formatPlanPrice(plan: Plan): string {
-  if (plan.priceMonthly === null) return 'A medida';
-  return plan.priceMonthly === 0 ? 'Gratis' : `$${plan.priceMonthly}`;
+  return plan.priceMonthly === null ? 'A medida' : `$${plan.priceMonthly}`;
 }
 
 function limits(plan: Plan): string[] {
@@ -18,7 +17,7 @@ function limits(plan: Plan): string[] {
 }
 
 export function PlanCard({ plan }: { plan: Plan }) {
-  const hasFixedPrice = plan.priceMonthly !== null && plan.priceMonthly > 0;
+  const hasFixedPrice = plan.priceMonthly !== null;
   return (
     <article
       // Two groups share short names ("Básico", "Pro"), so the card is labelled with the full one.

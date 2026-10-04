@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-
-/** `ABCD-EFGH-JKMN-PQRS`, as the code is printed and typed. */
-export function formatVerificationCode(code: string): string {
-  return code.replace(/[\s-]/g, '').toUpperCase().match(/.{1,4}/g)?.join('-') ?? code;
-}
+import { formatVerificationCode } from '@/features/documents/verification-code';
 
 /** The public page where anyone holding the document checks it. */
 export function verificationUrl(code: string, origin: string): string {
