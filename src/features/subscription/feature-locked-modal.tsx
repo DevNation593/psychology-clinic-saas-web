@@ -60,10 +60,10 @@ export function FeatureLockedModal({
           'Historial completo del tratamiento',
           'Cumplimiento de normativas HIPAA',
         ];
-      case 'tareas':
+      case 'actividades':
       case 'tasks':
         return [
-          'Asignar tareas a psicólogos',
+          'Asignar actividades a psicólogos',
           'Fechas límite y recordatorios',
           'Seguimiento de progreso',
           'Priorización de pendientes',

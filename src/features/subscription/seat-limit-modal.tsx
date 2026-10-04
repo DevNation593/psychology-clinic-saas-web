@@ -66,7 +66,7 @@ export function SeatLimitModal({ open, onOpenChange }: SeatLimitModalProps) {
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-green-600">✓</span>
-                      Gestión de tareas
+                      Gestión de actividades
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-green-600">✓</span>

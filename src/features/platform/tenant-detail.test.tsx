@@ -26,7 +26,7 @@ const catalog: SectionCatalog = {
   sections: [
     { key: 'core.calendar', name: 'Agenda', requires: [] },
     { key: 'core.patients', name: 'Pacientes', requires: [] },
-    { key: 'core.tasks', name: 'Tareas', requires: ['core.patients'] },
+    { key: 'core.tasks', name: 'Actividades', requires: ['core.patients'] },
     { key: 'core.billing', name: 'Facturación', requires: [] },
   ],
   defaults: [],
@@ -60,7 +60,7 @@ const detail: PlatformTenantDetail = {
   sections: [
     { key: 'core.calendar', name: 'Agenda', enabled: true },
     { key: 'core.patients', name: 'Pacientes', enabled: true },
-    { key: 'core.tasks', name: 'Tareas', enabled: false },
+    { key: 'core.tasks', name: 'Actividades', enabled: false },
     { key: 'core.billing', name: 'Facturación', enabled: false },
   ],
 };
@@ -113,7 +113,7 @@ describe('TenantDetail', () => {
     expect(screen.getByText('Clínica Básico')).toBeTruthy();
     expect(checked('Agenda')).toBe(true);
     expect(checked('Pacientes')).toBe(true);
-    expect(checked('Tareas')).toBe(false);
+    expect(checked('Actividades')).toBe(false);
     expect(screen.getByText('Al día')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Suspender' })).toBeTruthy();
     expect(screen.getByText('42 de 100')).toBeTruthy();
@@ -195,9 +195,9 @@ describe('TenantDetail', () => {
     await ready();
     const save = screen.getByRole('button', { name: 'Guardar cambios' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText('Tareas'));
+    fireEvent.click(screen.getByLabelText('Actividades'));
     expect(save.disabled).toBe(false);
-    fireEvent.click(screen.getByLabelText('Tareas'));
+    fireEvent.click(screen.getByLabelText('Actividades'));
     expect(save.disabled).toBe(true);
     fireEvent.click(screen.getByLabelText('Facturación'));
     expect(save.disabled).toBe(false);

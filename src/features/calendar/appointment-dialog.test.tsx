@@ -10,6 +10,13 @@ const mocks = vi.hoisted(() => ({
   updateHook: vi.fn(),
   eligibleHook: vi.fn(),
   pending: false,
+  branches: [] as {
+    id: string;
+    name: string;
+    isMain: boolean;
+    isActive: boolean;
+    professionalIds?: string[];
+  }[],
 }));
 
 vi.mock('@/hooks/useAppointments', () => ({
@@ -18,6 +25,9 @@ vi.mock('@/hooks/useAppointments', () => ({
     mocks.updateHook(id);
     return { mutate: mocks.update, isPending: mocks.pending };
   },
+}));
+vi.mock('@/hooks/useBranches', () => ({
+  useBranches: () => ({ data: mocks.branches }),
 }));
 vi.mock('@/hooks/usePatients', () => ({
   usePatients: () => ({
@@ -152,6 +162,7 @@ function completeCreateForm() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.pending = false;
+  mocks.branches = [];
   mocks.eligibleHook.mockImplementation((_patientId: string, specialtyId: string) => ({
     data: candidates[specialtyId as keyof typeof candidates] ?? [],
     isLoading: false,
@@ -296,5 +307,80 @@ describe('AppointmentDialog canonical cascade', () => {
 
     expect(screen.getByRole('button', { name: 'Crear cita' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+  });
+});
+
+describe('AppointmentDialog branch', () => {
+  const main = { id: 'main', name: 'Sede principal', isMain: true, isActive: true };
+  const north = { id: 'north', name: 'Sede Norte', isMain: false, isActive: true };
+  const closed = { id: 'closed', name: 'Sede cerrada', isMain: false, isActive: false };
+
+  it('sends no branch when the clinic has none', async () => {
+    renderDialog();
+    completeCreateForm();
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled());
+    expect(mocks.create.mock.calls[0][0]).not.toHaveProperty('branchId');
+    expect(screen.queryByLabelText('Sede')).not.toBeInTheDocument();
+  });
+
+  it('books in the only active branch without asking', async () => {
+    mocks.branches = [main, closed];
+    renderDialog();
+    expect(screen.queryByLabelText('Sede')).not.toBeInTheDocument();
+    completeCreateForm();
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled());
+    expect(mocks.create.mock.calls[0][0].branchId).toBe('main');
+  });
+
+  it('defaults to the main branch and lets another active one be chosen', async () => {
+    mocks.branches = [north, main, closed];
+    renderDialog();
+
+    expect(screen.getByLabelText('Sede')).toHaveValue('main');
+    expect(screen.queryByRole('option', { name: 'Sede cerrada' })).not.toBeInTheDocument();
+    select('Sede', 'north');
+    completeCreateForm();
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled());
+    expect(mocks.create.mock.calls[0][0].branchId).toBe('north');
+  });
+
+  it('offers only the branches the chosen professional is tied to', async () => {
+    const south = { id: 'south', name: 'Sede Sur', isMain: false, isActive: true, professionalIds: [] };
+    mocks.branches = [
+      { ...main, professionalIds: [] },
+      { ...north, professionalIds: ['nutrition-1'] },
+      south,
+    ];
+    renderDialog();
+    // Before a professional is chosen every active branch is offered.
+    expect(screen.getByRole('option', { name: 'Sede Sur' })).toBeInTheDocument();
+
+    completeCreateForm();
+
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled());
+    // Tied to one branch only: the select disappears and the appointment goes there.
+    expect(screen.queryByLabelText('Sede')).not.toBeInTheDocument();
+    expect(mocks.create.mock.calls[0][0].branchId).toBe('north');
+  });
+
+  it('keeps an existing appointment without a branch as it is, and can take its branch away', async () => {
+    mocks.branches = [main, north];
+    const view = renderDialog({ currentAppointment: appointment() });
+    expect(screen.getByLabelText('Sede')).toHaveValue('');
+    fireEvent.submit(screen.getByLabelText('Título de la cita').closest('form')!);
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.update.mock.calls[0][0]).not.toHaveProperty('branchId');
+    view.unmount();
+
+    mocks.update.mockClear();
+    renderDialog({ currentAppointment: { ...appointment(), branchId: 'north' } });
+    expect(screen.getByLabelText('Sede')).toHaveValue('north');
+    select('Sede', '');
+    fireEvent.submit(screen.getByLabelText('Título de la cita').closest('form')!);
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.update.mock.calls[0][0].branchId).toBeNull();
   });
 });

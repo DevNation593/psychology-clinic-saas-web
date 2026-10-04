@@ -13,6 +13,7 @@ import { Appointment, AppointmentStatus, TenantSettings } from '@/types';
 const STATUS_COLORS: Record<AppointmentStatus, string> = {
   [AppointmentStatus.SCHEDULED]: '#3b82f6',
   [AppointmentStatus.CONFIRMED]: '#10b981',
+  [AppointmentStatus.IN_PROGRESS]: '#8b5cf6',
   [AppointmentStatus.COMPLETED]: '#6b7280',
   [AppointmentStatus.CANCELLED]: '#ef4444',
   [AppointmentStatus.NO_SHOW]: '#f97316',
@@ -32,6 +33,18 @@ export function toSlotDuration(minutes: number): string {
   const hours = Math.floor(safe / 60).toString().padStart(2, '0');
   const rest = (safe % 60).toString().padStart(2, '0');
   return `${hours}:${rest}:00`;
+}
+
+const HALF_HOUR = 30;
+const HOUR = 60;
+
+/**
+ * Row length of the time grid. A session length that divides the hour keeps a line on every
+ * full hour; any other length would drift away from the appointments, so it uses half hours.
+ */
+export function gridSlotMinutes(sessionMinutes: number): number {
+  const safe = Number.isFinite(sessionMinutes) && sessionMinutes > 0 ? Math.round(sessionMinutes) : 0;
+  return safe > 0 && HOUR % safe === 0 ? safe : HALF_HOUR;
 }
 
 interface CalendarViewProps {
@@ -81,7 +94,11 @@ export default function CalendarView({
   const lastClosing = configuredSchedules.length > 0
     ? Math.max(...configuredSchedules.map((schedule) => toMinutes(schedule.endTime)))
     : 20 * 60;
-  const slotDuration = toSlotDuration(settings?.defaultSessionDuration ?? 60);
+  // The grid opens and closes on the hour: a 08:30 opening would put every line at half past
+  // and leave appointments booked on the hour floating between two labels.
+  const gridStart = Math.floor(firstOpening / HOUR) * HOUR;
+  const gridEnd = Math.ceil(lastClosing / HOUR) * HOUR;
+  const slotDuration = toSlotDuration(gridSlotMinutes(settings?.defaultSessionDuration ?? HOUR));
   // Phones cannot fit a week grid, so they start on the agenda list with fewer view buttons.
   const isCompact = typeof window !== 'undefined' && window.innerWidth < COMPACT_BREAKPOINT;
 
@@ -135,10 +152,12 @@ export default function CalendarView({
       dayMaxEvents={true}
       weekends={true}
       hiddenDays={hiddenDays}
-      slotMinTime={formatTime(firstOpening)}
-      slotMaxTime={formatTime(lastClosing)}
-      scrollTime={formatTime(firstOpening)}
+      slotMinTime={formatTime(gridStart)}
+      slotMaxTime={formatTime(gridEnd)}
+      scrollTime={formatTime(gridStart)}
       slotDuration={slotDuration}
+      slotLabelInterval="01:00:00"
+      slotLabelFormat={{ hour: 'numeric', minute: '2-digit', hour12: false }}
       snapDuration={slotDuration}
       height="auto"
       select={(info) => onDateSelect(info.start)}

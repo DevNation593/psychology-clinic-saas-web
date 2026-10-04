@@ -1,5 +1,10 @@
 import { z } from 'zod';
 import { normalizeTaxId, patientBillingErrors, type TaxIdType } from '@/features/billing/billing-customer';
+import {
+  identificationErrors,
+  isMinor,
+  normalizeIdentification,
+} from '@/features/patients/patient-identity';
 import { UserRole, Gender, TaskStatus, TaskPriority, AppointmentStatus, TenantType, type CreatePlatformTenantInput } from '@/types';
 import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
 
@@ -162,6 +167,24 @@ export const patientSchema = z.object({
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   notes: z.string().optional(),
+  // Identification: optional, but type and number go together and follow the type's format.
+  identificationType: z.string().optional(),
+  identificationNumber: z
+    .string()
+    .optional()
+    .transform((value) => (value ? normalizeIdentification(value) : value)),
+  maritalStatus: z.string().optional(),
+  occupation: z.string().optional(),
+  nationality: z.string().optional(),
+  bloodType: z.string().optional(),
+  disability: z.string().optional(),
+  insuranceProvider: z.string().optional(),
+  insurancePolicyNumber: z.string().optional(),
+  // Legal guardian: required when the birth date makes the patient a minor.
+  guardianName: z.string().optional(),
+  guardianRelationship: z.string().optional(),
+  guardianIdentification: z.string().optional(),
+  guardianPhone: z.string().optional(),
   // Billing recipient: optional, but what is entered must be consistent.
   billingName: z.string().optional(),
   billingTaxIdType: z.string().optional(),
@@ -169,6 +192,21 @@ export const patientSchema = z.object({
   billingEmail: z.string().optional(),
   billingAddress: z.string().optional(),
 }).superRefine((data, context) => {
+  const identification = identificationErrors(
+    data.identificationType ?? '',
+    data.identificationNumber ?? '',
+  );
+  for (const [field, message] of Object.entries(identification)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message, path: [field] });
+  }
+  if (isMinor(data.dateOfBirth) && !data.guardianName?.trim()) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Un paciente menor de edad necesita un representante legal.',
+      path: ['guardianName'],
+    });
+  }
+
   const errors = patientBillingErrors({
     name: data.billingName ?? '',
     taxIdType: (data.billingTaxIdType ?? '') as TaxIdType | '',
@@ -207,6 +245,7 @@ export const appointmentSchema = z.object({
   isOnline: z.boolean().default(false),
   meetingUrl: z.string().url('URL inválida').optional().or(z.literal('')),
   location: z.string().optional(),
+  branchId: z.string().optional(),
 });
 
 // Task 10 replaces the old dialog; the runtime schema emits only canonical fields.
@@ -249,7 +288,7 @@ export type SessionPlanFormData = z.infer<typeof sessionPlanSchema>;
 export const taskSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
   description: z.string().optional(),
-  assignedToId: z.string().min(1, 'Asigna la tarea a un usuario'),
+  assignedToId: z.string().min(1, 'Asigna la actividad a un usuario'),
   patientId: z.string().min(1, 'Selecciona un paciente'),
   priority: z.nativeEnum(TaskPriority).default(TaskPriority.MEDIUM),
   dueDate: z.string().optional(),

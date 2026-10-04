@@ -36,7 +36,7 @@ export const MODULE_LABELS: Record<string, string> = {
   clinicalNotes: 'Notas clínicas',
   clinicalNotesEncryption: 'Cifrado de datos clínicos',
   attachments: 'Archivos adjuntos',
-  tasks: 'Tareas',
+  tasks: 'Actividades',
   psychologicalTests: 'Pruebas psicológicas',
   webPush: 'Notificaciones en el navegador',
   fcmPush: 'Notificaciones en el móvil',

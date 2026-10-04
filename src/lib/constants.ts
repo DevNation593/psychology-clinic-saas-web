@@ -112,6 +112,39 @@ export const API_ENDPOINTS = {
     `/tenants/${requiredPathSegment(tenantId, 'tenant')}/patients/${requiredPathSegment(patientId, 'patient')}/team/${requiredPathSegment(professionalId, 'professional')}`,
   PATIENT_SPECIALTY_RECORDS: (tenantId: string, patientId: string) =>
     `/tenants/${tenantId}/patients/${patientId}/specialty-records`,
+  PATIENT_SPECIALTY_RECORD: (tenantId: string, patientId: string, recordId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/specialty-records/${recordId}`,
+  PATIENT_CLINICAL_ALERTS: (tenantId: string, patientId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/specialty-records/alerts`,
+
+  PATIENT_ENCOUNTERS: (tenantId: string, patientId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/encounters`,
+  PATIENT_ENCOUNTER: (tenantId: string, patientId: string, encounterId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/encounters/${encounterId}`,
+  PATIENT_ENCOUNTER_CLOSE: (tenantId: string, patientId: string, encounterId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/encounters/${encounterId}/close`,
+
+  // Branches and catalogs
+  BRANCHES: (tenantId: string) => `/tenants/${tenantId}/branches`,
+  BRANCH: (tenantId: string, branchId: string) => `/tenants/${tenantId}/branches/${branchId}`,
+  BRANCH_PROFESSIONALS: (tenantId: string, branchId: string) =>
+    `/tenants/${tenantId}/branches/${branchId}/professionals`,
+  PATIENT_FILES: (tenantId: string, patientId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/files`,
+  PATIENT_FILE: (tenantId: string, patientId: string, fileId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/files/${fileId}`,
+  PATIENT_FILE_DOWNLOAD: (tenantId: string, patientId: string, fileId: string) =>
+    `/tenants/${tenantId}/patients/${patientId}/files/${fileId}/download`,
+  DIAGNOSIS_CODES: (tenantId: string) => `/tenants/${tenantId}/diagnosis-codes`,
+  MEDICATIONS: (tenantId: string) => `/tenants/${tenantId}/medications`,
+  MEDICATION: (tenantId: string, medicationId: string) =>
+    `/tenants/${tenantId}/medications/${medicationId}`,
+
+  // Clinical module definitions and forms designed by the clinic
+  CLINICAL_MODULES: (tenantId: string) => `/tenants/${tenantId}/clinical-modules`,
+  FORM_DEFINITIONS: (tenantId: string) => `/tenants/${tenantId}/form-definitions`,
+  FORM_DEFINITION: (tenantId: string, formId: string) =>
+    `/tenants/${tenantId}/form-definitions/${formId}`,
 
   // Appointments (tenant-scoped)
   APPOINTMENTS: (tenantId: string) => `/tenants/${tenantId}/appointments`,
@@ -195,6 +228,15 @@ export const QUERY_KEYS = {
   PATIENT_CLINICAL_NOTES: (patientId: string) => ['patients', patientId, 'clinical-notes'],
   PATIENT_SESSION_PLAN: (patientId: string) => ['patients', patientId, 'session-plan'],
   PATIENT_SPECIALTY_RECORDS: (patientId: string) => ['patients', patientId, 'specialty-records'],
+  PATIENT_CLINICAL_ALERTS: (patientId: string) => ['patients', patientId, 'clinical-alerts'],
+  PATIENT_SPECIALTY_RECORD: (patientId: string, recordId: string) =>
+    ['patients', patientId, 'specialty-records', recordId],
+  PATIENT_ENCOUNTERS: (patientId: string) => ['patients', patientId, 'encounters'],
+  PATIENT_FILES: (patientId: string) => ['patients', patientId, 'files'],
+  BRANCHES: (tenantId: string) => ['tenant', 'branches', tenantId],
+  MEDICATIONS: (tenantId: string) => ['tenant', 'medications', tenantId],
+  CLINICAL_MODULES: (tenantId: string) => ['tenant', 'clinical-modules', tenantId],
+  FORM_DEFINITIONS: (tenantId: string) => ['tenant', 'form-definitions', tenantId],
   
   // Appointments
   APPOINTMENTS: ['appointments'],
@@ -270,6 +312,7 @@ export const PLAN_LABELS: Record<PlanTier, string> = {
 export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   [AppointmentStatus.SCHEDULED]: 'Programada',
   [AppointmentStatus.CONFIRMED]: 'Confirmada',
+  [AppointmentStatus.IN_PROGRESS]: 'En atención',
   [AppointmentStatus.CANCELLED]: 'Cancelada',
   [AppointmentStatus.COMPLETED]: 'Completada',
   [AppointmentStatus.NO_SHOW]: 'No asistió',
@@ -296,6 +339,7 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
 export const APPOINTMENT_STATUS_COLORS: Record<AppointmentStatus, string> = {
   [AppointmentStatus.SCHEDULED]: 'bg-blue-100 text-blue-800',
   [AppointmentStatus.CONFIRMED]: 'bg-green-100 text-green-800',
+  [AppointmentStatus.IN_PROGRESS]: 'bg-violet-100 text-violet-800',
   [AppointmentStatus.CANCELLED]: 'bg-red-100 text-red-800',
   [AppointmentStatus.COMPLETED]: 'bg-gray-100 text-gray-800',
   [AppointmentStatus.NO_SHOW]: 'bg-orange-100 text-orange-800',

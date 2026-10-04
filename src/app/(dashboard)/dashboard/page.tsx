@@ -88,10 +88,10 @@ export default function DashboardPage() {
       tasksApi.update(id, { status: TaskStatus.COMPLETED, completedAt: new Date().toISOString() }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
-      toast.success('Tarea completada');
+      toast.success('Actividad completada');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Error al completar tarea');
+      toast.error(error.message || 'Error al completar actividad');
     },
   });
 
@@ -173,7 +173,7 @@ export default function DashboardPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Tareas Pendientes
+                    Actividades Pendientes
                   </CardTitle>
                   <Clock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -302,7 +302,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Tareas Vencidas</CardTitle>
+                <CardTitle>Actividades Vencidas</CardTitle>
                 <Link href="/tasks">
                   <Button variant="ghost" size="sm">
                     Ver todas
@@ -354,7 +354,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-50 text-green-500" />
-                  <p>¡No hay tareas vencidas!</p>
+                  <p>¡No hay actividades vencidas!</p>
                   <p className="text-sm mt-1">Excelente trabajo</p>
                 </div>
               )}

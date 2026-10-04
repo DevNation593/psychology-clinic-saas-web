@@ -17,6 +17,12 @@ import Link from 'next/link';
 import { Gender } from '@/types';
 import { BillingCustomerFields } from '@/features/billing/billing-customer-fields';
 import type { BillingCustomer, TaxIdType } from '@/features/billing/billing-customer';
+import { isMinor } from '@/features/patients/patient-identity';
+import {
+  PatientAdditionalFields,
+  PatientGuardianFields,
+  PatientIdentificationFields,
+} from '@/features/patients/patient-profile-fields';
 
 export default function EditPatientPage() {
   const params = useParams();
@@ -35,7 +41,13 @@ export default function EditPatientPage() {
     reset,
   } = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { billingName: '', billingTaxIdType: '', billingTaxId: '', billingEmail: '', billingAddress: '' },
+    defaultValues: {
+      identificationType: '', identificationNumber: '',
+      maritalStatus: '', occupation: '', nationality: '', bloodType: '', disability: '',
+      insuranceProvider: '', insurancePolicyNumber: '',
+      guardianName: '', guardianRelationship: '', guardianIdentification: '', guardianPhone: '',
+      billingName: '', billingTaxIdType: '', billingTaxId: '', billingEmail: '', billingAddress: '',
+    },
   });
 
   const billing: BillingCustomer = {
@@ -69,12 +81,26 @@ export default function EditPatientPage() {
         lastName: patient.lastName,
         email: patient.email || '',
         phone: patient.phone || '',
-        dateOfBirth: patient.dateOfBirth || '',
+        // The API stores a full timestamp; the date input only accepts YYYY-MM-DD.
+        dateOfBirth: patient.dateOfBirth ? patient.dateOfBirth.slice(0, 10) : '',
         gender: patient.gender ?? undefined,
         address: patient.address || '',
         emergencyContactName: patient.emergencyContactName || '',
         emergencyContactPhone: patient.emergencyContactPhone || '',
         notes: patient.notes || '',
+        identificationType: patient.identificationType || '',
+        identificationNumber: patient.identificationNumber || '',
+        maritalStatus: patient.maritalStatus || '',
+        occupation: patient.occupation || '',
+        nationality: patient.nationality || '',
+        bloodType: patient.bloodType || '',
+        disability: patient.disability || '',
+        insuranceProvider: patient.insuranceProvider || '',
+        insurancePolicyNumber: patient.insurancePolicyNumber || '',
+        guardianName: patient.guardianName || '',
+        guardianRelationship: patient.guardianRelationship || '',
+        guardianIdentification: patient.guardianIdentification || '',
+        guardianPhone: patient.guardianPhone || '',
         billingName: patient.billingName || '',
         billingTaxIdType: patient.billingTaxIdType || '',
         billingTaxId: patient.billingTaxId || '',
@@ -155,6 +181,8 @@ export default function EditPatientPage() {
               </div>
             </div>
 
+            <PatientIdentificationFields register={register} errors={errors} />
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -196,6 +224,14 @@ export default function EditPatientPage() {
               <Label htmlFor="address">Dirección</Label>
               <Input id="address" {...register('address')} />
             </div>
+
+            <PatientAdditionalFields register={register} errors={errors} />
+
+            <PatientGuardianFields
+              register={register}
+              errors={errors}
+              required={isMinor(watch('dateOfBirth'))}
+            />
 
             <div className="border-t pt-6">
               <h3 className="font-semibold mb-4">Contacto de Emergencia</h3>

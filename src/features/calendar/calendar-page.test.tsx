@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   search: '',
   update: vi.fn(),
   updateHookIds: [] as string[],
+  branches: [] as { id: string; name: string; isMain: boolean; isActive: boolean }[],
+  appointmentFilters: [] as unknown[],
 }));
 
 vi.mock('next/navigation', () => ({
@@ -55,11 +57,17 @@ vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
   }),
 }));
 vi.mock('@/hooks/useAppointments', () => ({
-  useAppointments: () => ({ data: mocks.appointments, isLoading: mocks.isLoading }),
+  useAppointments: (filters?: unknown) => {
+    mocks.appointmentFilters.push(filters);
+    return { data: mocks.appointments, isLoading: mocks.isLoading };
+  },
   useUpdateAppointment: (id: string) => {
     mocks.updateHookIds.push(id);
     return { mutate: mocks.update, isPending: false };
   },
+}));
+vi.mock('@/hooks/useBranches', () => ({
+  useBranches: () => ({ data: mocks.branches }),
 }));
 vi.mock('@/hooks/useTenantSettings', () => ({
   useTenantSettings: () => ({ data: undefined }),
@@ -123,8 +131,37 @@ beforeEach(() => {
   mocks.isLoading = true;
   mocks.search = '';
   mocks.updateHookIds.length = 0;
+  mocks.branches = [];
+  mocks.appointmentFilters.length = 0;
   useAuthStore.setState({
     user: { id: 'admin-1', role: UserRole.MASTER, tenantId: 'tenant-1' } as User,
+  });
+});
+
+describe('CalendarPage branch filter', () => {
+  const main = { id: 'main', name: 'Sede principal', isMain: true, isActive: true };
+  const north = { id: 'north', name: 'Sede Norte', isMain: false, isActive: true };
+  const closed = { id: 'closed', name: 'Sede cerrada', isMain: false, isActive: false };
+
+  it('is not shown to a clinic with a single active branch', () => {
+    mocks.branches = [main, closed];
+    render(<CalendarPage />);
+
+    expect(screen.queryByLabelText('Filtrar por sede')).not.toBeInTheDocument();
+    expect(mocks.appointmentFilters.at(-1)).toBeUndefined();
+  });
+
+  it('asks the API for the appointments of the chosen branch', () => {
+    mocks.branches = [main, north, closed];
+    render(<CalendarPage />);
+
+    const filter = screen.getByLabelText('Filtrar por sede');
+    expect(screen.queryByRole('option', { name: 'Sede cerrada' })).not.toBeInTheDocument();
+    fireEvent.change(filter, { target: { value: 'north' } });
+    expect(mocks.appointmentFilters.at(-1)).toEqual({ branchId: 'north' });
+
+    fireEvent.change(filter, { target: { value: '' } });
+    expect(mocks.appointmentFilters.at(-1)).toBeUndefined();
   });
 });
 

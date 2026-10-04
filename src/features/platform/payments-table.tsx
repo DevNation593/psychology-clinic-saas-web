@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { usePagination } from '@/hooks/usePagination';
 import { useConfirmPayment, usePlatformPayments, useRejectPayment } from '@/hooks/usePlatform';
 import { ROUTES } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
@@ -54,6 +56,7 @@ export function PaymentsTable() {
   const [error, setError] = useState<string | null>(null);
 
   const { data, isPending, isError, isFetching, refetch } = usePlatformPayments(status);
+  const pagination = usePagination(data ?? [], { resetKey: status });
   const confirm = useConfirmPayment();
   const reject = useRejectPayment();
 
@@ -154,7 +157,7 @@ export function PaymentsTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((payment) => (
+              {pagination.pageItems.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>
                     <Link
@@ -192,6 +195,14 @@ export function PaymentsTable() {
           </Table>
         </Card>
       )}
+
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setPage}
+      />
 
       <Dialog open={action !== null} onOpenChange={(open) => !open && setAction(null)}>
         <DialogContent role="dialog" aria-modal="true" aria-labelledby="payment-dialog-title">

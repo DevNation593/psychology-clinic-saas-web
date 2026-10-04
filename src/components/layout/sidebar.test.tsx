@@ -9,6 +9,16 @@ import { Sidebar } from './sidebar';
 const api = vi.hoisted(() => ({ listModules: vi.fn(), legacyListModules: vi.fn() }));
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard' }));
+const permissions = vi.hoisted(() => ({ withdrawn: [] as string[], granted: [] as string[] }));
+vi.mock('@/hooks/usePermissions', () => ({
+  useMyPermissions: () => ({
+    // As the hook: a granted permission is held whatever the role; otherwise the role decides
+    // unless the permission was withdrawn.
+    can: (permission: string, byRole = true) =>
+      permissions.granted.includes(permission) ||
+      (byRole && !permissions.withdrawn.includes(permission)),
+  }),
+}));
 vi.mock('@/lib/api/endpoints', () => ({
   specialtyCatalogApi: { list: vi.fn() },
   tenantSpecialtiesApi: { list: vi.fn(), replace: vi.fn() },
@@ -78,6 +88,20 @@ describe('Sidebar clinical modules entry', () => {
   });
 });
 
+describe('Sidebar forms entry', () => {
+  it('takes the account holder to the form builder', async () => {
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Formularios' })).toHaveAttribute('href', '/admin/forms');
+  });
+
+  it.each([UserRole.ASISTENTE, UserRole.PROFESIONAL, UserRole.ADMIN])('is hidden from %s', async (role) => {
+    useAuthStore.setState({ user: { ...admin, role } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Formularios' })).not.toBeInTheDocument();
+  });
+});
+
 describe('Sidebar billing entry', () => {
   it('is hidden from assistants, who cannot issue invoices', async () => {
     useAuthStore.setState({ user: { ...admin, role: UserRole.ASISTENTE } });
@@ -129,6 +153,28 @@ describe('Sidebar administration section', () => {
     },
   );
 
+  it('hides billing from a user whose permission to see invoices was withdrawn', async () => {
+    permissions.withdrawn = ['billing.view'];
+    useAuthStore.setState({ user: { ...admin, role: UserRole.PROFESIONAL } });
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
+    permissions.withdrawn = [];
+  });
+
+  it('shows billing to an assistant only when the permission was given to them', async () => {
+    useAuthStore.setState({ user: { ...admin, role: UserRole.ASISTENTE } });
+    const { unmount } = renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Pacientes' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Facturación' })).not.toBeInTheDocument();
+    unmount();
+
+    permissions.granted = ['billing.view'];
+    renderSidebar();
+    expect(await screen.findByRole('link', { name: 'Facturación' })).toBeInTheDocument();
+    permissions.granted = [];
+  });
+
   // ADMIN is reserved: it is neither the account holder nor a professional.
   it('hides billing from ADMIN', async () => {
     useAuthStore.setState({ user: { ...admin, role: UserRole.ADMIN } });
@@ -142,8 +188,9 @@ describe('Sidebar section visibility', () => {
   it.each([
     ['Calendario', 'core.calendar'],
     ['Pacientes', 'core.patients'],
-    ['Tareas', 'core.tasks'],
+    ['Actividades', 'core.tasks'],
     ['Módulos clínicos', 'core.specialties'],
+    ['Formularios', 'core.specialties'],
     ['Facturación', 'core.billing'],
     ['Equipo', 'core.team'],
     ['Almacenamiento', 'core.storage'],

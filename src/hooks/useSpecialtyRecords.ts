@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { specialtyRecordsApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
 import { toast } from 'sonner';
+import type { ApiError } from '@/types';
+import type { ClinicalRecordCorrection, ClinicalRecordInput } from '@/types/clinical';
 
 export function usePatientSpecialtyRecords(patientId: string) {
   return useQuery({
@@ -13,18 +15,78 @@ export function usePatientSpecialtyRecords(patientId: string) {
   });
 }
 
-export function useCreateSpecialtyRecord(patientId: string) {
+/** One record, for printing it as a document. */
+export function usePatientSpecialtyRecord(patientId: string, recordId: string) {
+  return useQuery({
+    queryKey: QUERY_KEYS.PATIENT_SPECIALTY_RECORD(patientId, recordId),
+    queryFn: () => specialtyRecordsApi.get(patientId, recordId),
+    enabled: Boolean(patientId && recordId),
+  });
+}
+
+/** Alerts raised by the patient's allergies and by the latest record of each other module. */
+export function usePatientClinicalAlerts(patientId: string, enabled = true) {
+  return useQuery({
+    queryKey: QUERY_KEYS.PATIENT_CLINICAL_ALERTS(patientId),
+    queryFn: () => specialtyRecordsApi.alerts(patientId),
+    enabled: Boolean(patientId) && enabled,
+  });
+}
+
+function useRecordsInvalidation(patientId: string) {
   const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_SPECIALTY_RECORDS(patientId) });
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CLINICAL_ALERTS(patientId) });
+    // Encounters show how many records they hold.
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_ENCOUNTERS(patientId) });
+  };
+}
+
+// A rejected record carries one issue per field; the form shows those instead of a toast.
+const notifyUnlessFieldIssues = (fallback: string) => (error: ApiError) => {
+  if (!error.issues?.length) toast.error(error.message || fallback);
+};
+
+export function useCreateSpecialtyRecord(patientId: string) {
+  const invalidate = useRecordsInvalidation(patientId);
 
   return useMutation({
-    mutationFn: (data: Parameters<typeof specialtyRecordsApi.create>[1]) =>
-      specialtyRecordsApi.create(patientId, data),
+    mutationFn: (data: ClinicalRecordInput) => specialtyRecordsApi.create(patientId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_SPECIALTY_RECORDS(patientId) });
-      toast.success('Registro especializado guardado');
+      invalidate();
+      toast.success('Registro guardado');
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'No fue posible guardar el registro');
+    onError: notifyUnlessFieldIssues('No fue posible guardar el registro'),
+  });
+}
+
+export function useCorrectSpecialtyRecord(patientId: string) {
+  const invalidate = useRecordsInvalidation(patientId);
+
+  return useMutation({
+    mutationFn: ({ recordId, data }: { recordId: string; data: ClinicalRecordCorrection }) =>
+      specialtyRecordsApi.update(patientId, recordId, data),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Registro corregido');
+    },
+    onError: notifyUnlessFieldIssues('No fue posible corregir el registro'),
+  });
+}
+
+export function useRemoveSpecialtyRecord(patientId: string) {
+  const invalidate = useRecordsInvalidation(patientId);
+
+  return useMutation({
+    mutationFn: ({ recordId, reason }: { recordId: string; reason: string }) =>
+      specialtyRecordsApi.remove(patientId, recordId, reason),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Registro eliminado');
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || 'No fue posible eliminar el registro');
     },
   });
 }

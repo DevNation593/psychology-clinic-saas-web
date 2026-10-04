@@ -334,7 +334,7 @@ function renderFeatureList(features?: FeatureFlags) {
     { key: 'patients', label: 'Pacientes', value: features.patients },
     { key: 'appointments', label: 'Citas', value: features.appointments },
     { key: 'clinicalNotes', label: 'Notas clínicas', value: features.clinicalNotes },
-    { key: 'tasks', label: 'Tareas', value: features.tasks },
+    { key: 'tasks', label: 'Actividades', value: features.tasks },
     { key: 'attachments', label: 'Adjuntos', value: features.attachments },
     { key: 'sessionPlans', label: 'Planes de sesión', value: features.sessionPlans },
     { key: 'emailNotifications', label: 'Email', value: features.emailNotifications },

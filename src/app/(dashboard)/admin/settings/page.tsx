@@ -21,6 +21,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { type WorkingHours, type ReminderRule, type TenantSettings } from '@/types';
+import { BranchesManager } from '@/features/admin/branches/branches-manager';
 
 const DAYS_MAP: { key: keyof WorkingHours; label: string }[] = [
   { key: 'monday', label: 'Lunes' },
@@ -689,6 +690,8 @@ export default function AdminSettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <BranchesManager />
     </div>
   );
 }

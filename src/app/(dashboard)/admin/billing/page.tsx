@@ -10,11 +10,13 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { BillingCustomerFields } from '@/features/billing/billing-customer-fields';
 import {
   EMPTY_BILLING_CUSTOMER, customerFromPatient, hasSavedTaxId, invoiceCustomerErrors, normalizeTaxId,
   type BillingCustomer,
 } from '@/features/billing/billing-customer';
+import { usePagination } from '@/hooks/usePagination';
 import { usePatients } from '@/hooks/usePatients';
 import { billingApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
@@ -87,6 +89,7 @@ function BillingPageContent() {
   const submitting = useRef(false);
   const invoicesQuery = useQuery({ queryKey: INVOICES_KEY, queryFn: () => billingApi.listInvoices() });
   const invoices = invoicesQuery.data ?? [];
+  const pagination = usePagination(invoices);
 
   const sortedPatients = useMemo(
     () => [...(patients.data ?? [])].sort((a, b) =>
@@ -349,6 +352,7 @@ function BillingPageContent() {
               Aún no hay comprobantes emitidos.
             </div>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -364,7 +368,7 @@ function BillingPageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((invoice) => (
+                  {pagination.pageItems.map((invoice) => (
                     <tr key={invoice.id} className="border-b align-top last:border-0">
                       <td className="whitespace-nowrap p-3">{formatDate(invoice.issueDate, 'dd/MM/yyyy')}</td>
                       <td className="p-3">
@@ -414,6 +418,15 @@ function BillingPageContent() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              className="mt-4"
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+            />
+            </>
           )}
         </CardContent>
       </Card>

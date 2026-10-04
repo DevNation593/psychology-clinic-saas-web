@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { billingApi } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
@@ -21,6 +23,8 @@ export function PatientInvoicesTab({ patientId }: { patientId: string }) {
     queryFn: () => billingApi.listInvoices({ patientId }),
     enabled: !!patientId,
   });
+  const items = invoices.data ?? [];
+  const pagination = usePagination(items, { resetKey: patientId });
 
   if (invoices.isLoading) return <p role="status" className="text-sm text-muted-foreground">Cargando facturas...</p>;
   if (invoices.isError) {
@@ -31,7 +35,6 @@ export function PatientInvoicesTab({ patientId }: { patientId: string }) {
       </div>
     );
   }
-  const items = invoices.data ?? [];
 
   return (
     <div className="space-y-3">
@@ -40,7 +43,7 @@ export function PatientInvoicesTab({ patientId }: { patientId: string }) {
       </div>
       {items.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Este paciente aún no tiene facturas.</CardContent></Card>
-      ) : items.map((invoice) => (
+      ) : pagination.pageItems.map((invoice) => (
         <Card key={invoice.id}>
           <CardContent className="flex flex-wrap items-start justify-between gap-3 pt-4">
             <div>
@@ -63,6 +66,13 @@ export function PatientInvoicesTab({ patientId }: { patientId: string }) {
           </CardContent>
         </Card>
       ))}
+      <Pagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setPage}
+      />
     </div>
   );
 }

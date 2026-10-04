@@ -154,6 +154,15 @@ class ApiClient {
       if (data.details && typeof data.details === 'object' && !Array.isArray(data.details)) {
         normalized.details = data.details as Record<string, unknown>;
       }
+      // Validation of clinical records and form definitions lists one issue per field.
+      if (Array.isArray(data.details)) {
+        normalized.issues = data.details.filter(
+          (issue): issue is { field: string; message: string } =>
+            !!issue && typeof issue === 'object' &&
+            typeof (issue as Record<string, unknown>).field === 'string' &&
+            typeof (issue as Record<string, unknown>).message === 'string',
+        );
+      }
       return normalized;
     }
 
