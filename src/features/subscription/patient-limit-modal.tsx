@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Archive, TrendingUp } from 'lucide-react';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useSubscription, useUsageMetrics } from '@/hooks/useSubscription';
 import { getPlanDisplayName } from '@/types/guards';
 import { ROUTES } from '@/lib/constants';
@@ -25,6 +26,7 @@ export function PatientLimitModal({ open, onOpenChange }: PatientLimitModalProps
   const router = useRouter();
   const { data: subscription } = useSubscription();
   const { data: usage } = useUsageMetrics();
+  const canManage = useCanManageAccount();
 
   const handleUpgrade = () => {
     onOpenChange(false);
@@ -81,7 +83,11 @@ export function PatientLimitModal({ open, onOpenChange }: PatientLimitModalProps
               </div>
 
               {/* Option 2: Upgrade */}
-              {currentTier === PlanTier.BASIC && (
+              {!canManage && (
+                <p className="text-sm text-muted-foreground">Contacta al titular de la cuenta.</p>
+              )}
+
+              {canManage && currentTier === PlanTier.BASIC && (
                 <div className="border rounded-lg p-4 space-y-2 bg-blue-50 border-blue-200">
                   <div className="flex items-start gap-3">
                     <TrendingUp className="h-5 w-5 text-blue-600 mt-0.5" />
@@ -95,7 +101,7 @@ export function PatientLimitModal({ open, onOpenChange }: PatientLimitModalProps
                       <ul className="mt-2 space-y-1 text-sm text-blue-700">
                         <li>+ Notas clínicas ilimitadas</li>
                         <li>+ 50 GB de almacenamiento</li>
-                        <li>+ Gestión de tareas</li>
+                        <li>+ Gestión de actividades</li>
                       </ul>
                       <p className="mt-2 text-sm font-medium text-blue-900">
                         Desde €79/mes
@@ -112,7 +118,7 @@ export function PatientLimitModal({ open, onOpenChange }: PatientLimitModalProps
                 </div>
               )}
 
-              {currentTier === PlanTier.PROFESSIONAL && (
+              {canManage && currentTier === PlanTier.PROFESSIONAL && (
                 <div className="border rounded-lg p-4 space-y-2 bg-purple-50 border-purple-200">
                   <div className="flex items-start gap-3">
                     <TrendingUp className="h-5 w-5 text-purple-600 mt-0.5" />

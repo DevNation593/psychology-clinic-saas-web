@@ -17,6 +17,8 @@ interface UsageCardProps {
   formatValue?: (value: number) => string;
   onUpgrade?: () => void;
   onManage?: () => void;
+  /** Shown instead of the upgrade button when the viewer cannot upgrade. */
+  upgradeNotice?: string;
   upgradeLabel?: string;
   manageLabel?: string;
 }
@@ -31,6 +33,7 @@ export function UsageCard({
   formatValue,
   onUpgrade,
   onManage,
+  upgradeNotice,
   upgradeLabel = 'Actualizar Plan',
   manageLabel = 'Gestionar',
 }: UsageCardProps) {
@@ -167,6 +170,10 @@ export function UsageCard({
             >
               {manageLabel}
             </Button>
+          )}
+
+          {!onUpgrade && upgradeNotice && showWarning && (
+            <p className="flex-1 text-sm text-muted-foreground">{upgradeNotice}</p>
           )}
 
           {onUpgrade && showWarning && (

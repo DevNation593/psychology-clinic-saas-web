@@ -1,5 +1,6 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
@@ -7,6 +8,7 @@ import { Plus } from 'lucide-react';
 import { AppointmentDialog } from '@/features/calendar/appointment-dialog';
 import { AppointmentDetailsDialog } from '@/features/calendar/appointment-details-dialog';
 import { useAppointments, useUpdateAppointment } from '@/hooks/useAppointments';
+import { useBranches } from '@/hooks/useBranches';
 import { useTenantSettings } from '@/hooks/useTenantSettings';
 import { useAuthStore } from '@/store/authStore';
 import { canEditAppointment } from '@/types/guards';
@@ -28,7 +30,7 @@ interface RescheduleRequest {
   duration: number;
 }
 
-export default function CalendarPage() {
+function CalendarPageContent() {
   const searchParams = useSearchParams();
   const deepLinkedAppointmentId = searchParams.get('appointmentId') ?? '';
   const user = useAuthStore((state) => state.user);
@@ -37,7 +39,10 @@ export default function CalendarPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [rescheduleRequest, setRescheduleRequest] = useState<RescheduleRequest | null>(null);
-  const appointments = useAppointments();
+  const [branchFilter, setBranchFilter] = useState('');
+  const { data: branches = [] } = useBranches();
+  const activeBranches = branches.filter((branch) => branch.isActive);
+  const appointments = useAppointments(branchFilter ? { branchId: branchFilter } : undefined);
   const { data: settings } = useTenantSettings();
   const updateAppointment = useUpdateAppointment(rescheduleRequest?.id ?? '');
   const updateAppointmentRef = useRef(updateAppointment.mutate);
@@ -94,14 +99,31 @@ export default function CalendarPage() {
           <h1 className="text-3xl font-bold">Calendario</h1>
           <p className="mt-1 text-muted-foreground">Gestiona las citas de tus pacientes</p>
         </div>
-        <Button onClick={() => {
-          setEditingAppointment(null);
-          setSelectedDate(null);
-          setIsDialogOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva cita
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {activeBranches.length > 1 && (
+            <select
+              aria-label="Filtrar por sede"
+              value={branchFilter}
+              onChange={(event) => setBranchFilter(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Todas las sedes</option>
+              {activeBranches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button onClick={() => {
+            setEditingAppointment(null);
+            setSelectedDate(null);
+            setIsDialogOpen(true);
+          }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva cita
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card p-4">
@@ -148,5 +170,13 @@ export default function CalendarPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <SectionGate section="core.calendar">
+      <CalendarPageContent />
+    </SectionGate>
   );
 }

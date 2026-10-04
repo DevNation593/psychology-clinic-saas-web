@@ -10,9 +10,9 @@ import { usePatients } from '@/hooks/usePatients';
 import { useTenantSpecialties } from '@/hooks/useSpecialties';
 import { useEligiblePatientProfessionals } from '@/hooks/usePatientTeam';
 import { useAuthStore } from '@/store/authStore';
-import { toCanonicalRole } from '@/types/guards';
 import { UserRole, type Appointment } from '@/types';
 import { getAppointmentErrorMessage } from './appointment-errors';
+import { useBranches } from '@/hooks/useBranches';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,7 @@ function formValues(appointment?: Appointment | null, initialDate?: Date | null)
     isOnline: appointment?.isOnline ?? false,
     meetingUrl: appointment?.meetingUrl ?? '',
     location: appointment?.location ?? '',
+    branchId: appointment?.branchId ?? '',
   };
 }
 
@@ -65,6 +66,7 @@ export function AppointmentDialog({
   const updateAppointment = useUpdateAppointment(appointment?.id ?? '');
   const patients = usePatients();
   const specialties = useTenantSpecialties();
+  const { data: branches = [] } = useBranches();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const initialDateKey = initialDate?.getTime() ?? null;
   const appointmentRef = useRef(appointment);
@@ -104,7 +106,7 @@ export function AppointmentDialog({
   );
   const visibleProfessionals = useMemo(() => {
     const candidates = eligible.data ?? [];
-    if (!actor || toCanonicalRole(actor.role) !== UserRole.PROFESIONAL) return candidates;
+    if (!actor || actor.role !== UserRole.PROFESIONAL) return candidates;
     return candidates.filter((candidate) => candidate.id === actor.id);
   }, [actor, eligible.data]);
 
@@ -124,6 +126,25 @@ export function AppointmentDialog({
     : null;
 
   const patientRegistration = register('patientId');
+  // A professional tied to some branches is booked only in those.
+  const professionalBranches = branches.filter(
+    (branch) => branch.isActive && branch.professionalIds?.includes(watch('professionalId') ?? ''),
+  );
+  const activeBranches =
+    professionalBranches.length > 0
+      ? professionalBranches
+      : branches.filter((branch) => branch.isActive);
+  // A new appointment goes to the main branch unless another one is chosen.
+  const defaultBranchId = appointment
+    ? ''
+    : (activeBranches.find((branch) => branch.isMain) ?? activeBranches[0])?.id ?? '';
+  const chosenBranchId = watch('branchId') ?? '';
+  // A new appointment never keeps a branch that stopped being offered, e.g. after changing
+  // the professional; an existing one keeps what it has until the user changes it.
+  const branchId =
+    appointment || activeBranches.some((branch) => branch.id === chosenBranchId)
+      ? chosenBranchId
+      : defaultBranchId;
   const specialtyRegistration = register('specialtyId');
   const professionalRegistration = register('professionalId');
   const isPending = createAppointment.isPending || updateAppointment.isPending;
@@ -131,7 +152,13 @@ export function AppointmentDialog({
   const onSubmit = (formData: AppointmentFormData) => {
     setSubmitError(null);
     // datetime-local has no offset; send the instant so the server does not reinterpret it in its own zone.
-    const data = { ...formData, startTime: new Date(formData.startTime).toISOString() };
+    const { branchId: _formBranch, ...fields } = formData;
+    const data = {
+      ...fields,
+      startTime: new Date(formData.startTime).toISOString(),
+      // Null removes the branch of an appointment that had one.
+      ...(branchId ? { branchId } : appointment?.branchId ? { branchId: null } : {}),
+    };
     const callbacks = {
       onSuccess: () => {
         reset(formValues(null, null));
@@ -300,6 +327,25 @@ export function AppointmentDialog({
             <div className="space-y-2">
               <Label htmlFor="location">Ubicación</Label>
               <Input id="location" placeholder="Consultorio 101" {...register('location')} />
+            </div>
+          )}
+
+          {activeBranches.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="branchId">Sede</Label>
+              <select
+                id="branchId"
+                value={branchId}
+                onChange={(event) => setValue('branchId', event.target.value, { shouldDirty: true })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {appointment && <option value="">Sin sede</option>}
+                {activeBranches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

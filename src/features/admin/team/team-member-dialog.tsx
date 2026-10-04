@@ -7,9 +7,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { tenantTeamMemberSchema, tenantTeamMemberUpdateSchema } from '@/lib/validations/schemas';
-import { isAdminRole, toCanonicalRole } from '@/types/guards';
+import { ROLE_LABELS } from '@/lib/constants';
+import { isMasterRole } from '@/types/guards';
 import {
   UserRole,
+  type AssignableTeamRole,
   type CreateTenantUserInput,
   type TenantSpecialty,
   type TenantTeamProfessionalProfileInput,
@@ -42,7 +44,7 @@ type FormValues = {
   professionalTitle: string;
   licenseNumber: string;
   bio: string;
-  adminProvidesCare: boolean;
+  masterProvidesCare: boolean;
 };
 
 const EMPTY_FORM: FormValues = {
@@ -51,12 +53,12 @@ const EMPTY_FORM: FormValues = {
   firstName: '',
   lastName: '',
   phone: '',
-  role: UserRole.ADMIN,
+  role: UserRole.PROFESIONAL,
   specialtyId: '',
   professionalTitle: '',
   licenseNumber: '',
   bio: '',
-  adminProvidesCare: false,
+  masterProvidesCare: false,
 };
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -88,12 +90,12 @@ function getInitialValues(member?: User | null): FormValues {
     firstName: member.firstName,
     lastName: member.lastName,
     phone: member.phone ?? '',
-    role: toCanonicalRole(member.role) as TenantTeamRole,
+    role: member.role as TenantTeamRole,
     specialtyId: profile?.specialtyId ?? member.professionalSpecialties?.[0]?.id ?? '',
     professionalTitle: profile?.professionalTitle ?? member.professionalTitle ?? '',
     licenseNumber: profile?.licenseNumber ?? member.licenseNumber ?? '',
     bio: profile?.bio ?? '',
-    adminProvidesCare: isAdminRole(member.role) && !!profile,
+    masterProvidesCare: isMasterRole(member.role) && !!profile,
   };
 }
 
@@ -131,6 +133,7 @@ export function TeamMemberDialog({
   const memberId = member?.id;
   const isEditing = !!member;
   const isSaving = pending || submitting;
+  const isMaster = !!member && isMasterRole(member.role);
 
   useEffect(() => {
     memberRef.current = member;
@@ -161,46 +164,25 @@ export function TeamMemberDialog({
       ]
     : enabledSpecialties;
   const profileIsRequired = values.role === UserRole.PROFESIONAL ||
-    (values.role === UserRole.ADMIN && values.adminProvidesCare);
+    (isMaster && values.masterProvidesCare);
 
   const setValue = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
     setFieldErrors((current) => {
       const next = { ...current };
       delete next[key];
-      if (key === 'role' || key === 'adminProvidesCare') delete next.specialtyId;
+      if (key === 'role' || key === 'masterProvidesCare') delete next.specialtyId;
       return next;
     });
     setServerError(null);
   };
 
-  const handleRoleChange = (role: TenantTeamRole) => {
-    setValues((current) => {
-      if (role === UserRole.ASISTENTE) {
-        return {
-          ...current,
-          role,
-          specialtyId: '',
-          professionalTitle: '',
-          licenseNumber: '',
-          bio: '',
-          adminProvidesCare: false,
-        };
-      }
-      if (role === UserRole.ADMIN) {
-        const becameAdminFromProfessional = current.role === UserRole.PROFESIONAL;
-        return {
-          ...current,
-          role,
-          adminProvidesCare: becameAdminFromProfessional
-            ? !!current.specialtyId
-            : current.role === UserRole.ASISTENTE
-              ? false
-              : current.adminProvidesCare,
-        };
-      }
-      return { ...current, role };
-    });
+  const handleRoleChange = (role: AssignableTeamRole) => {
+    setValues((current) =>
+      role === UserRole.ASISTENTE
+        ? { ...current, role, specialtyId: '', professionalTitle: '', licenseNumber: '', bio: '' }
+        : { ...current, role },
+    );
     setFieldErrors({});
     setServerError(null);
   };
@@ -423,37 +405,46 @@ export function TeamMemberDialog({
             <p id="team-member-phone-description" className="text-xs text-muted-foreground">Opcional</p>
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="team-member-role" className="text-sm font-medium">Rol</label>
-            <select
-              id="team-member-role"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={values.role}
-              onChange={(event) => handleRoleChange(event.target.value as TenantTeamRole)}
-              disabled={isSaving}
-              aria-describedby="team-member-role-description"
-            >
-              <option value={UserRole.ADMIN}>Administrador</option>
-              <option value={UserRole.PROFESIONAL}>Profesional</option>
-              <option value={UserRole.ASISTENTE}>Asistente</option>
-            </select>
-            <p id="team-member-role-description" className="text-xs text-muted-foreground">
-              Los perfiles clínicos requieren una especialidad habilitada para el consultorio.
-            </p>
-          </div>
+          {isMaster ? (
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Rol</p>
+              <p className="text-sm">{ROLE_LABELS[UserRole.MASTER]}</p>
+              <p className="text-xs text-muted-foreground">
+                El rol del titular de la cuenta no se puede cambiar.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label htmlFor="team-member-role" className="text-sm font-medium">Rol</label>
+              <select
+                id="team-member-role"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={values.role}
+                onChange={(event) => handleRoleChange(event.target.value as AssignableTeamRole)}
+                disabled={isSaving}
+                aria-describedby="team-member-role-description"
+              >
+                <option value={UserRole.PROFESIONAL}>Profesional</option>
+                <option value={UserRole.ASISTENTE}>Asistente</option>
+              </select>
+              <p id="team-member-role-description" className="text-xs text-muted-foreground">
+                Los perfiles clínicos requieren una especialidad habilitada para el consultorio.
+              </p>
+            </div>
+          )}
 
-          {values.role === UserRole.ADMIN && (
+          {isMaster && (
             <div className="flex items-start gap-3 rounded-md border p-3">
               <input
                 id="team-member-admin-care"
                 type="checkbox"
                 className="mt-1 h-4 w-4 rounded border-input"
-                checked={values.adminProvidesCare}
+                checked={values.masterProvidesCare}
                 onChange={(event) => {
                   const checked = event.target.checked;
                   setValues((current) => ({
                     ...current,
-                    adminProvidesCare: checked,
+                    masterProvidesCare: checked,
                     ...(checked ? {} : { specialtyId: '', professionalTitle: '', licenseNumber: '', bio: '' }),
                   }));
                   setFieldErrors((current) => ({ ...current, specialtyId: '' }));
@@ -465,7 +456,7 @@ export function TeamMemberDialog({
               <div>
                 <label htmlFor="team-member-admin-care" className="text-sm font-medium">También atiende pacientes</label>
                 <p id="team-member-admin-care-description" className="text-xs text-muted-foreground">
-                  Habilita un perfil clínico independiente del acceso de administrador.
+                  Habilita un perfil clínico para el titular de la cuenta.
                 </p>
               </div>
             </div>

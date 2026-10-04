@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: [
         '/dashboard', '/patients', '/calendar', '/tasks', '/profile', '/admin',
-        '/login', '/forgot-password', '/reset-password', '/onboarding', '/activate', '/gracias',
+        '/login', '/forgot-password', '/reset-password', '/onboarding', '/activate', '/gracias', '/verify',
       ],
     }],
     sitemap: absoluteUrl('/sitemap.xml'),

@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppointmentStatus, type Appointment, type TenantSettings } from '@/types';
-import CalendarView, { toSlotDuration } from './calendar-view';
+import CalendarView, { gridSlotMinutes, toSlotDuration } from './calendar-view';
 
 const fullCalendar = vi.hoisted(() => ({ props: null as Record<string, unknown> | null }));
 vi.mock('@fullcalendar/react', async () => {
@@ -63,11 +63,42 @@ describe('toSlotDuration', () => {
   });
 });
 
+describe('gridSlotMinutes', () => {
+  it.each([15, 20, 30, 60])('keeps a %i minute session, which lands on every hour', (minutes) => {
+    expect(gridSlotMinutes(minutes)).toBe(minutes);
+  });
+
+  it.each([45, 50, 90, 120, 0, Number.NaN])('uses half-hour rows for %s minutes', (minutes) => {
+    expect(gridSlotMinutes(minutes)).toBe(30);
+  });
+});
+
 describe('CalendarView layout', () => {
   it('sizes the time grid from the configured session duration', () => {
+    renderView({ defaultSessionDuration: 30 });
+    expect(fullCalendar.props?.slotDuration).toBe('00:30:00');
+    expect(fullCalendar.props?.snapDuration).toBe('00:30:00');
+  });
+
+  it('falls back to half-hour rows when the session length does not divide the hour', () => {
     renderView({ defaultSessionDuration: 50 });
-    expect(fullCalendar.props?.slotDuration).toBe('00:50:00');
-    expect(fullCalendar.props?.snapDuration).toBe('00:50:00');
+    expect(fullCalendar.props?.slotDuration).toBe('00:30:00');
+    expect(fullCalendar.props?.snapDuration).toBe('00:30:00');
+  });
+
+  it('starts and ends the grid on the hour so appointments line up with the hour labels', () => {
+    const halfPast = { enabled: true, startTime: '08:30', endTime: '17:30' };
+    renderView({ defaultSessionDuration: 60, workingHours: { monday: halfPast } } as Partial<TenantSettings>);
+    expect(fullCalendar.props?.slotMinTime).toBe('08:00:00');
+    expect(fullCalendar.props?.slotMaxTime).toBe('18:00:00');
+    expect(fullCalendar.props?.slotLabelInterval).toBe('01:00:00');
+  });
+
+  it('leaves working hours that already fall on the hour untouched', () => {
+    const onTheHour = { enabled: true, startTime: '09:00', endTime: '19:00' };
+    renderView({ workingHours: { monday: onTheHour } } as Partial<TenantSettings>);
+    expect(fullCalendar.props?.slotMinTime).toBe('09:00:00');
+    expect(fullCalendar.props?.slotMaxTime).toBe('19:00:00');
   });
 
   it('uses one-hour slots when no duration is configured', () => {

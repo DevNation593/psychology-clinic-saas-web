@@ -13,8 +13,8 @@ import {
   useTenantSpecialties,
 } from '@/hooks/useSpecialties';
 import { useAuthStore } from '@/store/authStore';
-import { isAdminRole } from '@/types/guards';
-import { UserRole, type SpecialtyPricingSummary } from '@/types';
+import { isMasterRole } from '@/types/guards';
+import type { SpecialtyPricingSummary } from '@/types';
 import { describeModule } from './module-labels';
 
 interface SpecialtyDraft {
@@ -60,7 +60,7 @@ export function SpecialtyManager() {
   const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
   const tenant = useAuthStore((state) => state.tenant);
   const user = useAuthStore((state) => state.user);
-  const canConfigure = !!user && (isAdminRole(user.role) || user.role === UserRole.SOPORTE);
+  const canConfigure = !!user && (isMasterRole(user.role));
   const catalogQuery = useSpecialtyCatalog();
   const tenantSpecialtiesQuery = useTenantSpecialties();
   const tenantModulesQuery = useTenantModules();
@@ -284,7 +284,7 @@ export function SpecialtyManager() {
 
           {!canConfigure && (
             <p className="text-sm text-muted-foreground">
-              La selección de especialidades la administra el administrador del consultorio.
+              La selección de especialidades la administra el titular de la cuenta.
             </p>
           )}
 

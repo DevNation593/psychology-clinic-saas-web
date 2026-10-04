@@ -130,7 +130,7 @@ beforeEach(() => {
   vi.mocked(tenantModulesApi.list).mockResolvedValue([psychologyModule, nutritionModule]);
   vi.mocked(tenantModulesApi.setEnabled).mockResolvedValue({ ...psychologyModule, enabled: false });
   useAuthStore.setState({
-    user: { role: UserRole.ADMIN } as User,
+    user: { role: UserRole.MASTER } as User,
     tenant: {
       id: 'tenant-1',
       subscription: {
@@ -480,6 +480,6 @@ describe('SpecialtyManager', () => {
     expect(await screen.findByRole('button', { name: /Psicología/ })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Guardar especialidades' })).not.toBeInTheDocument();
     expect(await screen.findByRole('checkbox', { name: 'Evaluaciones psicológicas' })).toBeDisabled();
-    expect(screen.getByText('La selección de especialidades la administra el administrador del consultorio.')).toBeInTheDocument();
+    expect(screen.getByText('La selección de especialidades la administra el titular de la cuenta.')).toBeInTheDocument();
   });
 });

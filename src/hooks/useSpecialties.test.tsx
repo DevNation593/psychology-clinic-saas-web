@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QUERY_KEYS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
-import { onboardingApi, specialtyCatalogApi, specialtiesApi, subscriptionApi, tenantModulesApi, tenantSpecialtiesApi } from '@/lib/api/endpoints';
+import { specialtyCatalogApi, specialtiesApi, subscriptionApi, tenantModulesApi, tenantSpecialtiesApi } from '@/lib/api/endpoints';
 import { useReplaceTenantSpecialties, useSetTenantModule, useSpecialtyCatalog, useTenantModules, useTenantSpecialties } from './useSpecialties';
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn() }));
@@ -68,13 +68,6 @@ describe('specialty API boundaries', () => {
     useAuthStore.setState({ tenant: null, user: null });
     expect(() => tenantSpecialtiesApi.list()).toThrow('No tenant ID available');
     expect(http.get).not.toHaveBeenCalled();
-  });
-
-  it('posts the public onboarding payload without requiring a tenant', async () => {
-    useAuthStore.setState({ tenant: null, user: null });
-    const input = { clinicName: 'Centro', contactEmail: 'contact@example.com', timezone: 'America/Guayaquil', locale: 'es', specialtyCodes: ['PSYCHOLOGY'], adminFirstName: 'Ana', adminLastName: 'Vega', adminEmail: 'ana@example.com', adminPassword: 'Secret123', adminProvidesCare: false };
-    await onboardingApi.createClinic(input);
-    expect(http.post).toHaveBeenCalledWith('/onboarding/tenants', input);
   });
 
   it('normalizes specialty price metadata from the raw subscription', async () => {

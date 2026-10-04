@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { UserRole, Gender, TaskStatus, TaskPriority, AppointmentStatus } from '@/types';
+import { normalizeTaxId, patientBillingErrors, type TaxIdType } from '@/features/billing/billing-customer';
+import {
+  identificationErrors,
+  isMinor,
+  normalizeIdentification,
+} from '@/features/patients/patient-identity';
+import { UserRole, Gender, TaskStatus, TaskPriority, AppointmentStatus, TenantType, type CreatePlatformTenantInput } from '@/types';
 import { PASSWORD_MIN_LENGTH } from '@/lib/constants';
 
 // ==========================================
@@ -32,35 +38,6 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
-// ==========================================
-// ONBOARDING SCHEMAS
-// ==========================================
-
-export const onboardingTenantSchema = z.object({
-  clinicName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  contactEmail: z.string().email('Email inválido'),
-  contactPhone: z.string().optional(),
-  timezone: z.string().default('America/Mexico_City'),
-  locale: z.string().default('es'),
-});
-
-export const onboardingAdminSchema = z.object({
-  firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z
-    .string()
-    .min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`)
-    .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
-    .regex(/[a-z]/, 'Debe contener al menos una minúscula')
-    .regex(/[0-9]/, 'Debe contener al menos un número'),
-  confirmPassword: z.string(),
-  professionalTitle: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
-});
-
 const professionalProfileInputSchema = z.object({
   specialtyId: z.string().min(1),
   professionalTitle: z.string().optional(),
@@ -69,52 +46,60 @@ const professionalProfileInputSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export const onboardingInviteSchema = z.object({
-  email: z.string().email('Email inválido'),
-  firstName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  lastName: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-  role: z.nativeEnum(UserRole),
-  specialtyId: z.string().optional(),
-  professionalProfile: professionalProfileInputSchema.optional(),
-});
-
-export type OnboardingTenantFormData = z.infer<typeof onboardingTenantSchema>;
-export type OnboardingAdminFormData = z.infer<typeof onboardingAdminSchema>;
-export type OnboardingInviteFormData = z.infer<typeof onboardingInviteSchema>;
-
 const onboardingEmail = z.string().trim().toLowerCase().email('Email inválido');
 const specialtyCode = z.string().trim().toUpperCase().min(1, 'Selecciona una especialidad');
 
-export const clinicOnboardingSchema = z.object({
-  clinicName: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
-  contactEmail: onboardingEmail,
-  contactPhone: z.string().trim().optional(),
+const sectionKeys = [
+  'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+  'core.specialties', 'core.billing', 'core.team', 'core.storage',
+] as const;
+
+/** Platform panel: a clinic together with its account holder. The password is never trimmed. */
+export const createPlatformTenantSchema: z.ZodType<CreatePlatformTenantInput> = z.object({
+  name: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
+  email: onboardingEmail,
+  phone: z.string().trim().optional(),
   address: z.string().trim().optional(),
+  tenantType: z.nativeEnum(TenantType),
   timezone: z.string().trim().min(1, 'Selecciona una zona horaria'),
   locale: z.string().trim().min(1, 'Selecciona un idioma'),
-  specialtyCodes: z.array(specialtyCode).min(1, 'Selecciona al menos una especialidad')
-    .transform((codes) => [...new Set(codes)]),
-  adminFirstName: z.string().trim().min(1, 'Ingresa el nombre'),
-  adminLastName: z.string().trim().min(1, 'Ingresa el apellido'),
-  adminEmail: onboardingEmail,
-  adminPassword: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
-  adminProvidesCare: z.boolean(),
-  adminSpecialtyCode: specialtyCode.optional(),
-  adminProfessionalTitle: z.string().trim().optional(),
-  adminLicenseNumber: z.string().trim().optional(),
-  adminBio: z.string().trim().optional(),
-}).strict().superRefine((data, context) => {
-  if (data.adminProvidesCare) {
-    if (!data.adminSpecialtyCode || !data.specialtyCodes.includes(data.adminSpecialtyCode)) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminSpecialtyCode'], message: 'Selecciona una especialidad habilitada' });
-    }
-  } else if (data.adminSpecialtyCode !== undefined || data.adminProfessionalTitle !== undefined ||
-    data.adminLicenseNumber !== undefined || data.adminBio !== undefined) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['adminProvidesCare'], message: 'Los datos clínicos requieren atención a pacientes' });
-  }
-});
+  masterFirstName: z.string().trim().min(1, 'Ingresa el nombre'),
+  masterLastName: z.string().trim().min(1, 'Ingresa el apellido'),
+  masterEmail: onboardingEmail,
+  temporaryPassword: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
+  planType: z.enum(['TRIAL', 'PERSONAL_BASIC', 'PERSONAL_PRO', 'CLINIC_BASIC', 'CLINIC_PRO', 'CLINIC_ENTERPRISE']),
+  specialtyCodes: z.array(specialtyCode).min(1, 'Selecciona al menos una especialidad'),
+  sections: z.array(z.enum(sectionKeys)).optional(),
+}).strict();
 
-export type ClinicOnboardingFormData = z.infer<typeof clinicOnboardingSchema>;
+const planTypes = ['TRIAL', 'PERSONAL_BASIC', 'PERSONAL_PRO', 'CLINIC_BASIC', 'CLINIC_PRO', 'CLINIC_ENTERPRISE'] as const;
+
+/** Platform panel: the account data of an existing clinic. Blank phone and address clear the value. */
+export const updatePlatformTenantSchema = z.object({
+  name: z.string().trim().min(1, 'Ingresa el nombre del consultorio'),
+  email: onboardingEmail,
+  phone: z.string().trim(),
+  address: z.string().trim(),
+}).strict();
+
+const optionalLimit = (message: string) => z.number({ invalid_type_error: message }).int(message).min(1, message).optional();
+
+/** Platform panel: plan change. The limits are optional overrides of the plan's own. */
+export const changePlatformPlanSchema = z.object({
+  planType: z.enum(planTypes),
+  seatsPsychologistsMax: optionalLimit('Ingresa un número entero mayor que cero'),
+  maxActivePatients: optionalLimit('Ingresa un número entero mayor que cero'),
+  reason: z.string().trim().min(1, 'Indica el motivo del cambio'),
+}).strict();
+
+export const suspendReasonSchema = z.string().trim().min(1, 'Indica el motivo de la suspensión');
+
+/** Platform panel: payment confirmation reference and rejection reason (same limits as the API). */
+export const paymentReferenceSchema = z.string().trim().min(1, 'Indica la referencia del pago').max(120, 'La referencia admite hasta 120 caracteres');
+export const paymentRejectReasonSchema = z.string().trim().min(1, 'Indica el motivo del rechazo').max(500, 'El motivo admite hasta 500 caracteres');
+
+/** Platform panel: temporary password reset. Never trimmed. */
+export const temporaryPasswordSchema = z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
 
 const teamProfileSchema = z.object({
   specialtyId: z.string().trim().min(1, 'Selecciona una especialidad'),
@@ -124,24 +109,24 @@ const teamProfileSchema = z.object({
   isActive: z.boolean(),
 }).strict();
 
-const tenantTeamMemberFields = {
+const tenantTeamMemberBaseFields = {
   email: onboardingEmail,
   firstName: z.string().trim().min(1, 'Ingresa el nombre'),
   lastName: z.string().trim().min(1, 'Ingresa el apellido'),
   phone: z.string().trim().optional(),
-  role: z.union([
-    z.literal(UserRole.ADMIN),
-    z.literal(UserRole.PROFESIONAL),
-    z.literal(UserRole.ASISTENTE),
-  ]),
   professionalProfile: teamProfileSchema.optional(),
 };
+
+const assignableTeamRole = z.union([
+  z.literal(UserRole.PROFESIONAL),
+  z.literal(UserRole.ASISTENTE),
+]);
 
 function refineTenantTeamMember(
   data: { role: UserRole; professionalProfile?: { specialtyId: string } },
   context: z.RefinementCtx,
 ) {
-  if ([UserRole.PROFESIONAL, UserRole.PSICOLOGO].includes(data.role) && !data.professionalProfile) {
+  if (data.role === UserRole.PROFESIONAL && !data.professionalProfile) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['professionalProfile'], message: 'Selecciona una especialidad' });
   }
   if (data.role === UserRole.ASISTENTE && data.professionalProfile) {
@@ -149,14 +134,18 @@ function refineTenantTeamMember(
   }
 }
 
+/** New members can only be professionals or assistants. */
 export const tenantTeamMemberSchema = z.object({
-  ...tenantTeamMemberFields,
+  ...tenantTeamMemberBaseFields,
+  role: assignableTeamRole,
   password: z.string().min(PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`),
 }).strict().superRefine(refineTenantTeamMember);
 
-export const tenantTeamMemberUpdateSchema = z.object(tenantTeamMemberFields)
-  .strict()
-  .superRefine(refineTenantTeamMember);
+/** Editing also accepts MASTER, because the account holder's own row resends its role. */
+export const tenantTeamMemberUpdateSchema = z.object({
+  ...tenantTeamMemberBaseFields,
+  role: z.union([z.literal(UserRole.MASTER), assignableTeamRole]),
+}).strict().superRefine(refineTenantTeamMember);
 
 export type TenantTeamMemberFormData = z.infer<typeof tenantTeamMemberSchema>;
 
@@ -178,6 +167,63 @@ export const patientSchema = z.object({
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
   notes: z.string().optional(),
+  // Identification: optional, but type and number go together and follow the type's format.
+  identificationType: z.string().optional(),
+  identificationNumber: z
+    .string()
+    .optional()
+    .transform((value) => (value ? normalizeIdentification(value) : value)),
+  maritalStatus: z.string().optional(),
+  occupation: z.string().optional(),
+  nationality: z.string().optional(),
+  bloodType: z.string().optional(),
+  disability: z.string().optional(),
+  insuranceProvider: z.string().optional(),
+  insurancePolicyNumber: z.string().optional(),
+  // Legal guardian: required when the birth date makes the patient a minor.
+  guardianName: z.string().optional(),
+  guardianRelationship: z.string().optional(),
+  guardianIdentification: z.string().optional(),
+  guardianPhone: z.string().optional(),
+  // Billing recipient: optional, but what is entered must be consistent.
+  billingName: z.string().optional(),
+  billingTaxIdType: z.string().optional(),
+  billingTaxId: z.string().optional().transform((value) => (value ? normalizeTaxId(value) : value)),
+  billingEmail: z.string().optional(),
+  billingAddress: z.string().optional(),
+}).superRefine((data, context) => {
+  const identification = identificationErrors(
+    data.identificationType ?? '',
+    data.identificationNumber ?? '',
+  );
+  for (const [field, message] of Object.entries(identification)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message, path: [field] });
+  }
+  if (isMinor(data.dateOfBirth) && !data.guardianName?.trim()) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Un paciente menor de edad necesita un representante legal.',
+      path: ['guardianName'],
+    });
+  }
+
+  const errors = patientBillingErrors({
+    name: data.billingName ?? '',
+    taxIdType: (data.billingTaxIdType ?? '') as TaxIdType | '',
+    taxId: data.billingTaxId ?? '',
+    email: data.billingEmail ?? '',
+    address: data.billingAddress ?? '',
+  });
+  const paths = {
+    name: 'billingName',
+    taxIdType: 'billingTaxIdType',
+    taxId: 'billingTaxId',
+    email: 'billingEmail',
+    address: 'billingAddress',
+  } as const;
+  for (const [field, message] of Object.entries(errors)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message, path: [paths[field as keyof typeof paths]] });
+  }
 });
 
 // Existing patient pages are migrated in Task 9. Their registered field is
@@ -199,6 +245,7 @@ export const appointmentSchema = z.object({
   isOnline: z.boolean().default(false),
   meetingUrl: z.string().url('URL inválida').optional().or(z.literal('')),
   location: z.string().optional(),
+  branchId: z.string().optional(),
 });
 
 // Task 10 replaces the old dialog; the runtime schema emits only canonical fields.
@@ -241,7 +288,7 @@ export type SessionPlanFormData = z.infer<typeof sessionPlanSchema>;
 export const taskSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres'),
   description: z.string().optional(),
-  assignedToId: z.string().min(1, 'Asigna la tarea a un usuario'),
+  assignedToId: z.string().min(1, 'Asigna la actividad a un usuario'),
   patientId: z.string().min(1, 'Selecciona un paciente'),
   priority: z.nativeEnum(TaskPriority).default(TaskPriority.MEDIUM),
   dueDate: z.string().optional(),

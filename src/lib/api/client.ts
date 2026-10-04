@@ -46,11 +46,22 @@ class ApiClient {
           requestUrl.includes('/auth/login') ||
           requestUrl.includes('/auth/refresh') ||
           requestUrl.includes('/auth/forgot-password') ||
-          requestUrl.includes('/auth/reset-password');
+          requestUrl.includes('/auth/reset-password') ||
+          requestUrl.includes('/auth/change-password');
 
         // Never try token refresh for auth endpoints (login/reset/etc.)
         if (error.response?.status === 401 && isAuthEndpoint) {
           return Promise.reject(this.normalizeError(error));
+        }
+
+        // A temporary password blocks every request but the change itself.
+        if (
+          error.response?.status === 403 &&
+          this.getErrorCode(error) === 'PASSWORD_CHANGE_REQUIRED' &&
+          typeof window !== 'undefined' &&
+          window.location.pathname !== '/change-password'
+        ) {
+          window.location.href = '/change-password';
         }
 
         // Handle 401 Unauthorized for protected endpoints
@@ -118,6 +129,13 @@ class ApiClient {
     return accessToken;
   }
 
+  private getErrorCode(error: AxiosError): string | undefined {
+    const body: unknown = error.response?.data;
+    return body && typeof body === 'object' && 'code' in body && typeof body.code === 'string'
+      ? body.code
+      : undefined;
+  }
+
   private normalizeError(error: AxiosError): ApiError {
     if (error.response) {
       const body: unknown = error.response.data;
@@ -135,6 +153,15 @@ class ApiClient {
       if (typeof data.field === 'string') normalized.field = data.field;
       if (data.details && typeof data.details === 'object' && !Array.isArray(data.details)) {
         normalized.details = data.details as Record<string, unknown>;
+      }
+      // Validation of clinical records and form definitions lists one issue per field.
+      if (Array.isArray(data.details)) {
+        normalized.issues = data.details.filter(
+          (issue): issue is { field: string; message: string } =>
+            !!issue && typeof issue === 'object' &&
+            typeof (issue as Record<string, unknown>).field === 'string' &&
+            typeof (issue as Record<string, unknown>).message === 'string',
+        );
       }
       return normalized;
     }
