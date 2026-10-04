@@ -74,9 +74,9 @@ describe('structured data', () => {
   it('describes the product with fixed-price offers only', () => {
     const data = softwareApplicationLd();
     expect(data['@type']).toBe('SoftwareApplication');
-    expect(data.offers.map((offer: { price: string }) => offer.price)).toEqual(['0', '29', '59', '99', '199']);
+    expect(data.offers.map((offer: { price: string }) => offer.price)).toEqual(['29', '59', '99', '199']);
     expect(data.offers.map((offer: { name: string }) => offer.name)).toEqual([
-      'Individual Prueba', 'Individual Básico', 'Individual Pro', 'Empresarial Básico', 'Empresarial Pro',
+      'Individual Básico', 'Individual Pro', 'Empresarial Básico', 'Empresarial Pro',
     ]);
     expect(data).not.toHaveProperty('aggregateRating');
   });

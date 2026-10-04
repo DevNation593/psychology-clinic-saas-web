@@ -15,7 +15,6 @@ describe('site content', () => {
       plan.name, plan.priceMonthly, plan.pricePerExtraSeat, plan.seatsIncluded,
     ]);
     expect(summary).toEqual([
-      ['Prueba', 0, null, 1],
       ['Básico', 29, null, 1],
       ['Pro', 59, null, 1],
       ['Básico', 99, 15, 3],
@@ -24,11 +23,21 @@ describe('site content', () => {
     ]);
   });
 
-  it('splits the plans into three individual and three business plans', () => {
+  it('splits the plans into two individual and three business plans', () => {
     const names = (audience: string) =>
       site.plans.filter((plan) => plan.audience === audience).map((plan) => plan.name);
-    expect(names('individual')).toEqual(['Prueba', 'Básico', 'Pro']);
+    expect(names('individual')).toEqual(['Básico', 'Pro']);
     expect(names('business')).toEqual(['Básico', 'Pro', 'Personalizado']);
+  });
+
+  it('offers no free plan', () => {
+    expect(site.plans.filter((plan) => plan.priceMonthly === 0)).toEqual([]);
+    const faq = site.faq.map((item) => `${item.question} ${item.answer}`).join(' ');
+    expect(faq).not.toMatch(/plan prueba|gratis|gratuit/i);
+  });
+
+  it('names the company that owns the rights', () => {
+    expect(site.legal.companyName).toBe('DEVNATION TECHNOLOGIES S.A.S.');
   });
 
   it('highlights exactly one plan per group', () => {
@@ -40,7 +49,7 @@ describe('site content', () => {
   it('gives every plan a distinct full name', () => {
     const fullNames = site.plans.map(planFullName);
     expect(fullNames).toEqual([
-      'Individual Prueba', 'Individual Básico', 'Individual Pro',
+      'Individual Básico', 'Individual Pro',
       'Empresarial Básico', 'Empresarial Pro', 'Empresarial Personalizado',
     ]);
   });

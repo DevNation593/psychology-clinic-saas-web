@@ -47,6 +47,18 @@ describe('SiteFooter', () => {
     }
     expect(screen.getByRole('button', { name: 'Preferencias de cookies' })).toBeInTheDocument();
   });
+
+  it('links to the certificate check on the home page', () => {
+    render(<SiteFooter />);
+    expect(screen.getByRole('link', { name: 'Verificar certificado' })).toHaveAttribute('href', '/#verificar-certificado');
+  });
+
+  it('reserves the rights for the company that owns the product', () => {
+    render(<SiteFooter />);
+    expect(
+      screen.getByText(`© ${new Date().getFullYear()} DEVNATION TECHNOLOGIES S.A.S. Todos los derechos reservados.`),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('Breadcrumbs', () => {
