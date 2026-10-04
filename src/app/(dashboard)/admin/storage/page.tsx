@@ -41,6 +41,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton, SkeletonCard, SkeletonTable } from '@/components/ui/skeleton';
 import { Alert } from '@/components/ui/alert';
@@ -298,26 +300,36 @@ function FileRow({
         {formatDateFull(file.createdAt)}
       </TableCell>
       <TableCell className="text-right">
-        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => window.open(file.url, '_blank')}
-            title="Descargar"
+        {file.url ? (
+          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => window.open(file.url, '_blank')}
+              title="Descargar"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => onDelete(file)}
+              title="Eliminar"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : file.relatedTo?.type === 'patient' ? (
+          // Clinical files are opened and removed in the patient record, where it is audited.
+          <a
+            href={`/patients/${file.relatedTo.id}?tab=files`}
+            className="text-sm text-primary underline-offset-4 hover:underline"
           >
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDelete(file)}
-            title="Eliminar"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+            Ver en la ficha
+          </a>
+        ) : null}
       </TableCell>
     </TableRow>
   );
@@ -367,6 +379,9 @@ function StorageManagementPageContent() {
 
     return result;
   }, [fileList, searchQuery, sortBy, sortOrder]);
+  const pagination = usePagination(filteredFiles, {
+    resetKey: `${searchQuery}|${categoryFilter}|${sortBy}|${sortOrder}`,
+  });
 
   // Stats
   const totalFiles = fileList.length;
@@ -565,6 +580,7 @@ function StorageManagementPageContent() {
           ) : filteredFiles.length === 0 ? (
             <EmptyState />
           ) : (
+            <>
             <div className="rounded-md border overflow-hidden">
               <Table>
                 <TableHeader>
@@ -577,12 +593,21 @@ function StorageManagementPageContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredFiles.map((file) => (
+                  {pagination.pageItems.map((file) => (
                     <FileRow key={file.id} file={file} onDelete={setFileToDelete} />
                   ))}
                 </TableBody>
               </Table>
             </div>
+            <Pagination
+              className="mt-4"
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+            />
+            </>
           )}
         </CardContent>
       </Card>

@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useCancelAppointment } from '@/hooks/useAppointments';
 import { useAuthStore } from '@/store/authStore';
-import { canEditAppointment } from '@/types/guards';
-import type { Appointment } from '@/types';
+import Link from 'next/link';
+import { canAccessClinicalNotes, canEditAppointment } from '@/types/guards';
+import { AppointmentStatus, type Appointment } from '@/types';
 import { APPOINTMENT_STATUS_COLORS, APPOINTMENT_STATUS_LABELS } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import { getAppointmentErrorMessage } from './appointment-errors';
@@ -16,9 +17,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+
+const ATTENDABLE: AppointmentStatus[] = [
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CONFIRMED,
+  AppointmentStatus.IN_PROGRESS,
+];
 
 interface AppointmentDetailsDialogProps {
   open: boolean;
@@ -42,6 +49,12 @@ export function AppointmentDetailsDialog({
   if (!appointment) return null;
 
   const canEdit = !!user && canEditAppointment(user, appointment);
+  // Only the professional of the appointment attends it, and only with clinical access.
+  const canAttend =
+    !!user &&
+    user.id === appointment.professionalId &&
+    canAccessClinicalNotes(user) &&
+    ATTENDABLE.includes(appointment.status);
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setShowCancellation(false);
@@ -159,6 +172,17 @@ export function AppointmentDetailsDialog({
               </Button>
             </div>
           </div>
+        )}
+
+        {canAttend && !showCancellation && (
+          <Link
+            href={`/patients/${appointment.patientId}?tab=specialties&appointmentId=${appointment.id}`}
+            className={buttonVariants({ variant: 'default' })}
+          >
+            {appointment.status === AppointmentStatus.IN_PROGRESS
+              ? 'Continuar atención'
+              : 'Iniciar atención'}
+          </Link>
         )}
 
         {canEdit && !showCancellation && (

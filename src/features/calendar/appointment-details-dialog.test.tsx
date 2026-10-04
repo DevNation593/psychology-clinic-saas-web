@@ -120,6 +120,48 @@ describe('AppointmentDetailsDialog', () => {
     expect(screen.queryByRole('button', { name: 'Cancelar cita' })).not.toBeInTheDocument();
   });
 
+  describe('attending the appointment', () => {
+    const professional = (overrides: Partial<User> = {}): User =>
+      ({
+        id: 'professional-1',
+        role: UserRole.PROFESIONAL,
+        tenantId: 'tenant-1',
+        professionalProfile: { isActive: true },
+        ...overrides,
+      }) as User;
+    const attentionLink = () => screen.queryByRole('link', { name: /atención/ });
+
+    it('takes the professional of the appointment to the patient record to start it', () => {
+      renderDetails({ user: professional() });
+
+      expect(screen.getByRole('link', { name: 'Iniciar atención' })).toHaveAttribute(
+        'href',
+        '/patients/patient-1?tab=specialties&appointmentId=appointment-1',
+      );
+    });
+
+    it('offers to continue an appointment that is already being attended', () => {
+      renderDetails({
+        user: professional(),
+        currentAppointment: appointment({ status: AppointmentStatus.IN_PROGRESS }),
+      });
+
+      expect(screen.getByRole('link', { name: 'Continuar atención' })).toBeInTheDocument();
+    });
+
+    it.each([
+      ['another professional', professional({ id: 'professional-2' }), appointment()],
+      ['a professional without an active profile', professional({ professionalProfile: { isActive: false } as never }), appointment()],
+      ['the account holder without a clinical profile', actor(UserRole.MASTER, 'professional-1'), appointment()],
+      ['a completed appointment', professional(), appointment({ status: AppointmentStatus.COMPLETED })],
+      ['a cancelled appointment', professional(), appointment({ status: AppointmentStatus.CANCELLED })],
+    ])('is not offered to %s', (_label, user, currentAppointment) => {
+      renderDetails({ user, currentAppointment });
+
+      expect(attentionLink()).not.toBeInTheDocument();
+    });
+  });
+
   it('emits the canonical appointment for editing', () => {
     const currentAppointment = appointment();
     const { onEdit } = renderDetails({ currentAppointment });

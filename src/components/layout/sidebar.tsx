@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useUIStore } from '@/store/uiStore';
 import { useSections } from '@/hooks/useSections';
+import { useMyPermissions } from '@/hooks/usePermissions';
 import { canManageUsers, canManageSubscription, isMasterRole, isProfessionalRole } from '@/types/guards';
 import {
   LayoutDashboard,
@@ -20,7 +21,9 @@ import {
   Settings,
   HardDrive,
   ClipboardList,
+  ListChecks,
   Stethoscope,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -30,14 +33,16 @@ export function Sidebar() {
   const tenant = useAuthStore((state) => state.tenant);
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { isEnabled } = useSections();
+  const { can } = useMyPermissions();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
     { name: 'Calendario', href: '/calendar', icon: Calendar, show: isEnabled('core.calendar') },
     { name: 'Pacientes', href: '/patients', icon: Users, show: isEnabled('core.patients') },
-    { name: 'Tareas', href: '/tasks', icon: ClipboardList, show: isEnabled('core.tasks') },
+    { name: 'Actividades', href: '/tasks', icon: ClipboardList, show: isEnabled('core.tasks') },
     { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: isEnabled('core.specialties') && (user ? canManageUsers(user) : false) },
-    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: isEnabled('core.billing') && (user ? isMasterRole(user.role) || isProfessionalRole(user.role) : false) },
+    { name: 'Formularios', href: '/admin/forms', icon: ListChecks, show: isEnabled('core.specialties') && (user ? canManageSubscription(user) : false) },
+    { name: 'Facturación', href: '/admin/billing', icon: FileText, show: isEnabled('core.billing') && can('billing.view', user ? isMasterRole(user.role) || isProfessionalRole(user.role) : false) },
   ].filter((item) => item.show);
 
   const adminNavigation = [
@@ -46,6 +51,12 @@ export function Sidebar() {
       href: '/admin/team',
       icon: UserCog,
       show: isEnabled('core.team') && user && canManageUsers(user),
+    },
+    {
+      name: 'Reportes',
+      href: '/admin/reports',
+      icon: BarChart3,
+      show: isEnabled('core.calendar') && user && isMasterRole(user.role),
     },
     {
       name: 'Suscripción',
