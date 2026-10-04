@@ -10,6 +10,7 @@ import { HowItWorks } from '@/features/marketing/sections/how-it-works';
 import { Modules } from '@/features/marketing/sections/modules';
 import { PlanGroups } from '@/features/marketing/sections/plan-groups';
 import { Reviews } from '@/features/marketing/sections/reviews';
+import { VerifyCertificate } from '@/features/marketing/sections/verify-certificate';
 
 // The home title is absolute so the root layout's "%s | brand" template does not duplicate the brand.
 export const metadata = { ...buildMetadata('home'), title: { absolute: buildMetadata('home').title as string } };
@@ -30,6 +31,7 @@ export default function HomePage() {
       </p>
       <CaseStudies items={site.caseStudies} />
       <Reviews reviews={site.reviews} />
+      <VerifyCertificate />
       <FaqSection faq={site.faq} />
       <ContactCta contact={site.contact} />
       <JsonLd data={softwareApplicationLd()} />

@@ -17,7 +17,6 @@ const views = Object.fromEntries(
 );
 
 const SITE_PLAN_IDS: Record<string, ApiPlanType> = {
-  trial: 'TRIAL',
   'personal-basic': 'PERSONAL_BASIC',
   'personal-pro': 'PERSONAL_PRO',
   'clinic-basic': 'CLINIC_BASIC',
@@ -33,9 +32,10 @@ describe('plan catalog contract', () => {
     expect(contract).toEqual(JSON.parse(readFileSync(apiCopy, 'utf8')));
   });
 
+  // The trial period is a state of an account, not a plan on offer, so the site leaves it out.
   it('covers every plan the public site advertises', () => {
     expect(site.plans.map((plan) => SITE_PLAN_IDS[plan.id]).sort()).toEqual(
-      catalog.plans.map((plan) => plan.planType).sort(),
+      catalog.plans.map((plan) => plan.planType).filter((planType) => planType !== 'TRIAL').sort(),
     );
   });
 

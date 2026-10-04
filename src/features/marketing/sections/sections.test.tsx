@@ -30,9 +30,8 @@ describe('Hero', () => {
 
 describe('PlanGroups', () => {
   it('formats prices', () => {
-    expect(formatPlanPrice(site.plans[0])).toBe('Gratis');
-    expect(formatPlanPrice(site.plans[1])).toBe('$29');
-    expect(formatPlanPrice(site.plans[5])).toBe('A medida');
+    expect(formatPlanPrice(site.plans[0])).toBe('$29');
+    expect(formatPlanPrice(site.plans[4])).toBe('A medida');
   });
 
   it('opens on the individual plans', () => {
@@ -42,7 +41,7 @@ describe('PlanGroups', () => {
 
     const panel = screen.getByRole('tabpanel', { name: 'Individual' });
     expect(within(panel).getAllByRole('article').map((card) => card.getAttribute('aria-label'))).toEqual([
-      'Individual Prueba', 'Individual Básico', 'Individual Pro',
+      'Individual Básico', 'Individual Pro',
     ]);
     expect(within(panel).getByText('$29')).toBeInTheDocument();
   });
@@ -63,8 +62,8 @@ describe('PlanGroups', () => {
 
   it('keeps both groups in the page so search engines can read every plan', () => {
     const { container } = render(<PlanGroups plans={site.plans} />);
-    expect(container.querySelectorAll('article')).toHaveLength(6);
-    expect(screen.getAllByRole('article')).toHaveLength(3);
+    expect(container.querySelectorAll('article')).toHaveLength(5);
+    expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 
   it('marks the most chosen plan once per group', () => {

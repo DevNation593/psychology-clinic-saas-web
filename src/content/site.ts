@@ -98,7 +98,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_APP_URL) {
 
 export const site: SiteContent = {
   brand: {
-    name: process.env.NEXT_PUBLIC_APP_NAME || 'Consultorios de Salud',
+    name: process.env.NEXT_PUBLIC_APP_NAME || 'HCX Care',
     tagline: 'La gestión de tu consultorio, en un solo lugar',
     description:
       'Agenda, historias clínicas, equipo tratante y facturación electrónica para consultorios y profesionales de la salud.',
@@ -131,8 +131,8 @@ export const site: SiteContent = {
     { title: 'Facturación electrónica', description: 'Emisión de comprobantes electrónicos desde el consultorio.' },
   ],
   // Mirrors api/src/subscription/subscription-pricing.ts. Update both together.
+  // The API's trial period is not a plan on offer, so it is not published here.
   plans: [
-    { id: 'trial', name: 'Prueba', audience: 'individual', summary: 'Para conocer la plataforma.', priceMonthly: 0, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 10, storageGB: null, monthlyNotifications: 100 },
     { id: 'personal-basic', name: 'Básico', audience: 'individual', summary: 'Para un profesional independiente.', priceMonthly: 29, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 50, storageGB: null, monthlyNotifications: 300 },
     { id: 'personal-pro', name: 'Pro', audience: 'individual', summary: 'Para una consulta individual en crecimiento.', priceMonthly: 59, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 200, storageGB: 1, monthlyNotifications: 1000, highlighted: true },
     { id: 'clinic-basic', name: 'Básico', audience: 'business', summary: 'Para equipos pequeños.', priceMonthly: 99, pricePerExtraSeat: 15, seatsIncluded: 3, maxActivePatients: 150, storageGB: 1, monthlyNotifications: 500, highlighted: true },
@@ -141,7 +141,7 @@ export const site: SiteContent = {
   ],
   faq: [
     { question: '¿Para qué tipo de consultorio sirve?', answer: 'Para profesionales independientes y clínicas con una o varias especialidades de salud, como psicología o nutrición.' },
-    { question: '¿Puedo probarlo antes de pagar?', answer: 'Sí. El plan Prueba permite usar la plataforma con hasta 10 pacientes activos, y puedes solicitar una demo guiada.' },
+    { question: '¿Puedo conocerlo antes de contratar?', answer: 'Sí. Solicita una demo guiada y te mostramos la plataforma con el flujo de tu consultorio antes de que elijas un plan.' },
     { question: '¿Quién puede ver las notas clínicas?', answer: 'Solo los roles clínicos autorizados de tu consultorio. El personal administrativo gestiona agenda y pacientes sin acceder a las notas.' },
     { question: '¿Cómo se cobran los usuarios adicionales?', answer: 'Los planes de clínica incluyen un número de usuarios y cada usuario adicional tiene un costo mensual fijo indicado en la tabla de planes.' },
     { question: '¿Qué pasa con mis datos si cancelo?', answer: 'Tus datos te pertenecen. Consulta la política de tratamiento de datos para conocer plazos de conservación y cómo solicitarlos.' },
@@ -150,5 +150,5 @@ export const site: SiteContent = {
   caseStudies: [],
   team: [],
   location: null,
-  legal: { companyName: '', taxId: '', address: '', dataContactEmail: '', reviewed: false },
+  legal: { companyName: 'DEVNATION TECHNOLOGIES S.A.S.', taxId:'', address: '', dataContactEmail: '', reviewed: false },
 };

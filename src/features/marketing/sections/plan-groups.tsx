@@ -59,23 +59,27 @@ export function PlanGroups({ plans, heading = 'Planes' }: { plans: Plan[]; headi
       </div>
 
       {/* Both groups stay in the document so search engines can read every plan. */}
-      {AUDIENCES.map((audience) => (
-        <div
-          key={audience}
-          role="tabpanel"
-          id={panelId(audience)}
-          aria-labelledby={tabId(audience)}
-          hidden={audience !== active}
-          className="mt-8"
-        >
-          <p className="text-center text-sm text-muted-foreground">{DESCRIPTIONS[audience]}</p>
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-            {plans.filter((plan) => plan.audience === audience).map((plan) => (
-              <PlanCard key={plan.id} plan={plan} />
-            ))}
+      {AUDIENCES.map((audience) => {
+        const group = plans.filter((plan) => plan.audience === audience);
+        return (
+          <div
+            key={audience}
+            role="tabpanel"
+            id={panelId(audience)}
+            aria-labelledby={tabId(audience)}
+            hidden={audience !== active}
+            className="mt-8"
+          >
+            <p className="text-center text-sm text-muted-foreground">{DESCRIPTIONS[audience]}</p>
+            {/* A group of two is centred so it does not leave an empty third column. */}
+            <div className={`mt-8 grid gap-6 ${group.length === 2 ? 'mx-auto max-w-3xl md:grid-cols-2' : 'md:grid-cols-3'}`}>
+              {group.map((plan) => (
+                <PlanCard key={plan.id} plan={plan} />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </section>
   );
 }
