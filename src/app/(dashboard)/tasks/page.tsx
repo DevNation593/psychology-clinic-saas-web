@@ -1,12 +1,13 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTasks, useCreateTask, useDeleteTask } from '@/hooks/useTasks';
+import { usePagination } from '@/hooks/usePagination';
 import { tasksApi, usersApi, patientsApi, extractArray } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
 import { assignableUsers } from '@/features/tasks/task-assignees';
-import { toCanonicalRole } from '@/types/guards';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { QUERY_KEYS, TASK_STATUS_LABELS, TASK_PRIORITY_LABELS, TASK_PRIORITY_COLORS } from '@/lib/constants';
 import { TaskStatus, TaskPriority, UserRole } from '@/types';
@@ -21,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -66,7 +68,7 @@ type PriorityFilter = 'ALL' | TaskPriority;
 // ==========================================
 // MAIN PAGE
 // ==========================================
-export default function TasksPage() {
+function TasksPageContent() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
 
@@ -89,10 +91,10 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_MY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_OVERDUE });
-      toast.success('Tarea completada');
+      toast.success('Actividad completada');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Error al completar tarea');
+      toast.error(error.message || 'Error al completar actividad');
     },
   });
 
@@ -118,6 +120,16 @@ export default function TasksPage() {
   const completedTasks = filteredTasks.filter((t) => t.status === TaskStatus.COMPLETED);
   const cancelledTasks = filteredTasks.filter((t) => t.status === TaskStatus.CANCELLED);
 
+  // Pages run through the groups in order, so the headings keep counting the whole list.
+  const pagination = usePagination([...pendingTasks, ...completedTasks, ...cancelledTasks], {
+    resetKey: `${search}|${statusFilter}|${priorityFilter}`,
+  });
+  const pageTaskIds = new Set(pagination.pageItems.map((task) => task.id));
+  const onPage = (task: Task) => pageTaskIds.has(task.id);
+  const pagePendingTasks = pendingTasks.filter(onPage);
+  const pageCompletedTasks = completedTasks.filter(onPage);
+  const pageCancelledTasks = cancelledTasks.filter(onPage);
+
   const handleDelete = () => {
     if (deleteTaskId) {
       deleteTask(deleteTaskId, {
@@ -135,8 +147,8 @@ export default function TasksPage() {
   if (isFeatureLockedError(tasksError)) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Tareas</h1>
-        <FeatureLockedNotice featureName="El módulo de tareas" />
+        <h1 className="text-3xl font-bold">Actividades</h1>
+        <FeatureLockedNotice featureName="El módulo de actividades" />
       </div>
     );
   }
@@ -146,14 +158,14 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Tareas</h1>
+          <h1 className="text-3xl font-bold">Actividades</h1>
           <p className="text-muted-foreground mt-1">
-            Gestiona las tareas del equipo
+            Gestiona las actividades del equipo
           </p>
         </div>
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nueva Tarea
+          Nueva Actividad
         </Button>
       </div>
 
@@ -164,7 +176,7 @@ export default function TasksPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar tareas..."
+                placeholder="Buscar actividades..."
                 className="pl-10"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -292,16 +304,16 @@ export default function TasksPage() {
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">No hay tareas</p>
+              <p className="text-lg font-medium">No hay actividades</p>
               <p className="text-sm mt-1">
                 {search || statusFilter !== 'ALL' || priorityFilter !== 'ALL'
-                  ? 'No se encontraron tareas con esos filtros'
-                  : 'Crea tu primera tarea para empezar'}
+                  ? 'No se encontraron actividades con esos filtros'
+                  : 'Crea tu primera actividad para empezar'}
               </p>
               {!search && statusFilter === 'ALL' && priorityFilter === 'ALL' && (
                 <Button className="mt-4" onClick={() => setShowCreateDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Nueva Tarea
+                  Nueva Actividad
                 </Button>
               )}
             </div>
@@ -310,13 +322,13 @@ export default function TasksPage() {
       ) : (
         <div className="space-y-6">
           {/* Pending / In Progress */}
-          {pendingTasks.length > 0 && (
+          {pagePendingTasks.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold flex items-center gap-2">
                 <Clock className="h-5 w-5" />
                 Activas ({pendingTasks.length})
               </h2>
-              {pendingTasks.map((task) => (
+              {pagePendingTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -329,13 +341,13 @@ export default function TasksPage() {
           )}
 
           {/* Completed */}
-          {completedTasks.length > 0 && (
+          {pageCompletedTasks.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold flex items-center gap-2 text-muted-foreground">
                 <CheckCircle2 className="h-5 w-5" />
                 Completadas ({completedTasks.length})
               </h2>
-              {completedTasks.map((task) => (
+              {pageCompletedTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -347,13 +359,13 @@ export default function TasksPage() {
           )}
 
           {/* Cancelled */}
-          {cancelledTasks.length > 0 && (
+          {pageCancelledTasks.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold flex items-center gap-2 text-muted-foreground">
                 <X className="h-5 w-5" />
                 Canceladas ({cancelledTasks.length})
               </h2>
-              {cancelledTasks.map((task) => (
+              {pageCancelledTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -363,6 +375,14 @@ export default function TasksPage() {
               ))}
             </div>
           )}
+
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            pageSize={pagination.pageSize}
+            onPageChange={pagination.setPage}
+          />
         </div>
       )}
 
@@ -376,9 +396,9 @@ export default function TasksPage() {
       <AlertDialog open={!!deleteTaskId} onOpenChange={() => setDeleteTaskId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar tarea?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar actividad?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La tarea será eliminada permanentemente.
+              Esta acción no se puede deshacer. La actividad será eliminada permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -536,7 +556,7 @@ function CreateTaskDialog({
     defaultValues: {
       priority: TaskPriority.MEDIUM,
       // A professional's tasks are their own, so the assignee starts as themselves.
-      ...(actor && toCanonicalRole(actor.role) === UserRole.PROFESIONAL && { assignedToId: actor.id }),
+      ...(actor && actor.role === UserRole.PROFESIONAL && { assignedToId: actor.id }),
     },
   });
 
@@ -553,9 +573,9 @@ function CreateTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nueva Tarea</DialogTitle>
+          <DialogTitle>Nueva Actividad</DialogTitle>
           <DialogDescription>
-            Crea una nueva tarea para el equipo
+            Crea una nueva actividad para el equipo
           </DialogDescription>
         </DialogHeader>
 
@@ -574,7 +594,7 @@ function CreateTaskDialog({
             <Label htmlFor="description">Descripción</Label>
             <Textarea
               id="description"
-              placeholder="Descripción detallada de la tarea..."
+              placeholder="Descripción detallada de la actividad..."
               rows={3}
               {...register('description')}
             />
@@ -647,11 +667,19 @@ function CreateTaskDialog({
               Cancelar
             </Button>
             <Button type="submit" loading={isPending}>
-              Crear Tarea
+              Crear Actividad
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export default function TasksPage() {
+  return (
+    <SectionGate section="core.tasks">
+      <TasksPageContent />
+    </SectionGate>
   );
 }

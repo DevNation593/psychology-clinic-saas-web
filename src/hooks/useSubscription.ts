@@ -26,8 +26,20 @@ export function useSubscription() {
   });
 }
 
-// Note: Plans are fetched via tenant subscription endpoint
-// The subscription object already contains the plan details
+export function usePlanCatalog() {
+  return useQuery({
+    queryKey: QUERY_KEYS.PLANS,
+    queryFn: () => subscriptionApi.getPlans(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useSubscriptionPayments() {
+  return useQuery({
+    queryKey: QUERY_KEYS.SUBSCRIPTION_PAYMENTS,
+    queryFn: () => subscriptionApi.getPayments(),
+  });
+}
 
 export function useUsageMetrics(period?: 'current' | 'previous' | string) {
   return useQuery({
@@ -50,15 +62,14 @@ export function useUpgradePlan() {
   return useMutation({
     mutationFn: (data: UpgradeRequest) => subscriptionApi.upgrade(data),
     onSuccess: (response) => {
-      // Invalidate subscription and usage queries
+      // The plan itself does not change yet: only the pending payment appears.
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION_USAGE });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TENANT });
-      
-      toast.success(response.message || '¡Plan actualizado exitosamente!');
+
+      toast.success(response.message || 'Solicitud registrada. Pendiente de pago.');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Error al actualizar el plan';
+      const message =
+        error.response?.data?.message || error.message || 'Error al solicitar la mejora';
       toast.error(message);
     },
   });
@@ -72,11 +83,14 @@ export function useDowngradePlan() {
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION_USAGE });
-      
-      toast.success('Downgrade programado para fin del período actual');
+
+      toast.success(response.message || 'Cambio programado para el fin del período actual');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Error al programar downgrade';
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        'Error al programar el cambio de plan';
       toast.error(message);
     },
   });

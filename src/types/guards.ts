@@ -18,57 +18,61 @@ export function isUserRole(value: string): value is UserRole {
   return Object.values(UserRole).includes(value as UserRole);
 }
 
-export function isAdminRole(role: UserRole): boolean {
-  return role === UserRole.CLIENTE || role === UserRole.ADMIN;
+/** The account holder: the single user that controls the clinic's account. */
+export function isMasterRole(role: UserRole): boolean {
+  return role === UserRole.MASTER;
+}
+
+/** The platform operator: only uses the /platform panel and never belongs to a clinic. */
+export function isPlatformAdmin(user: Pick<User, 'role'>): boolean {
+  return user.role === UserRole.ADMIN;
 }
 
 export function isProfessionalRole(role: UserRole): boolean {
-  return role === UserRole.PSICOLOGO || role === UserRole.PROFESIONAL;
-}
-
-export function toCanonicalRole(role: UserRole): UserRole {
-  if (role === UserRole.CLIENTE) return UserRole.ADMIN;
-  if (role === UserRole.PSICOLOGO) return UserRole.PROFESIONAL;
-  return role;
+  return role === UserRole.PROFESIONAL;
 }
 
 export function canAddPatientTeamMember(user: User): boolean {
-  const role = toCanonicalRole(user.role);
-  return role === UserRole.ADMIN || role === UserRole.ASISTENTE || role === UserRole.PROFESIONAL;
+  return (
+    user.role === UserRole.MASTER ||
+    user.role === UserRole.ASISTENTE ||
+    user.role === UserRole.PROFESIONAL
+  );
 }
 
 export function canRemovePatientTeamMember(user: User): boolean {
-  const role = toCanonicalRole(user.role);
-  return role === UserRole.ADMIN || role === UserRole.ASISTENTE;
+  return user.role === UserRole.MASTER || user.role === UserRole.ASISTENTE;
 }
 
 export function hasActiveProfessionalProfile(user: User): boolean {
   return user.professionalProfile?.isActive === true;
 }
 
+/** Clinical content needs an active professional profile; the role alone is not enough. */
 export function canAccessClinicalNotes(user: User): boolean {
-  return isAdminRole(user.role) || isProfessionalRole(user.role) || user.role === UserRole.SOPORTE;
+  return (
+    (isMasterRole(user.role) || isProfessionalRole(user.role)) && hasActiveProfessionalProfile(user)
+  );
 }
 
 export function canManageUsers(user: User): boolean {
-  return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
+  return isMasterRole(user.role);
 }
 
 export function canManageSubscription(user: User): boolean {
-  return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
+  return isMasterRole(user.role);
 }
 
 export function canEditAppointment(
   user: User,
   appointment: Pick<Appointment, 'professionalId'>,
 ): boolean {
-  const role = toCanonicalRole(user.role);
-  if (role === UserRole.ADMIN || role === UserRole.ASISTENTE) return true;
-  return role === UserRole.PROFESIONAL && appointment.professionalId === user.id;
+  if (user.role === UserRole.MASTER || user.role === UserRole.ASISTENTE) return true;
+  return user.role === UserRole.PROFESIONAL && appointment.professionalId === user.id;
 }
 
 export function canDeletePatient(user: User): boolean {
-  return isAdminRole(user.role) || user.role === UserRole.SOPORTE;
+  return isMasterRole(user.role);
 }
 
 export function isActiveAppointment(status: AppointmentStatus): boolean {

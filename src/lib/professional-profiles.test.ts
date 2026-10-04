@@ -5,10 +5,10 @@ import { countActiveProfessionalProfiles } from './professional-profiles';
 describe('countActiveProfessionalProfiles', () => {
   it('counts active profiles including clinical administrators, independent of role', () => {
     const users = [
-      { role: UserRole.ADMIN, professionalProfile: { isActive: true } },
+      { role: UserRole.MASTER, professionalProfile: { isActive: true } },
       { role: UserRole.PROFESIONAL, professionalProfile: { isActive: true } },
-      { role: UserRole.ADMIN },
-      { role: UserRole.PSICOLOGO, professionalProfile: { isActive: false } },
+      { role: UserRole.MASTER },
+      { role: UserRole.PROFESIONAL, professionalProfile: { isActive: false } },
     ] as User[];
     expect(countActiveProfessionalProfiles(users)).toBe(2);
   });

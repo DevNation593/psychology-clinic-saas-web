@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { clinicalNotesApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
-import { ClinicalNote } from '@/types';
+import type { ClinicalNote, ClinicalNoteCorrection } from '@/types';
 import { toast } from 'sonner';
 import { isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 
@@ -65,14 +65,12 @@ export function useUpdateClinicalNote(noteId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Partial<ClinicalNote>) => clinicalNotesApi.update(noteId, data),
-    onSuccess: (_, variables) => {
+    mutationFn: (data: ClinicalNoteCorrection) => clinicalNotesApi.update(noteId, data),
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['clinical-notes', noteId] });
-      if (variables.patientId) {
-        queryClient.invalidateQueries({
-          queryKey: QUERY_KEYS.PATIENT_CLINICAL_NOTES(variables.patientId),
-        });
-      }
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.PATIENT_CLINICAL_NOTES(updated.patientId),
+      });
       toast.success('Nota clínica actualizada');
     },
     onError: (error: any) => {
@@ -85,8 +83,8 @@ export function useDeleteClinicalNote() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ noteId, patientId }: { noteId: string; patientId: string }) =>
-      clinicalNotesApi.delete(noteId),
+    mutationFn: ({ noteId, reason }: { noteId: string; patientId: string; reason: string }) =>
+      clinicalNotesApi.delete(noteId, reason),
     onSuccess: (_, { patientId }) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.PATIENT_CLINICAL_NOTES(patientId),

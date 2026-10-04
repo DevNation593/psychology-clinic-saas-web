@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PlanTier } from '@/types';
 import { ROUTES } from '@/lib/constants';
@@ -32,6 +33,7 @@ export function FeatureLockedModal({
 }: FeatureLockedModalProps) {
   const router = useRouter();
   const { data: subscription } = useSubscription();
+  const canManage = useCanManageAccount();
 
   const handleUpgrade = () => {
     onOpenChange(false);
@@ -58,10 +60,10 @@ export function FeatureLockedModal({
           'Historial completo del tratamiento',
           'Cumplimiento de normativas HIPAA',
         ];
-      case 'tareas':
+      case 'actividades':
       case 'tasks':
         return [
-          'Asignar tareas a psicólogos',
+          'Asignar actividades a psicólogos',
           'Fechas límite y recordatorios',
           'Seguimiento de progreso',
           'Priorización de pendientes',
@@ -145,11 +147,17 @@ export function FeatureLockedModal({
             Más Tarde
           </Button>
 
-          <Button variant="secondary" onClick={handleViewPlans}>
-            Ver Planes
-          </Button>
+          {!canManage && (
+            <p className="text-sm text-muted-foreground">Contacta al titular de la cuenta.</p>
+          )}
 
-          {currentTier === PlanTier.BASIC && (
+          {canManage && (
+            <Button variant="secondary" onClick={handleViewPlans}>
+              Ver Planes
+            </Button>
+          )}
+
+          {canManage && currentTier === PlanTier.BASIC && (
             <Button onClick={handleUpgrade} className="gap-2">
               <Sparkles className="h-4 w-4" />
               Actualizar Ahora

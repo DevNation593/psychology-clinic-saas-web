@@ -2,21 +2,24 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Stethoscope, UserCheck, UserPlus, UserX } from 'lucide-react';
+import { KeyRound, Pencil, Stethoscope, UserCheck, UserPlus, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Pagination } from '@/components/ui/pagination';
 import { SkeletonTable } from '@/components/ui/skeleton';
+import { usePagination } from '@/hooks/usePagination';
 import { useTenantSpecialties } from '@/hooks/useSpecialties';
 import { subscriptionApi, usersApi, extractArray } from '@/lib/api/endpoints';
 import { countActiveProfessionalProfiles } from '@/lib/professional-profiles';
 import { QUERY_KEYS, ROLE_LABELS } from '@/lib/constants';
-import { isAdminRole, isClinicPlan, toCanonicalRole } from '@/types/guards';
+import { isMasterRole, isClinicPlan } from '@/types/guards';
 import { UserRole, type TenantTeamProfessionalProfileInput, type UpdateTenantUserInput, type UsageMetrics, type User } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { TeamMemberDialog } from './team-member-dialog';
+import { UserPermissionsDialog } from './user-permissions-dialog';
 
 type UserListData = {
   users: User[];
@@ -29,10 +32,8 @@ type ActionError = {
 };
 
 const TEAM_USER_ROLES = new Set<UserRole>([
-  UserRole.ADMIN,
-  UserRole.CLIENTE,
+  UserRole.MASTER,
   UserRole.PROFESIONAL,
-  UserRole.PSICOLOGO,
   UserRole.ASISTENTE,
 ]);
 
@@ -79,9 +80,10 @@ export function TeamManager() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const hasTeamModule = isClinicPlan(tenant);
-  const canManage = !!currentUser && isAdminRole(currentUser.role);
+  const canManage = !!currentUser && isMasterRole(currentUser.role);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<User | null>(null);
+  const [permissionsMember, setPermissionsMember] = useState<User | null>(null);
   const [actionError, setActionError] = useState<ActionError | null>(null);
   const [pendingTenantIds, setPendingTenantIds] = useState<string[]>([]);
   const actionLocks = useRef(new Set<string>());
@@ -116,6 +118,7 @@ export function TeamManager() {
   }, [tenantId]);
 
   const users = (usersQuery.data?.users ?? []).filter((user) => TEAM_USER_ROLES.has(user.role));
+  const pagination = usePagination(users, { resetKey: tenantId ?? '' });
   const usage = usageQuery.isError ? undefined : usageQuery.data as UsageMetrics | undefined;
   const usageBelongsToTenant = !!tenantId && usage?.tenantId === tenantId;
   const profileLimit = usageBelongsToTenant ? usage.users.professionals.limit : undefined;
@@ -256,7 +259,7 @@ export function TeamManager() {
       </div>
 
       {!canManage && (
-        <Alert title="Vista de solo lectura" description="Solo un administrador del consultorio puede modificar el equipo." />
+        <Alert title="Vista de solo lectura" description="Solo el titular de la cuenta puede modificar el equipo." />
       )}
 
       {actionError?.tenantId === tenantId && (
@@ -304,6 +307,7 @@ export function TeamManager() {
           {usersQuery.isLoading ? (
             <SkeletonTable />
           ) : users.length > 0 ? (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -317,11 +321,11 @@ export function TeamManager() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => {
+                  {pagination.pageItems.map((user) => {
                     const profile = user.professionalProfile;
                     const name = memberName(user);
-                    const canonicalRole = toCanonicalRole(user.role);
-                    const roleLabel = ROLE_LABELS[canonicalRole] ?? String(user.role);
+                    const roleLabel = ROLE_LABELS[user.role] ?? String(user.role);
+                    const isHolder = isMasterRole(user.role);
                     const specialtyName = profile
                       ? profile.specialty?.name ?? enabledSpecialties.find((specialty) => specialty.id === profile.specialtyId)?.name ?? profile.specialtyId
                       : 'Sin perfil clínico';
@@ -361,6 +365,18 @@ export function TeamManager() {
                                 >
                                   <Pencil className="h-4 w-4" aria-hidden="true" />
                                 </Button>
+                                {!isMasterRole(user.role) && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    aria-label={`Permisos de ${name}`}
+                                    onClick={() => setPermissionsMember(user)}
+                                    disabled={isMutationPending}
+                                  >
+                                    <KeyRound className="h-4 w-4" aria-hidden="true" />
+                                  </Button>
+                                )}
                                 {profile && (
                                   <Button
                                     type="button"
@@ -373,7 +389,7 @@ export function TeamManager() {
                                     <Stethoscope className="h-4 w-4" aria-hidden="true" />
                                   </Button>
                                 )}
-                                {user.isActive ? (
+                                {!isHolder && (user.isActive ? (
                                   <Button
                                     type="button"
                                     size="sm"
@@ -395,7 +411,7 @@ export function TeamManager() {
                                   >
                                     <UserCheck className="h-4 w-4" aria-hidden="true" />
                                   </Button>
-                                )}
+                                ))}
                               </>
                             )}
                           </div>
@@ -406,6 +422,15 @@ export function TeamManager() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              className="mt-4"
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+            />
+            </>
           ) : usersQuery.isError ? null : (
             <div className="py-12 text-center text-muted-foreground">
               <p>No hay usuarios registrados</p>
@@ -431,6 +456,13 @@ export function TeamManager() {
         pending={isMutationPending}
         onSubmit={handleDialogSubmit}
       />
+      {permissionsMember && (
+        <UserPermissionsDialog
+          userId={permissionsMember.id}
+          userName={memberName(permissionsMember)}
+          onClose={() => setPermissionsMember(null)}
+        />
+      )}
     </div>
   );
 }

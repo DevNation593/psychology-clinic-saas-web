@@ -1,18 +1,22 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useState } from 'react';
 import { usePatients } from '@/hooks/usePatients';
+import { usePagination } from '@/hooks/usePagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { Plus, Search, Filter, X } from 'lucide-react';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
+import { describeIdentification } from '@/features/patients/patient-identity';
 
-export default function PatientsPage() {
+function PatientsPageContent() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -23,6 +27,7 @@ export default function PatientsPage() {
     if (statusFilter === 'inactive') return !patient.isActive;
     return true;
   });
+  const pagination = usePagination(filteredPatients, { resetKey: `${search}|${statusFilter}` });
 
   return (
     <div className="space-y-6">
@@ -47,7 +52,8 @@ export default function PatientsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar pacientes..."
+                placeholder="Buscar por nombre, identificación, correo o teléfono"
+                aria-label="Buscar pacientes"
                 className="pl-10"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -113,6 +119,7 @@ export default function PatientsPage() {
           {isLoading ? (
             <SkeletonTable />
           ) : filteredPatients && filteredPatients.length > 0 ? (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -127,13 +134,18 @@ export default function PatientsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPatients.map((patient) => (
+                  {pagination.pageItems.map((patient) => (
                     <tr key={patient.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-4">
                         <div>
                           <p className="font-medium">
                             {patient.firstName} {patient.lastName}
                           </p>
+                          {patient.identificationNumber && (
+                            <p className="text-xs text-muted-foreground tabular-nums">
+                              {describeIdentification(patient.identificationType, patient.identificationNumber)}
+                            </p>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-muted-foreground">
@@ -167,6 +179,15 @@ export default function PatientsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              className="mt-4"
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              pageSize={pagination.pageSize}
+              onPageChange={pagination.setPage}
+            />
+            </>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p>No se encontraron pacientes</p>
@@ -180,5 +201,13 @@ export default function PatientsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PatientsPage() {
+  return (
+    <SectionGate section="core.patients">
+      <PatientsPageContent />
+    </SectionGate>
   );
 }

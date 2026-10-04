@@ -129,7 +129,7 @@ beforeEach(() => {
       tenantType: 'CLINIC',
       subscription: { plan: { limits: { maxPsychologists: 99 } } },
     } as ReturnType<typeof useAuthStore.getState>['tenant'],
-    user: { id: 'admin-1', role: UserRole.ADMIN, tenantId: 'tenant-1' } as User,
+    user: { id: 'admin-1', role: UserRole.MASTER, tenantId: 'tenant-1' } as User,
   });
   api.listUsers.mockResolvedValue([]);
   api.createUser.mockImplementation(async (input: unknown) => input);
@@ -146,10 +146,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('TeamManager', () => {
-  it.each(['array', 'paginated'])('shows only team-role users and their actions for a %s response', async (shape) => {
+  it.each(['array', 'paginated'])('shows only account holder, professional and assistant rows for a %s response', async (shape) => {
     const rows = [
-      makeUser({ id: 'legacy-admin', firstName: 'Legacy', lastName: 'Admin', role: UserRole.CLIENTE, professionalProfile: undefined }),
-      makeUser({ id: 'legacy-professional', firstName: 'Legacy', lastName: 'Professional', role: UserRole.PSICOLOGO }),
+      makeUser({ id: 'holder-row', firstName: 'Tina', lastName: 'Titular', role: UserRole.MASTER, professionalProfile: undefined }),
+      makeUser({ id: 'professional-row', firstName: 'Pablo', lastName: 'Profesional', role: UserRole.PROFESIONAL }),
       makeUser({ id: 'assistant', firstName: 'Team', lastName: 'Assistant', role: UserRole.ASISTENTE, professionalProfile: undefined }),
       makeUser({ id: 'patient', firstName: 'Patient', lastName: 'Outside', role: UserRole.PACIENTE }),
       makeUser({ id: 'support', firstName: 'Support', lastName: 'Outside', role: UserRole.SOPORTE }),
@@ -159,8 +159,8 @@ describe('TeamManager', () => {
       : { data: rows, total: rows.length, page: 1, limit: rows.length };
     renderManager(response);
 
-    expect(await screen.findByText('Legacy Admin')).toBeInTheDocument();
-    expect(screen.getByText('Legacy Professional')).toBeInTheDocument();
+    expect(await screen.findByText('Tina Titular')).toBeInTheDocument();
+    expect(screen.getByText('Pablo Profesional')).toBeInTheDocument();
     expect(screen.getByText('Team Assistant')).toBeInTheDocument();
     expect(screen.queryByText('Patient Outside')).not.toBeInTheDocument();
     expect(screen.queryByText('Support Outside')).not.toBeInTheDocument();
@@ -170,7 +170,7 @@ describe('TeamManager', () => {
 
   it('renders array and paginated user results with separate account and clinical states', async () => {
     const manager = makeUser({
-      firstName: 'Ana', lastName: 'Vega', role: UserRole.CLIENTE,
+      firstName: 'Ana', lastName: 'Vega', role: UserRole.MASTER,
       professionalProfile: undefined,
     });
     const professional = makeUser({
@@ -187,7 +187,7 @@ describe('TeamManager', () => {
 
     expect(await screen.findByText('Ana Vega')).toBeInTheDocument();
     expect(screen.getByText('Luis Paz')).toBeInTheDocument();
-    expect(screen.getByText('Administrador')).toBeInTheDocument();
+    expect(screen.getByText('Titular de la cuenta')).toBeInTheDocument();
     expect(screen.getAllByText('Sin perfil clínico')).toHaveLength(1);
     expect(screen.getByText('Cuenta activa')).toBeInTheDocument();
     expect(screen.getByText('Cuenta inactiva')).toBeInTheDocument();
@@ -283,6 +283,7 @@ describe('TeamManager', () => {
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nora' } });
     fireEvent.change(screen.getByLabelText('Apellido'), { target: { value: 'Ríos' } });
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'Secret123' } });
+    fireEvent.change(screen.getByLabelText('Rol'), { target: { value: UserRole.ASISTENTE } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear miembro' }));
 
     await waitFor(() => expect(api.createUser).toHaveBeenCalledWith({
@@ -290,7 +291,7 @@ describe('TeamManager', () => {
       password: 'Secret123',
       firstName: 'Nora',
       lastName: 'Ríos',
-      role: UserRole.ADMIN,
+      role: UserRole.ASISTENTE,
     }, 'tenant-1'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expectCoreInvalidations(client);
@@ -335,18 +336,17 @@ describe('TeamManager', () => {
     expect(invalidate).toHaveBeenCalled();
   });
 
-  it('deactivates accounts through DELETE and keeps the row when the API protects the last admin', async () => {
-    const user = makeUser({ id: 'admin-2', firstName: 'Elena', lastName: 'Ríos', role: UserRole.ADMIN });
-    api.deleteUser.mockRejectedValueOnce({
-      code: 'LAST_ACTIVE_ADMIN_REQUIRED',
-      message: 'El consultorio debe conservar al menos un administrador activo.',
+  it('surfaces an API rejection (MASTER_IMMUTABLE) and keeps the row', async () => {
+    const user = makeUser({ id: 'pro-9', firstName: 'Elena', lastName: 'Ríos' });
+    api.updateUser.mockRejectedValueOnce({
+      code: 'MASTER_IMMUTABLE',
+      message: 'El titular de la cuenta no puede cambiar de rol ni desactivarse.',
     });
     renderManager([user]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar cuenta de Elena Ríos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar atención clínica de Elena Ríos' }));
 
-    expect(api.deleteUser).toHaveBeenCalledWith('admin-2', 'tenant-1');
-    const protectedActionMessage = await screen.findByText('El consultorio debe conservar al menos un administrador activo.');
-    expect(protectedActionMessage.closest('[role="alert"]')).toHaveTextContent('El consultorio debe conservar al menos un administrador activo.');
+    const message = await screen.findByText('El titular de la cuenta no puede cambiar de rol ni desactivarse.');
+    expect(message.closest('[role="alert"]')).toBeInTheDocument();
     expect(screen.getByText('Elena Ríos')).toBeInTheDocument();
     expect(screen.getByText('Cuenta activa')).toBeInTheDocument();
   });
@@ -390,16 +390,6 @@ describe('TeamManager', () => {
     expect(screen.getByRole('button', { name: 'Desactivar atención clínica de Equipo Proveedor' })).toBeEnabled();
   });
 
-  it('normalizes legacy professional rows to the canonical role in the edit form', async () => {
-    const legacy = makeUser({ id: 'legacy-1', role: UserRole.PSICOLOGO, firstName: 'Rosa', lastName: 'Luz' });
-    renderManager([legacy]);
-
-    expect(await screen.findByText('Profesional')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Editar Rosa Luz' }));
-    expect(screen.getByLabelText('Rol')).toHaveValue(UserRole.PROFESIONAL);
-    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument();
-  });
-
   it('shows a retryable user-list error without replacing the page with an empty state', async () => {
     api.listUsers.mockRejectedValueOnce(new Error('No se pudo cargar el equipo.'));
     renderManager();
@@ -421,7 +411,7 @@ describe('TeamManager', () => {
     expect(api.listSpecialties).not.toHaveBeenCalled();
   });
 
-  it('renders a read-only table for users without the admin role', async () => {
+  it('renders a read-only table for users who are not the account holder', async () => {
     useAuthStore.setState({ user: { id: 'professional-actor', role: UserRole.PROFESIONAL, tenantId: 'tenant-1' } as User });
     renderManager([makeUser()]);
 
@@ -445,7 +435,7 @@ describe('TeamManager', () => {
 
     act(() => useAuthStore.setState({
       tenant: { ...useAuthStore.getState().tenant!, id: 'tenant-2' } as ReturnType<typeof useAuthStore.getState>['tenant'],
-      user: { id: 'admin-2', role: UserRole.ADMIN, tenantId: 'tenant-2' } as User,
+      user: { id: 'admin-2', role: UserRole.MASTER, tenantId: 'tenant-2' } as User,
     }));
     await waitFor(() => expect(api.listUsers).toHaveBeenCalledWith(undefined, 'tenant-2'));
     await act(async () => reject(new Error('Tenant A request failed')));
@@ -466,5 +456,30 @@ describe('TeamManager', () => {
     await waitFor(() => expect(api.deleteUser).toHaveBeenCalledTimes(1));
     expect(deactivate).toBeDisabled();
     resolve();
+  });
+});
+
+describe('TeamManager account holder row', () => {
+  const holder = makeUser({
+    id: 'master-1', firstName: 'Tina', lastName: 'Titular', role: UserRole.MASTER,
+    professionalProfile: undefined,
+  });
+  const assistant = makeUser({
+    id: 'assistant-1', firstName: 'Abel', lastName: 'Asistente', role: UserRole.ASISTENTE,
+    professionalProfile: undefined,
+  });
+
+  it('labels the account holder and offers no deactivation for that row', async () => {
+    useAuthStore.setState({ user: holder });
+    renderManager([holder, assistant]);
+
+    expect(await screen.findByText('Titular de la cuenta')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Editar Tina Titular' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Desactivar cuenta de Tina Titular' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Desactivar cuenta de Abel Asistente' }),
+    ).toBeInTheDocument();
   });
 });

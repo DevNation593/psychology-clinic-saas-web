@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '@/store/authStore';
 import { AppointmentStatus, UserRole, type Appointment, type Patient, type User } from '@/types';
@@ -9,7 +9,15 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   removePatient: vi.fn(),
   get: vi.fn(),
+  disabledSections: [] as string[],
+  alerts: [] as unknown[],
+  search: '',
 }));
+
+const SECTION_KEYS = [
+  'core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes',
+  'core.specialties', 'core.billing', 'core.team', 'core.storage',
+];
 
 const patient = {
   id: 'patient-1',
@@ -76,14 +84,51 @@ const canonicalAppointmentWithoutTitle = {
   psychologist: { id: 'legacy-psychologist-2', firstName: 'Otro', lastName: 'Legado', email: 'otro@example.com' },
 } as Appointment;
 
+const permissions = vi.hoisted(() => ({ withdrawn: [] as string[], granted: [] as string[] }));
+vi.mock('@/hooks/usePermissions', () => ({
+  useMyPermissions: () => ({
+    // As the hook: a granted permission is held whatever the role; otherwise the role decides
+    // unless the permission was withdrawn.
+    can: (permission: string, byRole = true) =>
+      permissions.granted.includes(permission) ||
+      (byRole && !permissions.withdrawn.includes(permission)),
+  }),
+}));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
   useParams: () => ({ id: 'patient-1' }),
+  useSearchParams: () => new URLSearchParams(mocks.search),
+}));
+// The tabs have their own tests; here only which one opens, and with what, matters.
+vi.mock('@/features/patients/clinical-records-tab', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/patients/clinical-records-tab')>()),
+  ClinicalRecordsTab: ({ startAppointmentId }: { startAppointmentId?: string }) => (
+    <div data-testid="records-tab">{startAppointmentId ?? 'no appointment'}</div>
+  ),
+}));
+vi.mock('@/features/patients/patient-files-tab', () => ({
+  PatientFilesTab: ({ patientId }: { patientId: string }) => (
+    <div data-testid="files-tab">{patientId}</div>
+  ),
+}));
+vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/hooks/useSpecialties')>()),
+  useTenantModules: () => ({
+    data: SECTION_KEYS.map((moduleKey) => ({ moduleKey, enabled: !mocks.disabledSections.includes(moduleKey) })),
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
 }));
 vi.mock('@/hooks/usePatients', () => ({
   usePatient: () => ({ data: patient, isLoading: false }),
   useUpdatePatient: vi.fn(),
   useDeletePatient: () => ({ mutate: mocks.removePatient, isPending: false }),
+}));
+vi.mock('@/features/billing/patient-invoices-tab', () => ({
+  PatientInvoicesTab: ({ patientId }: { patientId: string }) => (
+    <div data-testid="patient-invoices">{patientId}</div>
+  ),
 }));
 vi.mock('@/lib/api/client', () => ({
   apiClient: { get: mocks.get, put: vi.fn(), delete: vi.fn() },
@@ -96,8 +141,17 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.disabledSections = [];
+  mocks.alerts = [];
+  mocks.search = '';
+  permissions.withdrawn = [];
   useAuthStore.setState({
-    user: { id: 'admin-1', tenantId: 'tenant-1', role: UserRole.CLIENTE } as User,
+    user: {
+      id: 'admin-1',
+      tenantId: 'tenant-1',
+      role: UserRole.MASTER,
+      professionalProfile: { isActive: true },
+    } as User,
     tenant: { id: 'tenant-1' } as ReturnType<typeof useAuthStore.getState>['tenant'],
   });
   mocks.get.mockImplementation((url: string) => {
@@ -107,9 +161,131 @@ beforeEach(() => {
     if (url.endsWith('/team') || url.endsWith('/team/eligible') || url.includes('/specialties')) {
       return Promise.resolve([]);
     }
+    if (url.endsWith('/specialty-records/alerts')) {
+      return Promise.resolve(mocks.alerts);
+    }
     throw new Error(`Unexpected request: ${url}`);
   });
 
+});
+
+describe('patient detail invoices tab', () => {
+  it.each([
+    [UserRole.MASTER, true],
+    [UserRole.PROFESIONAL, true],
+    [UserRole.ASISTENTE, false],
+  ])('for %s is visible: %s', (role, visible) => {
+    useAuthStore.setState({ user: { id: 'user-1', tenantId: 'tenant-1', role } as User });
+    renderPage();
+
+    expect(!!screen.queryByRole('button', { name: 'Facturas' })).toBe(visible);
+    if (visible) {
+      fireEvent.click(screen.getByRole('button', { name: 'Facturas' }));
+      expect(screen.getByTestId('patient-invoices')).toHaveTextContent('patient-1');
+    }
+  });
+});
+
+describe('patient detail clinical tabs', () => {
+  it.each([
+    ['a MASTER without a professional profile', UserRole.MASTER, undefined],
+    ['a PROFESIONAL with an inactive profile', UserRole.PROFESIONAL, { isActive: false }],
+    ['an ASISTENTE', UserRole.ASISTENTE, undefined],
+  ])('are hidden from %s', (_label, role, professionalProfile) => {
+    useAuthStore.setState({
+      user: { id: 'user-1', tenantId: 'tenant-1', role, professionalProfile } as User,
+    });
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Historia Clínica' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Registros clínicos' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Equipo tratante' })).toBeInTheDocument();
+  });
+});
+
+describe('patient detail withdrawn permissions', () => {
+  it.each([
+    ['clinical_records.view', 'Registros clínicos'],
+    ['billing.view', 'Facturas'],
+  ])('hides what %s gave access to', (permission, tab) => {
+    renderPage();
+    expect(screen.getByRole('button', { name: tab })).toBeInTheDocument();
+    cleanup();
+
+    permissions.withdrawn = [permission];
+    renderPage();
+    expect(screen.queryByRole('button', { name: tab })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'General' })).toBeInTheDocument();
+  });
+});
+
+describe('patient detail opened from the agenda', () => {
+  it('opens the records tab with the appointment to attend', () => {
+    mocks.search = 'tab=specialties&appointmentId=appointment-1';
+    renderPage();
+
+    expect(screen.getByTestId('records-tab')).toHaveTextContent('appointment-1');
+  });
+
+  it('opens the files tab from the storage page', () => {
+    mocks.search = 'tab=files';
+    renderPage();
+
+    expect(screen.getByTestId('files-tab')).toHaveTextContent('patient-1');
+  });
+
+  it('ignores an unknown tab and never shows clinical tabs to an account without clinical access', () => {
+    mocks.search = 'tab=unknown';
+    renderPage();
+    expect(screen.getByText('Información Personal')).toBeInTheDocument();
+    cleanup();
+
+    mocks.search = 'tab=files';
+    useAuthStore.setState({
+      user: { id: 'user-1', tenantId: 'tenant-1', role: UserRole.ASISTENTE } as User,
+    });
+    renderPage();
+    expect(screen.queryByTestId('files-tab')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archivos' })).not.toBeInTheDocument();
+  });
+});
+
+describe('patient detail clinical alerts', () => {
+  const allergy = {
+    level: 'critical',
+    message: 'Alergia grave registrada.',
+    recordId: 'allergy-1',
+    moduleKey: 'general.allergies',
+    moduleName: 'Alergias',
+    recordDate: '2026-09-01T10:00:00.000Z',
+  };
+  const requestedAlerts = () =>
+    mocks.get.mock.calls.some(([url]) => String(url).endsWith('/specialty-records/alerts'));
+
+  it('shows the alerts of the patient above the tabs to a clinical account', async () => {
+    mocks.alerts = [allergy];
+    renderPage();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Alergia grave registrada.');
+    expect(screen.getByRole('region', { name: 'Alertas clínicas' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['an account without a professional profile', undefined, []],
+    ['a clinic without clinical modules', { isActive: true }, ['core.specialties']],
+  ])('never requests them for %s', async (_label, professionalProfile, disabledSections) => {
+    mocks.alerts = [allergy];
+    mocks.disabledSections = disabledSections;
+    useAuthStore.setState({
+      user: { id: 'user-1', tenantId: 'tenant-1', role: UserRole.MASTER, professionalProfile } as User,
+    });
+    renderPage();
+
+    // The appointments request shows the page finished loading its data.
+    await screen.findByRole('button', { name: 'General' });
+    expect(requestedAlerts()).toBe(false);
+    expect(screen.queryByRole('region', { name: 'Alertas clínicas' })).not.toBeInTheDocument();
+  });
 });
 
 describe('patient detail treating-team wiring', () => {
@@ -122,9 +298,11 @@ describe('patient detail treating-team wiring', () => {
       'General',
       'Equipo tratante',
       'Historia Clínica',
-      'Especialidades',
+      'Registros clínicos',
+      'Archivos',
       'Citas',
-      'Tareas',
+      'Actividades',
+      'Facturas',
       'Plan de Sesión',
     ]);
     expect(screen.queryByText('Psicólogo Asignado')).not.toBeInTheDocument();
@@ -148,5 +326,34 @@ describe('patient detail treating-team wiring', () => {
     expect(screen.queryByText(/Legacy Psych/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Dr\. Noa Paz/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Dr\. Luis Claro/)).not.toBeInTheDocument();
+  });
+});
+
+describe('patient detail section gating', () => {
+  it.each([
+    ['Historia Clínica', 'core.clinicalNotes'],
+    ['Registros clínicos', 'core.specialties'],
+    ['Archivos', 'core.storage'],
+    ['Actividades', 'core.tasks'],
+    ['Facturas', 'core.billing'],
+  ])('hides the %s tab when %s is off', (label, key) => {
+    mocks.disabledSections = [key];
+    renderPage();
+    expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'General' })).toBeInTheDocument();
+  });
+
+  it('hides Citas when core.calendar is off and Plan de Sesión when core.clinicalNotes is off', () => {
+    mocks.disabledSections = ['core.calendar', 'core.clinicalNotes'];
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Citas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Plan de Sesión' })).not.toBeInTheDocument();
+  });
+
+  it('shows the section notice instead of the page when core.patients is off', () => {
+    mocks.disabledSections = ['core.patients'];
+    renderPage();
+    expect(screen.getByText('Sección no disponible')).toBeInTheDocument();
+    expect(screen.queryByText('Información Personal')).not.toBeInTheDocument();
   });
 });

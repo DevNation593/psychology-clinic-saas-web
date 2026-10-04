@@ -3,13 +3,16 @@
 import { useRouter } from 'next/navigation';
 import { Users, UserPlus, Database, HardDrive } from 'lucide-react';
 import { UsageCard } from './usage-card';
+import { useCanManageAccount } from '@/hooks/useCanManageAccount';
 import { useSubscription, useUsageMetrics } from '@/hooks/useSubscription';
 import { getRemainingSeats, getRemainingPatients, getRemainingStorageGB, isClinicPlan } from '@/types/guards';
+import { useSections } from '@/hooks/useSections';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/lib/constants';
 
 export function PsychologistsUsageWidget() {
   const router = useRouter();
+  const canManage = useCanManageAccount();
   const { data: subscription } = useSubscription();
   const { data: usage } = useUsageMetrics();
 
@@ -35,8 +38,9 @@ export function PsychologistsUsageWidget() {
       current={activeProfessionals}
       limit={limit}
       unit="profesionales"
-      onUpgrade={handleUpgrade}
-      onManage={handleManage}
+      onUpgrade={canManage ? handleUpgrade : undefined}
+      upgradeNotice={canManage ? undefined : 'Contacta al titular de la cuenta.'}
+      onManage={canManage ? handleManage : undefined}
       manageLabel="Ver Equipo"
     />
   );
@@ -44,6 +48,7 @@ export function PsychologistsUsageWidget() {
 
 export function PatientsUsageWidget() {
   const router = useRouter();
+  const canManage = useCanManageAccount();
   const { data: subscription } = useSubscription();
   const { data: usage } = useUsageMetrics();
 
@@ -69,7 +74,8 @@ export function PatientsUsageWidget() {
       current={activePatients}
       limit={limit}
       unit="pacientes"
-      onUpgrade={handleUpgrade}
+      onUpgrade={canManage ? handleUpgrade : undefined}
+      upgradeNotice={canManage ? undefined : 'Contacta al titular de la cuenta.'}
       onManage={handleManage}
       manageLabel="Ver Pacientes"
     />
@@ -78,10 +84,12 @@ export function PatientsUsageWidget() {
 
 export function StorageUsageWidget() {
   const router = useRouter();
+  const { isEnabled } = useSections();
+  const canManage = useCanManageAccount();
   const { data: subscription } = useSubscription();
   const { data: usage } = useUsageMetrics();
 
-  if (!subscription || !usage) return null;
+  if (!isEnabled('core.storage') || !subscription || !usage) return null;
 
   const usedGB = usage.storage.usedGB;
   const limitGB = subscription.plan.limits.storageGB;
@@ -111,8 +119,9 @@ export function StorageUsageWidget() {
       limit={limitGB}
       unit="GB"
       formatValue={formatGB}
-      onUpgrade={handleUpgrade}
-      onManage={handleManage}
+      onUpgrade={canManage ? handleUpgrade : undefined}
+      upgradeNotice={canManage ? undefined : 'Contacta al titular de la cuenta.'}
+      onManage={canManage ? handleManage : undefined}
       manageLabel="Gestionar Archivos"
     />
   );

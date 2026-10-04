@@ -1,5 +1,6 @@
-import { OnboardingWizard } from '@/features/onboarding/onboarding-wizard';
+import { redirect } from 'next/navigation';
 
+// Public sign-up is closed: clinics are created by the platform admin.
 export default function OnboardingPage() {
-  return <OnboardingWizard />;
+  redirect('/contacto');
 }

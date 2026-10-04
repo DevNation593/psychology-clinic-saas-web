@@ -1,24 +1,24 @@
 'use client';
 
+import { SectionGate } from '@/components/layout/section-gate';
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { usePatient, useUpdatePatient, useDeletePatient } from '@/hooks/usePatients';
 import { usePatientClinicalNotes, useCreateClinicalNote, useDeleteClinicalNote } from '@/hooks/useClinicalNotes';
 import { useAppointments } from '@/hooks/useAppointments';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { usePatientSessionPlan, useCreateSessionPlan, useUpdateSessionPlan } from '@/hooks/useSessionPlans';
-import { usePatientSpecialtyRecords, useCreateSpecialtyRecord } from '@/hooks/useSpecialtyRecords';
-import { useTenantModules, useTenantSpecialties } from '@/hooks/useSpecialties';
+import { useSections } from '@/hooks/useSections';
+import { useMyPermissions } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/store/authStore';
-import {
-  SPECIALTY_FIELD_LABELS,
-  SPECIALTY_MODULE_FIELDS,
-  SpecialtyRecordEntryForm,
-  type SpecialtyRecordModuleOption,
-} from '@/features/patients/specialty-record-entry-form';
+import { ClinicalRecordsTab } from '@/features/patients/clinical-records-tab';
+import { PatientClinicalAlerts } from '@/features/patients/patient-clinical-alerts';
+import { PatientFilesTab } from '@/features/patients/patient-files-tab';
+import { usePatientEncounters } from '@/hooks/useEncounters';
+import { describeIdentification } from '@/features/patients/patient-identity';
 import { PatientTeamTab } from '@/features/patients/patient-team-tab';
-import { describeModule } from '@/features/admin/specialties/module-labels';
-import { canAccessClinicalNotes, canDeletePatient, isAdminRole } from '@/types/guards';
+import { canAccessClinicalNotes, canDeletePatient, isMasterRole, isProfessionalRole } from '@/types/guards';
+import { PatientInvoicesTab } from '@/features/billing/patient-invoices-tab';
 import { FeatureLockedNotice, isFeatureLockedError } from '@/features/subscription/feature-locked-notice';
 import { formatDate, formatRelativeDate, getInitials, cn } from '@/lib/utils';
 import {
@@ -27,6 +27,7 @@ import {
   TaskPriority,
   type Appointment,
   type ClinicalNote,
+  type SectionKey,
   type Task,
 } from '@/types';
 import {
@@ -70,6 +71,7 @@ import {
   Trash2,
   Calendar,
   ClipboardList,
+  Paperclip,
   FileText,
   Target,
   User as UserIcon,
@@ -84,12 +86,13 @@ import {
   Eye,
   Lock,
   Users,
+  Receipt,
 } from 'lucide-react';
 
 // ==========================================
 // TAB TYPES
 // ==========================================
-type TabId = 'overview' | 'team' | 'clinical' | 'specialties' | 'appointments' | 'tasks' | 'session-plan';
+type TabId = 'overview' | 'team' | 'clinical' | 'specialties' | 'files' | 'appointments' | 'tasks' | 'session-plan' | 'billing';
 
 interface Tab {
   id: TabId;
@@ -101,26 +104,59 @@ const TABS: Tab[] = [
   { id: 'overview', label: 'General', icon: UserIcon },
   { id: 'team', label: 'Equipo tratante', icon: Users },
   { id: 'clinical', label: 'Historia Clínica', icon: FileText },
-  { id: 'specialties', label: 'Especialidades', icon: ClipboardList },
+  { id: 'specialties', label: 'Registros clínicos', icon: ClipboardList },
+  { id: 'files', label: 'Archivos', icon: Paperclip },
   { id: 'appointments', label: 'Citas', icon: Calendar },
-  { id: 'tasks', label: 'Tareas', icon: ClipboardList },
+  { id: 'tasks', label: 'Actividades', icon: ClipboardList },
+  { id: 'billing', label: 'Facturas', icon: Receipt },
   { id: 'session-plan', label: 'Plan de Sesión', icon: Target },
 ];
+
+// Tabs backed by an optional section; the rest belong to the patient record itself.
+const TAB_SECTIONS: Partial<Record<TabId, SectionKey>> = {
+  clinical: 'core.clinicalNotes',
+  'session-plan': 'core.clinicalNotes',
+  specialties: 'core.specialties',
+  files: 'core.storage',
+  appointments: 'core.calendar',
+  tasks: 'core.tasks',
+  billing: 'core.billing',
+};
 
 // ==========================================
 // MAIN PAGE
 // ==========================================
-export default function PatientDetailPage() {
+function PatientDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const patientId = params.id as string;
   const user = useAuthStore((state) => state.user);
+  const { isEnabled } = useSections();
 
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const searchParams = useSearchParams();
+  // The agenda links here to attend an appointment: ?tab=specialties&appointmentId=…
+  const requestedTab = searchParams.get('tab');
+  const startAppointmentId = searchParams.get('appointmentId') ?? undefined;
+  const [activeTab, setActiveTab] = useState<TabId>(
+    TABS.some((tab) => tab.id === requestedTab) ? (requestedTab as TabId) : 'overview',
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: patient, isLoading } = usePatient(patientId);
   const deletePatient = useDeletePatient();
+  // Invoices are shown to the roles that can issue them, and to whoever was given the permission.
+  const { can } = useMyPermissions();
+  const canSeeInvoices =
+    !!user && can('billing.view', isMasterRole(user.role) || isProfessionalRole(user.role));
+  // Specialty records are clinical content: the API refuses them without an active professional profile.
+  const canSeeClinical = !!user && canAccessClinicalNotes(user) && can('clinical_records.view');
+  const visibleTabs = TABS.filter(
+    (tab) =>
+      (tab.id !== 'billing' || canSeeInvoices) &&
+      (tab.id !== 'specialties' || canSeeClinical) &&
+      (tab.id !== 'files' || canSeeClinical) &&
+      (TAB_SECTIONS[tab.id] === undefined || isEnabled(TAB_SECTIONS[tab.id]!)),
+  );
 
   const handleDelete = () => {
     deletePatient.mutate(patientId, {
@@ -185,10 +221,14 @@ export default function PatientDetailPage() {
         </div>
       </div>
 
+      {canSeeClinical && isEnabled('core.specialties') && (
+        <PatientClinicalAlerts patientId={patientId} />
+      )}
+
       {/* Tabs */}
       <div className="border-b">
         <nav className="flex space-x-4" aria-label="Tabs">
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             // Hide clinical tabs for users without access
             if (tab.id === 'clinical' && user && !canAccessClinicalNotes(user)) {
               return null;
@@ -218,9 +258,13 @@ export default function PatientDetailPage() {
         {activeTab === 'overview' && <OverviewTab patient={patient} />}
         {activeTab === 'team' && <PatientTeamTab patientId={patientId} />}
         {activeTab === 'clinical' && <ClinicalHistoryTab patientId={patientId} />}
-        {activeTab === 'specialties' && <SpecialtyRecordsTab patientId={patientId} />}
+        {activeTab === 'specialties' && canSeeClinical && (
+          <ClinicalRecordsTab patientId={patientId} startAppointmentId={startAppointmentId} />
+        )}
+        {activeTab === 'files' && canSeeClinical && <PatientFilesTab patientId={patientId} />}
         {activeTab === 'appointments' && <AppointmentsTab patientId={patientId} />}
         {activeTab === 'tasks' && <TasksTab patientId={patientId} />}
+        {activeTab === 'billing' && canSeeInvoices && <PatientInvoicesTab patientId={patientId} />}
         {activeTab === 'session-plan' && <SessionPlanTab patientId={patientId} />}
       </div>
 
@@ -269,6 +313,10 @@ function OverviewTab({ patient }: { patient: any }) {
         <CardContent className="space-y-4">
           <InfoRow label="Nombre completo" value={`${patient.firstName} ${patient.lastName}`} />
           <InfoRow
+            label="Identificación"
+            value={describeIdentification(patient.identificationType, patient.identificationNumber) || '—'}
+          />
+          <InfoRow
             label="Fecha de nacimiento"
             value={patient.dateOfBirth ? formatDate(patient.dateOfBirth, 'PPP') : '—'}
           />
@@ -281,6 +329,17 @@ function OverviewTab({ patient }: { patient: any }) {
             }
           />
           <InfoRow label="Dirección" value={patient.address || '—'} />
+          {patient.maritalStatus && <InfoRow label="Estado civil" value={patient.maritalStatus} />}
+          {patient.occupation && <InfoRow label="Ocupación" value={patient.occupation} />}
+          {patient.nationality && <InfoRow label="Nacionalidad" value={patient.nationality} />}
+          {patient.bloodType && <InfoRow label="Grupo sanguíneo" value={patient.bloodType} />}
+          {patient.disability && <InfoRow label="Discapacidad" value={patient.disability} />}
+          {patient.insuranceProvider && (
+            <InfoRow
+              label="Seguro o convenio"
+              value={[patient.insuranceProvider, patient.insurancePolicyNumber].filter(Boolean).join(' · ')}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -313,6 +372,26 @@ function OverviewTab({ patient }: { patient: any }) {
         </CardContent>
       </Card>
 
+      {/* Legal guardian */}
+      {patient.guardianName && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Representante legal
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <InfoRow
+              label="Nombre"
+              value={[patient.guardianName, patient.guardianRelationship].filter(Boolean).join(' · ')}
+            />
+            <InfoRow label="Identificación" value={patient.guardianIdentification || '—'} />
+            <InfoRow label="Teléfono" value={patient.guardianPhone || '—'} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Notes */}
       {patient.notes && (
         <Card className="md:col-span-2">
@@ -338,7 +417,7 @@ function OverviewTab({ patient }: { patient: any }) {
               icon={<Calendar className="h-5 w-5 text-blue-500" />}
             />
             <StatCard
-              label="Tareas"
+              label="Actividades"
               value={patient.tasksCount ?? '—'}
               icon={<ClipboardList className="h-5 w-5 text-purple-500" />}
             />
@@ -367,11 +446,22 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
   const { data: notes, isLoading, error: notesError } = usePatientClinicalNotes(patientId);
   const createNote = useCreateClinicalNote();
   const deleteNote = useDeleteClinicalNote();
+  // A note written during an attention belongs to it.
+  const { data: encounters = [] } = usePatientEncounters(patientId);
+  const openEncounter = encounters.find(
+    (encounter) => encounter.status === 'OPEN' && encounter.professionalId === user?.id,
+  );
 
   const [showNewNote, setShowNewNote] = useState(false);
   const [viewNote, setViewNote] = useState<ClinicalNote | null>(null);
   const [noteForm, setNoteForm] = useState({ diagnosis: '', content: '' });
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
+  const closeDeleteDialog = () => {
+    setDeleteNoteId(null);
+    setDeleteReason('');
+  };
 
   const handleCreateNote = () => {
     createNote.mutate(
@@ -379,6 +469,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
         patientId,
         content: noteForm.content.trim(),
         diagnosis: noteForm.diagnosis.trim() || undefined,
+        ...(openEncounter ? { encounterId: openEncounter.id } : {}),
       },
       {
         onSuccess: () => {
@@ -390,10 +481,10 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
   };
 
   const handleDeleteNote = () => {
-    if (!deleteNoteId) return;
+    if (!deleteNoteId || !deleteReason.trim()) return;
     deleteNote.mutate(
-      { noteId: deleteNoteId, patientId },
-      { onSuccess: () => setDeleteNoteId(null) }
+      { noteId: deleteNoteId, patientId, reason: deleteReason.trim() },
+      { onSuccess: closeDeleteDialog }
     );
   };
 
@@ -404,7 +495,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           <Lock className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-lg font-medium">Acceso restringido</p>
           <p className="text-sm text-muted-foreground">
-            Solo los psicólogos y administradores pueden ver la historia clínica.
+            Solo las cuentas con un perfil profesional activo pueden ver la historia clínica.
           </p>
         </CardContent>
       </Card>
@@ -415,14 +506,19 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
     return <FeatureLockedNotice featureName="El módulo de notas clínicas" />;
   }
 
+  // The API accepts new notes only from the PROFESIONAL role.
+  const canWriteNotes = isProfessionalRole(user.role);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Notas Clínicas</h3>
-        <Button onClick={() => setShowNewNote(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Nota
-        </Button>
+        {canWriteNotes && (
+          <Button onClick={() => setShowNewNote(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Nota
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -455,7 +551,7 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
                     <Button variant="ghost" size="icon" onClick={() => setViewNote(note)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {(isAdminRole(user.role) || note.psychologistId === user.id) && (
+                    {note.psychologistId === user.id && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -475,10 +571,12 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No hay notas clínicas registradas</p>
-            <Button className="mt-4" variant="outline" onClick={() => setShowNewNote(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear primera nota
-            </Button>
+            {canWriteNotes && (
+              <Button className="mt-4" variant="outline" onClick={() => setShowNewNote(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear primera nota
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -547,18 +645,35 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
       </Dialog>
 
       {/* Delete Note Dialog */}
-      <AlertDialog open={!!deleteNoteId} onOpenChange={() => setDeleteNoteId(null)}>
+      <AlertDialog open={!!deleteNoteId} onOpenChange={(open) => !open && closeDeleteDialog()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar nota clínica?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. La nota clínica será eliminada permanentemente.
+              La nota dejará de mostrarse en la historia clínica. Se conserva en el registro de
+              auditoría junto con el motivo.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div>
+            <Label htmlFor="note-delete-reason">Motivo de la eliminación</Label>
+            <Textarea
+              id="note-delete-reason"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Ej: Nota registrada en el paciente equivocado"
+              maxLength={500}
+              rows={3}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteNote}
+              onClick={(e) => {
+                // Keep the dialog open until the API confirms.
+                e.preventDefault();
+                handleDeleteNote();
+              }}
+              disabled={!deleteReason.trim() || deleteNote.isPending}
               className="bg-destructive text-destructive-foreground"
             >
               Eliminar
@@ -566,88 +681,6 @@ function ClinicalHistoryTab({ patientId }: { patientId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-// ==========================================
-// SPECIALTY RECORDS TAB
-// ==========================================
-function SpecialtyRecordsTab({ patientId }: { patientId: string }) {
-  const { data: records = [], isLoading } = usePatientSpecialtyRecords(patientId);
-  const createRecord = useCreateSpecialtyRecord(patientId);
-  const tenantId = useAuthStore((state) => state.tenant?.id ?? state.user?.tenantId ?? null);
-  const specialtiesQuery = useTenantSpecialties();
-  const modulesQuery = useTenantModules();
-  const specialties = specialtiesQuery.data ?? [];
-  const enabledModules = modulesQuery.data ?? [];
-  const configurationStatus = specialtiesQuery.isError || modulesQuery.isError
-    ? 'error'
-    : !tenantId || specialtiesQuery.isPending || modulesQuery.isPending
-      ? 'loading'
-      : 'ready';
-  const configurationError = [specialtiesQuery.error, modulesQuery.error]
-    .map((error) => error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
-      ? error.message
-      : undefined)
-    .find(Boolean);
-
-  const enabledKeys = new Set(enabledModules.filter((module) => module.enabled).map((module) => module.moduleKey));
-  const moduleOptions: SpecialtyRecordModuleOption[] = specialties.flatMap((specialty) =>
-    (specialty.modules || [])
-      .filter((module) => enabledKeys.has(module.moduleKey) && SPECIALTY_MODULE_FIELDS[module.moduleKey])
-      .map((module) => ({
-        code: specialty.code,
-        name: specialty.name,
-        moduleKey: module.moduleKey,
-      })),
-  );
-
-  return (
-    <div className="space-y-6">
-      <SpecialtyRecordEntryForm
-        tenantId={tenantId}
-        patientId={patientId}
-        configurationStatus={configurationStatus}
-        configurationError={configurationError}
-        moduleOptions={moduleOptions}
-        isSaving={createRecord.isPending}
-        onSubmit={(payload) => createRecord.mutateAsync(payload)}
-      />
-
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold">Historial especializado</h3>
-        {isLoading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : records.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">No hay registros especializados.</CardContent></Card>
-        ) : (
-          records.map((record) => (
-            <Card key={record.id}>
-              <CardContent className="pt-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-medium">{record.specialty?.name || describeModule(record.moduleKey).name}</p>
-                    <p className="text-sm text-muted-foreground">{describeModule(record.moduleKey).name}</p>
-                    <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                      {Object.entries(record.data).map(([key, value]) => (
-                        <div key={key}>
-                          <span className="text-muted-foreground">{SPECIALTY_FIELD_LABELS[key] || key}: </span>
-                          <span>{String(value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {record.notes && <p className="mt-3 text-sm whitespace-pre-wrap">{record.notes}</p>}
-                  </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatDate(record.recordDate, 'dd/MM/yyyy')}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
     </div>
   );
 }
@@ -766,16 +799,16 @@ function TasksTab({ patientId }: { patientId: string }) {
   }
 
   if (isFeatureLockedError(tasksError)) {
-    return <FeatureLockedNotice featureName="El módulo de tareas" />;
+    return <FeatureLockedNotice featureName="El módulo de actividades" />;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Tareas del Paciente</h3>
+        <h3 className="text-lg font-semibold">Actividades del Paciente</h3>
         <Button onClick={() => setShowNewTask(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nueva Tarea
+          Nueva Actividad
         </Button>
       </div>
 
@@ -793,7 +826,7 @@ function TasksTab({ patientId }: { patientId: string }) {
         ) : (
           <Card>
             <CardContent className="py-6 text-center">
-              <p className="text-sm text-muted-foreground">No hay tareas activas</p>
+              <p className="text-sm text-muted-foreground">No hay actividades activas</p>
             </CardContent>
           </Card>
         )}
@@ -817,8 +850,8 @@ function TasksTab({ patientId }: { patientId: string }) {
       <Dialog open={showNewTask} onOpenChange={setShowNewTask}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Tarea</DialogTitle>
-            <DialogDescription>Crear una nueva tarea asociada a este paciente.</DialogDescription>
+            <DialogTitle>Nueva Actividad</DialogTitle>
+            <DialogDescription>Crear una nueva actividad asociada a este paciente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -836,7 +869,7 @@ function TasksTab({ patientId }: { patientId: string }) {
                 id="task-desc"
                 value={taskForm.description}
                 onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-                placeholder="Detalles de la tarea..."
+                placeholder="Detalles de la actividad..."
                 rows={3}
               />
             </div>
@@ -850,7 +883,7 @@ function TasksTab({ patientId }: { patientId: string }) {
                     setTaskForm({ ...taskForm, priority: e.target.value as TaskPriority })
                   }
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  aria-label="Prioridad de la tarea"
+                  aria-label="Prioridad de la actividad"
                 >
                   {Object.entries(TASK_PRIORITY_LABELS).map(([key, label]) => (
                     <option key={key} value={key}>
@@ -879,7 +912,7 @@ function TasksTab({ patientId }: { patientId: string }) {
               disabled={!taskForm.title || createTask.isPending}
               loading={createTask.isPending}
             >
-              Crear Tarea
+              Crear Actividad
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1327,5 +1360,13 @@ function PatientDetailSkeleton() {
         <Skeleton className="h-48" />
       </div>
     </div>
+  );
+}
+
+export default function PatientDetailPage() {
+  return (
+    <SectionGate section="core.patients">
+      <PatientDetailPageContent />
+    </SectionGate>
   );
 }

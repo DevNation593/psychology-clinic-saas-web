@@ -50,7 +50,7 @@ function actor(role: UserRole, id = 'actor-1'): User {
 }
 
 function renderDetails({
-  user = actor(UserRole.ADMIN),
+  user = actor(UserRole.MASTER),
   currentAppointment = appointment(),
   onOpenChange = vi.fn(),
   onEdit = vi.fn(),
@@ -79,13 +79,10 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('appointment permissions', () => {
   it.each([
-    [UserRole.ADMIN, 'anyone', true],
-    [UserRole.CLIENTE, 'anyone', true],
+    [UserRole.MASTER, 'anyone', true],
     [UserRole.ASISTENTE, 'anyone', true],
     [UserRole.PROFESIONAL, 'professional-1', true],
     [UserRole.PROFESIONAL, 'professional-2', false],
-    [UserRole.PSICOLOGO, 'professional-1', true],
-    [UserRole.PSICOLOGO, 'professional-2', false],
     [UserRole.PACIENTE, 'professional-1', false],
     [UserRole.SOPORTE, 'professional-1', false],
   ] as const)('allows %s actor %s: %s', (role, id, expected) => {
@@ -121,6 +118,48 @@ describe('AppointmentDetailsDialog', () => {
     renderDetails({ user: actor(UserRole.PROFESIONAL, 'professional-2') });
     expect(screen.queryByRole('button', { name: 'Editar cita' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancelar cita' })).not.toBeInTheDocument();
+  });
+
+  describe('attending the appointment', () => {
+    const professional = (overrides: Partial<User> = {}): User =>
+      ({
+        id: 'professional-1',
+        role: UserRole.PROFESIONAL,
+        tenantId: 'tenant-1',
+        professionalProfile: { isActive: true },
+        ...overrides,
+      }) as User;
+    const attentionLink = () => screen.queryByRole('link', { name: /atención/ });
+
+    it('takes the professional of the appointment to the patient record to start it', () => {
+      renderDetails({ user: professional() });
+
+      expect(screen.getByRole('link', { name: 'Iniciar atención' })).toHaveAttribute(
+        'href',
+        '/patients/patient-1?tab=specialties&appointmentId=appointment-1',
+      );
+    });
+
+    it('offers to continue an appointment that is already being attended', () => {
+      renderDetails({
+        user: professional(),
+        currentAppointment: appointment({ status: AppointmentStatus.IN_PROGRESS }),
+      });
+
+      expect(screen.getByRole('link', { name: 'Continuar atención' })).toBeInTheDocument();
+    });
+
+    it.each([
+      ['another professional', professional({ id: 'professional-2' }), appointment()],
+      ['a professional without an active profile', professional({ professionalProfile: { isActive: false } as never }), appointment()],
+      ['the account holder without a clinical profile', actor(UserRole.MASTER, 'professional-1'), appointment()],
+      ['a completed appointment', professional(), appointment({ status: AppointmentStatus.COMPLETED })],
+      ['a cancelled appointment', professional(), appointment({ status: AppointmentStatus.CANCELLED })],
+    ])('is not offered to %s', (_label, user, currentAppointment) => {
+      renderDetails({ user, currentAppointment });
+
+      expect(attentionLink()).not.toBeInTheDocument();
+    });
   });
 
   it('emits the canonical appointment for editing', () => {

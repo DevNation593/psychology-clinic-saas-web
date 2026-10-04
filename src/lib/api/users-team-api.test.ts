@@ -40,7 +40,7 @@ describe('tenant team user API', () => {
       email: 'ana@example.com',
       firstName: 'Ana',
       lastName: 'Vega',
-      role: UserRole.ADMIN as const,
+      role: UserRole.MASTER as const,
       professionalProfile: null,
     };
 
