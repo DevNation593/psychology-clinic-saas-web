@@ -3,69 +3,45 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { describeModule } from '@/features/admin/specialties/module-labels';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert } from '@/components/ui/alert';
+import {
+  ClinicalModuleForm,
+  initialModuleValues,
+} from '@/features/clinical-forms/clinical-module-form';
+import { issuesByField, toRecordData, type FormValues } from '@/features/clinical-forms/form-values';
+import type { ApiError } from '@/types';
+import type { ClinicalModuleDefinition, ClinicalRecordInput } from '@/types/clinical';
 
-export const SPECIALTY_FIELD_LABELS: Record<string, string> = {
-  testName: 'Nombre de prueba',
-  score: 'Puntaje',
-  interpretation: 'Interpretación',
-  weightKg: 'Peso (kg)',
-  heightCm: 'Altura (cm)',
-  bmi: 'IMC',
-  dietaryGoals: 'Objetivos alimenticios',
-  dailyCalories: 'Calorías diarias',
-  meals: 'Comidas sugeridas',
-  painLevel: 'Nivel de dolor (0-10)',
-  mobility: 'Movilidad',
-  progress: 'Evolución',
-  exercises: 'Ejercicios',
-  frequency: 'Frecuencia',
-  repetitions: 'Repeticiones',
-  procedure: 'Procedimiento',
-  tooth: 'Pieza dental',
-  treatmentStatus: 'Estado del tratamiento',
-  findings: 'Hallazgos',
-  surfaces: 'Superficies',
+const GROUP_LABELS: Record<ClinicalModuleDefinition['scope'], string> = {
+  GENERAL: 'Generales',
+  SPECIALTY: 'De mi especialidad',
+  CUSTOM: 'Formularios del consultorio',
 };
-
-export const SPECIALTY_MODULE_FIELDS: Record<string, string[]> = {
-  'psychology.assessments': ['testName', 'score', 'interpretation'],
-  'nutrition.assessments': ['weightKg', 'heightCm', 'bmi'],
-  'nutrition.diet-plans': ['dailyCalories', 'meals', 'dietaryGoals'],
-  'physiotherapy.evolution': ['painLevel', 'mobility', 'progress'],
-  'physiotherapy.exercise-plans': ['exercises', 'frequency', 'repetitions'],
-  'dentistry.treatments': ['procedure', 'tooth', 'treatmentStatus'],
-  'dentistry.odontogram': ['findings', 'surfaces'],
-};
-
-export interface SpecialtyRecordModuleOption {
-  code: string;
-  name: string;
-  moduleKey: string;
-}
-
-export interface SpecialtyRecordEntryPayload {
-  specialtyCode: string;
-  moduleKey: string;
-  data: Record<string, unknown>;
-  notes?: string;
-}
+const GROUP_ORDER: ClinicalModuleDefinition['scope'][] = ['SPECIALTY', 'GENERAL', 'CUSTOM'];
 
 export interface SpecialtyRecordEntryFormProps {
   tenantId: string | null;
   patientId: string;
   configurationStatus: 'loading' | 'error' | 'ready';
   configurationError?: string;
-  moduleOptions: SpecialtyRecordModuleOption[];
+  /** The module versions the signed-in professional may record. */
+  modules: ClinicalModuleDefinition[];
   isSaving: boolean;
-  onSubmit: (payload: SpecialtyRecordEntryPayload) => void | Promise<unknown>;
+  onSubmit: (payload: ClinicalRecordInput) => void | Promise<unknown>;
+  /**
+   * Extra tools for the chosen module, e.g. the templates of the clinic. `fill` writes into the
+   * fields of the form that exist under those keys.
+   */
+  renderTools?: (
+    moduleKey: string,
+    fill: (values: Record<string, string>) => void,
+  ) => React.ReactNode;
 }
 
 export function SpecialtyRecordEntryForm(props: SpecialtyRecordEntryFormProps) {
+  // Unsaved clinical data never survives a change of clinic or patient.
   const stateKey = `${props.tenantId ?? 'no-tenant'}:${props.patientId}`;
   return <SpecialtyRecordEntryFormState key={stateKey} {...props} />;
 }
@@ -74,116 +50,143 @@ function SpecialtyRecordEntryFormState({
   tenantId,
   configurationStatus,
   configurationError,
-  moduleOptions,
+  modules,
   isSaving,
   onSubmit,
+  renderTools,
 }: SpecialtyRecordEntryFormProps) {
-  const [selectedModule, setSelectedModule] = useState('');
-  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [selectedKey, setSelectedKey] = useState('');
+  const [values, setValues] = useState<FormValues>({});
   const [notes, setNotes] = useState('');
+  const [issues, setIssues] = useState<Record<string, string>>({});
 
-  const selectedOption = moduleOptions.find((option) => option.moduleKey === selectedModule);
-  const fields = selectedModule ? SPECIALTY_MODULE_FIELDS[selectedModule] || [] : [];
+  const selected = modules.find((module) => module.moduleKey === selectedKey);
   const configurationReady = configurationStatus === 'ready' && Boolean(tenantId);
 
   const handleModuleChange = (moduleKey: string) => {
-    setSelectedModule(moduleKey);
-    setFormData({});
+    const next = modules.find((module) => module.moduleKey === moduleKey);
+    setSelectedKey(moduleKey);
+    setValues(next ? initialModuleValues(next) : {});
+    setIssues({});
   };
 
-  const handleSubmit = async () => {
-    if (!configurationReady || isSaving || !selectedOption) return;
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!configurationReady || isSaving || !selected) return;
+    setIssues({});
     try {
       await onSubmit({
-        specialtyCode: selectedOption.code,
-        moduleKey: selectedOption.moduleKey,
-        data: Object.fromEntries(fields.map((field) => [field, formData[field] || ''])),
+        moduleKey: selected.moduleKey,
+        schemaVersion: selected.schemaVersion,
+        data: toRecordData(selected.schema, values),
         notes: notes.trim() || undefined,
       });
-      setFormData({});
+      setValues(initialModuleValues(selected));
       setNotes('');
-    } catch {
-      // Keep the attempted form values available for correction or retry.
+    } catch (error) {
+      // Keep the attempted values for correction; the API says which fields to fix.
+      setIssues(issuesByField((error as ApiError | undefined)?.issues));
     }
   };
+
+  const issueCount = Object.keys(issues).length;
+  const fill = (fields: Record<string, string>) =>
+    setValues((current) => ({
+      ...current,
+      ...Object.fromEntries(Object.entries(fields).filter(([key]) => key in current)),
+    }));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Registrar evolución especializada</CardTitle>
+        <CardTitle>Nuevo registro clínico</CardTitle>
         <CardDescription>
-          Guarda evaluaciones, planes y evoluciones según la especialidad habilitada.
+          Signos vitales, diagnósticos, evaluaciones, planes y formularios del consultorio.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {configurationStatus === 'loading' && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Cargando la configuración de especialidades del consultorio…
-          </p>
-        )}
-        {configurationStatus === 'error' && (
-          <Alert variant="destructive" title="No se pudo cargar la configuración">
-            {configurationError || 'Intenta nuevamente cuando la configuración esté disponible.'}
-          </Alert>
-        )}
-        <div>
-          <Label htmlFor="specialty-module">Módulo</Label>
-          <select
-            id="specialty-module"
-            value={selectedModule}
-            onChange={(event) => handleModuleChange(event.target.value)}
-            disabled={!configurationReady}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
-          >
-            <option value="">Selecciona un módulo</option>
-            {moduleOptions.map((option) => (
-              <option key={option.moduleKey} value={option.moduleKey}>
-                {option.name} · {describeModule(option.moduleKey).name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {selectedModule && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {fields.map((field) => (
-                <div key={field}>
-                  <Label htmlFor={`specialty-${field}`}>{SPECIALTY_FIELD_LABELS[field] || field}</Label>
-                  <Input
-                    id={`specialty-${field}`}
-                    required
-                    disabled={!configurationReady}
-                    value={formData[field] || ''}
-                    onChange={(event) => setFormData({ ...formData, [field]: event.target.value })}
-                  />
-                </div>
-              ))}
-            </div>
-            <div>
-              <Label htmlFor="specialty-notes">Notas adicionales</Label>
-              <Textarea
-                id="specialty-notes"
-                disabled={!configurationReady}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                rows={3}
-                placeholder="Indicaciones, observaciones o seguimiento..."
-              />
-            </div>
-            <Button
-              onClick={handleSubmit}
-              disabled={!configurationReady || isSaving}
-              loading={isSaving}
+      <CardContent>
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {configurationStatus === 'loading' && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Cargando los módulos clínicos del consultorio…
+            </p>
+          )}
+          {configurationStatus === 'error' && (
+            <Alert variant="destructive" title="No se pudo cargar la configuración">
+              {configurationError || 'Intenta nuevamente cuando la configuración esté disponible.'}
+            </Alert>
+          )}
+          <div>
+            <Label htmlFor="specialty-module">Tipo de registro</Label>
+            <select
+              id="specialty-module"
+              value={selectedKey}
+              onChange={(event) => handleModuleChange(event.target.value)}
+              disabled={!configurationReady}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              Guardar registro
-            </Button>
-          </>
-        )}
-        {moduleOptions.length === 0 && configurationStatus === 'ready' && (
-          <p className="text-sm text-muted-foreground">
-            No hay módulos especializados habilitados para este consultorio.
-          </p>
-        )}
+              <option value="">Selecciona un tipo de registro</option>
+              {GROUP_ORDER.map((scope) => {
+                const group = modules.filter((module) => module.scope === scope);
+                if (group.length === 0) return null;
+                return (
+                  <optgroup key={scope} label={GROUP_LABELS[scope]}>
+                    {group.map((module) => (
+                      <option key={module.moduleKey} value={module.moduleKey}>
+                        {module.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+            {selected?.description && (
+              <p className="mt-1 text-xs text-muted-foreground">{selected.description}</p>
+            )}
+          </div>
+
+          {selected && (
+            <>
+              {renderTools?.(selected.moduleKey, fill)}
+              <ClinicalModuleForm
+                definition={selected}
+                values={values}
+                onChange={setValues}
+                issues={issues}
+                disabled={!configurationReady}
+                idPrefix="record"
+              />
+              <div>
+                <Label htmlFor="specialty-notes">Notas adicionales</Label>
+                <Textarea
+                  id="specialty-notes"
+                  disabled={!configurationReady}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={3}
+                  placeholder="Indicaciones, observaciones o seguimiento..."
+                />
+              </div>
+              {issueCount > 0 && (
+                <Alert variant="destructive" title="Revisa los campos marcados">
+                  {issueCount === 1
+                    ? 'Hay 1 campo por corregir antes de guardar.'
+                    : `Hay ${issueCount} campos por corregir antes de guardar.`}
+                </Alert>
+              )}
+              <Button type="submit" disabled={!configurationReady || isSaving} loading={isSaving}>
+                Guardar registro
+              </Button>
+            </>
+          )}
+
+          {modules.length === 0 && configurationStatus === 'ready' && (
+            <p className="text-sm text-muted-foreground">
+              No tienes módulos clínicos disponibles para registrar. Solo un profesional con perfil
+              activo puede crear registros.
+            </p>
+          )}
+        </form>
       </CardContent>
     </Card>
   );

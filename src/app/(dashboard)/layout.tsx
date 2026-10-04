@@ -42,8 +42,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen flex overflow-hidden bg-background">
-      <Sidebar />
+    // Printing a clinical document shows only the page: no navigation, no clipping.
+    <div className="min-h-screen flex overflow-hidden bg-background print:block print:overflow-visible">
+      <div className="contents print:hidden">
+        <Sidebar />
+      </div>
       {!sidebarCollapsed && (
         <button
           type="button"
@@ -52,11 +55,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onClick={() => useUIStore.getState().setSidebarCollapsed(true)}
         />
       )}
-      <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">{children}</main>
+      <div className="min-w-0 flex-1 flex flex-col overflow-hidden print:block print:overflow-visible">
+        <div className="contents print:hidden">
+          <Header />
+        </div>
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 print:overflow-visible print:p-0">
+          {children}
+        </main>
       </div>
-      <NotificationsPanel />
+      <div className="contents print:hidden">
+        <NotificationsPanel />
+      </div>
     </div>
   );
 }

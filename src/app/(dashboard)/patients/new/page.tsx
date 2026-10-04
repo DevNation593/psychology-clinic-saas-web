@@ -15,6 +15,12 @@ import Link from 'next/link';
 import { Gender } from '@/types';
 import { BillingCustomerFields } from '@/features/billing/billing-customer-fields';
 import type { BillingCustomer, TaxIdType } from '@/features/billing/billing-customer';
+import { isMinor } from '@/features/patients/patient-identity';
+import {
+  PatientAdditionalFields,
+  PatientGuardianFields,
+  PatientIdentificationFields,
+} from '@/features/patients/patient-profile-fields';
 
 export default function NewPatientPage() {
   const router = useRouter();
@@ -28,7 +34,13 @@ export default function NewPatientPage() {
     formState: { errors },
   } = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { billingName: '', billingTaxIdType: '', billingTaxId: '', billingEmail: '', billingAddress: '' },
+    defaultValues: {
+      identificationType: '', identificationNumber: '',
+      maritalStatus: '', occupation: '', nationality: '', bloodType: '', disability: '',
+      insuranceProvider: '', insurancePolicyNumber: '',
+      guardianName: '', guardianRelationship: '', guardianIdentification: '', guardianPhone: '',
+      billingName: '', billingTaxIdType: '', billingTaxId: '', billingEmail: '', billingAddress: '',
+    },
   });
 
   const billing: BillingCustomer = {
@@ -109,6 +121,8 @@ export default function NewPatientPage() {
               </div>
             </div>
 
+            <PatientIdentificationFields register={register} errors={errors} />
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -150,6 +164,14 @@ export default function NewPatientPage() {
               <Label htmlFor="address">Dirección</Label>
               <Input id="address" {...register('address')} />
             </div>
+
+            <PatientAdditionalFields register={register} errors={errors} />
+
+            <PatientGuardianFields
+              register={register}
+              errors={errors}
+              required={isMinor(watch('dateOfBirth'))}
+            />
 
             <div className="border-t pt-6">
               <h3 className="font-semibold mb-4">Contacto de Emergencia</h3>
