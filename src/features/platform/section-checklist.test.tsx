@@ -7,7 +7,7 @@ import { SectionChecklist } from './section-checklist';
 const catalog: SectionCatalog['sections'] = [
   { key: 'core.calendar', name: 'Agenda', requires: [] },
   { key: 'core.patients', name: 'Pacientes', requires: [] },
-  { key: 'core.tasks', name: 'Tareas', requires: ['core.patients'] },
+  { key: 'core.tasks', name: 'Actividades', requires: ['core.patients'] },
   { key: 'core.clinicalNotes', name: 'Notas clínicas', requires: ['core.patients'] },
 ];
 
@@ -19,8 +19,8 @@ function Harness({ initial }: { initial: SectionKey[] }) {
 describe('SectionChecklist', () => {
   it('checks Pacientes when a section that depends on it is checked', () => {
     render(<Harness initial={[]} />);
-    fireEvent.click(screen.getByLabelText('Tareas'));
-    expect(screen.getByLabelText('Tareas')).toBeChecked();
+    fireEvent.click(screen.getByLabelText('Actividades'));
+    expect(screen.getByLabelText('Actividades')).toBeChecked();
     expect(screen.getByLabelText('Pacientes')).toBeChecked();
     expect(screen.getByLabelText('Agenda')).not.toBeChecked();
   });
@@ -29,7 +29,7 @@ describe('SectionChecklist', () => {
     render(<Harness initial={['core.calendar', 'core.patients', 'core.tasks', 'core.clinicalNotes']} />);
     fireEvent.click(screen.getByLabelText('Pacientes'));
     expect(screen.getByLabelText('Pacientes')).not.toBeChecked();
-    expect(screen.getByLabelText('Tareas')).not.toBeChecked();
+    expect(screen.getByLabelText('Actividades')).not.toBeChecked();
     expect(screen.getByLabelText('Notas clínicas')).not.toBeChecked();
     expect(screen.getByLabelText('Agenda')).toBeChecked();
   });

@@ -101,7 +101,7 @@ export function PatientLimitModal({ open, onOpenChange }: PatientLimitModalProps
                       <ul className="mt-2 space-y-1 text-sm text-blue-700">
                         <li>+ Notas clínicas ilimitadas</li>
                         <li>+ 50 GB de almacenamiento</li>
-                        <li>+ Gestión de tareas</li>
+                        <li>+ Gestión de actividades</li>
                       </ul>
                       <p className="mt-2 text-sm font-medium text-blue-900">
                         Desde €79/mes

@@ -17,7 +17,7 @@ const catalog: SectionCatalog = {
   sections: [
     { key: 'core.calendar', name: 'Agenda', requires: [] },
     { key: 'core.patients', name: 'Pacientes', requires: [] },
-    { key: 'core.tasks', name: 'Tareas', requires: ['core.patients'] },
+    { key: 'core.tasks', name: 'Actividades', requires: ['core.patients'] },
     { key: 'core.billing', name: 'Facturación', requires: [] },
   ],
   defaults: [
@@ -79,7 +79,7 @@ describe('CreateTenantForm', () => {
     renderForm();
     await ready();
     expect(checked('Pacientes')).toBe(true);
-    expect(checked('Tareas')).toBe(false);
+    expect(checked('Actividades')).toBe(false);
     expect(checked('Facturación')).toBe(false);
   });
 
@@ -98,7 +98,7 @@ describe('CreateTenantForm', () => {
     await ready();
     type('Plan', 'CLINIC_PRO');
     await waitFor(() => expect(checked('Facturación')).toBe(true));
-    expect(checked('Tareas')).toBe(true);
+    expect(checked('Actividades')).toBe(true);
     expect(screen.queryByRole('button', { name: 'Reemplazar selección' })).not.toBeInTheDocument();
   });
 
@@ -111,13 +111,13 @@ describe('CreateTenantForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Conservar mi selección' }));
     expect(screen.queryByRole('button', { name: 'Reemplazar selección' })).not.toBeInTheDocument();
     expect(checked('Facturación')).toBe(true);
-    expect(checked('Tareas')).toBe(false);
+    expect(checked('Actividades')).toBe(false);
 
     type('Plan', 'TRIAL');
     fireEvent.click(await screen.findByRole('button', { name: 'Reemplazar selección' }));
     await waitFor(() => expect(checked('Facturación')).toBe(false));
     expect(checked('Agenda')).toBe(true);
-    expect(checked('Tareas')).toBe(false);
+    expect(checked('Actividades')).toBe(false);
   });
 
   it('does not ask to replace the selection when the plan defaults hold the same keys in another order', async () => {

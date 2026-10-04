@@ -68,10 +68,10 @@ export function useCreateTask() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_MY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_OVERDUE });
-      toast.success('Tarea creada exitosamente');
+      toast.success('Actividad creada exitosamente');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Error al crear tarea');
+      toast.error(error.message || 'Error al crear actividad');
     },
   });
 }
@@ -86,10 +86,10 @@ export function useUpdateTask(id: string) {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_MY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_OVERDUE });
-      toast.success('Tarea actualizada');
+      toast.success('Actividad actualizada');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar tarea');
+      toast.error(error.message || 'Error al actualizar actividad');
     },
   });
 }
@@ -103,10 +103,10 @@ export function useDeleteTask() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_MY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_OVERDUE });
-      toast.success('Tarea eliminada');
+      toast.success('Actividad eliminada');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Error al eliminar tarea');
+      toast.error(error.message || 'Error al eliminar actividad');
     },
   });
 }
@@ -122,10 +122,10 @@ export function useCompleteTask(id: string) {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_MY });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS_OVERDUE });
-      toast.success('Tarea completada');
+      toast.success('Actividad completada');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Error al completar tarea');
+      toast.error(error.message || 'Error al completar actividad');
     },
   });
 }

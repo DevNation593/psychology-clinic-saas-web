@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -226,30 +227,14 @@ export function TenantsTable() {
         </Card>
       )}
 
-      {data && data.total > data.pageSize && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Página {page} de {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-            >
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((current) => current + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
+      {data && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={data.total}
+          pageSize={data.pageSize}
+          onPageChange={setPage}
+        />
       )}
     </div>
   );

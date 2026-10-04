@@ -164,4 +164,24 @@ describe('PaymentsTable', () => {
 
     expect(await screen.findByText('No hay pagos con este estado')).toBeInTheDocument();
   });
+
+  it('pages a long list twenty payments at a time', async () => {
+    vi.mocked(platformApi.listPayments).mockResolvedValue(
+      Array.from({ length: 25 }, (_, index) =>
+        payment({ id: `p-${index + 1}`, tenant: { id: `t-${index + 1}`, name: `Clínica ${index + 1}`, email: 'c@c.com' } }),
+      ),
+    );
+    renderTable();
+
+    expect(await screen.findByText('Clínica 1')).toBeInTheDocument();
+    expect(screen.getByText('Clínica 20')).toBeInTheDocument();
+    expect(screen.queryByText('Clínica 21')).not.toBeInTheDocument();
+    expect(screen.getByText('Página 1 de 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('Clínica 21')).toBeInTheDocument();
+    expect(screen.getByText('Clínica 25')).toBeInTheDocument();
+    expect(screen.queryByText('Clínica 1')).not.toBeInTheDocument();
+    expect(screen.getByText('21–25 de 25')).toBeInTheDocument();
+  });
 });
