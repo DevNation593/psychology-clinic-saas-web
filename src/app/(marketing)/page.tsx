@@ -12,7 +12,7 @@ import { PlanGroups } from '@/features/marketing/sections/plan-groups';
 import { Reviews } from '@/features/marketing/sections/reviews';
 import { VerifyCertificate } from '@/features/marketing/sections/verify-certificate';
 
-// The home title is absolute so the root layout's "%s | brand" template does not duplicate the brand.
+// The home title already carries the brand, so it is absolute to skip the root layout's "%s | brand" template.
 export const metadata = { ...buildMetadata('home'), title: { absolute: buildMetadata('home').title as string } };
 
 export default function HomePage() {
