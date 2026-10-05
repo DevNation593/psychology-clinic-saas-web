@@ -31,7 +31,8 @@ describe('Hero', () => {
 describe('PlanGroups', () => {
   it('formats prices', () => {
     expect(formatPlanPrice(site.plans[0])).toBe('$29');
-    expect(formatPlanPrice(site.plans[4])).toBe('A medida');
+    expect(formatPlanPrice(site.plans[2])).toBe('A medida');
+    expect(formatPlanPrice(site.plans[5])).toBe('A medida');
   });
 
   it('opens on the individual plans', () => {
@@ -41,9 +42,12 @@ describe('PlanGroups', () => {
 
     const panel = screen.getByRole('tabpanel', { name: 'Individual' });
     expect(within(panel).getAllByRole('article').map((card) => card.getAttribute('aria-label'))).toEqual([
-      'Individual Básico', 'Individual Pro',
+      'Individual Básico', 'Individual Pro', 'Individual Personalizado',
     ]);
     expect(within(panel).getByText('$29')).toBeInTheDocument();
+    const custom = within(panel).getByRole('article', { name: 'Individual Personalizado' });
+    expect(custom).toHaveTextContent('A medida');
+    expect(within(custom).getByRole('link', { name: 'Hablar con ventas' })).toHaveAttribute('href', '/contacto');
   });
 
   it('switches to the business plans with their limits and extra-seat price', () => {
@@ -62,8 +66,8 @@ describe('PlanGroups', () => {
 
   it('keeps both groups in the page so search engines can read every plan', () => {
     const { container } = render(<PlanGroups plans={site.plans} />);
-    expect(container.querySelectorAll('article')).toHaveLength(5);
-    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(container.querySelectorAll('article')).toHaveLength(6);
+    expect(screen.getAllByRole('article')).toHaveLength(3);
   });
 
   it('marks the most chosen plan once per group', () => {

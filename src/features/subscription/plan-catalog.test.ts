@@ -32,14 +32,17 @@ describe('plan catalog contract', () => {
     expect(contract).toEqual(JSON.parse(readFileSync(apiCopy, 'utf8')));
   });
 
+  // The individual custom plan is agreed with sales and has no entry in the catalog.
+  const catalogPlans = site.plans.filter((plan) => plan.id !== 'personal-custom');
+
   // The trial period is a state of an account, not a plan on offer, so the site leaves it out.
   it('covers every plan the public site advertises', () => {
-    expect(site.plans.map((plan) => SITE_PLAN_IDS[plan.id]).sort()).toEqual(
+    expect(catalogPlans.map((plan) => SITE_PLAN_IDS[plan.id]).sort()).toEqual(
       catalog.plans.map((plan) => plan.planType).filter((planType) => planType !== 'TRIAL').sort(),
     );
   });
 
-  it.each(site.plans.map((plan) => [plan.id, plan] as const))(
+  it.each(catalogPlans.map((plan) => [plan.id, plan] as const))(
     'the public site shows the API price and limits for %s',
     (_id, sitePlan) => {
       const api = views[SITE_PLAN_IDS[sitePlan.id]];
