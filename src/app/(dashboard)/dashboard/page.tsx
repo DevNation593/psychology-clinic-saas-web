@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { appointmentsApi, tasksApi, patientsApi, extractArray } from '@/lib/api/endpoints';
 import { QUERY_KEYS } from '@/lib/constants';
 import type { Appointment, Task } from '@/types';
-import { TaskStatus } from '@/types';
+import { TaskStatus, UserRole } from '@/types';
+import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton';
@@ -30,6 +31,10 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const { isEnabled } = useSections();
   const calendarOn = isEnabled('core.calendar');
+  // An assistant works on the calendar of one professional at a time, so there is no
+  // summary of every calendar to show them here.
+  const isAssistant = useAuthStore((state) => state.user?.role) === UserRole.ASISTENTE;
+  const appointmentsOn = calendarOn && !isAssistant;
   const tasksOn = isEnabled('core.tasks');
   const patientsOn = isEnabled('core.patients');
   const teamOn = isEnabled('core.team');
@@ -48,7 +53,7 @@ export default function DashboardPage() {
       const response = await appointmentsApi.list({ from: today, to: today });
       return extractArray(response);
     },
-    enabled: calendarOn,
+    enabled: appointmentsOn,
   });
 
   const { data: weekAppointments } = useQuery({
@@ -59,7 +64,7 @@ export default function DashboardPage() {
       const response = await appointmentsApi.list({ from: weekStart, to: endOfWeek.toISOString().split('T')[0] });
       return extractArray(response);
     },
-    enabled: calendarOn,
+    enabled: appointmentsOn,
   });
 
   const { data: overdueTasks, isLoading: tasksLoading } = useQuery({
@@ -110,7 +115,7 @@ export default function DashboardPage() {
     activePatientsCount: patientsData?.length || 0,
     completedAppointmentsThisWeek: completedThisWeek,
   };
-  const statsLoading = (calendarOn && appointmentsLoading) || (tasksOn && tasksLoading);
+  const statsLoading = (appointmentsOn && appointmentsLoading) || (tasksOn && tasksLoading);
 
   return (
     <div className="space-y-6">
@@ -152,7 +157,7 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            {calendarOn && (
+            {appointmentsOn && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
@@ -203,7 +208,7 @@ export default function DashboardPage() {
               </Card>
             )}
 
-            {calendarOn && (
+            {appointmentsOn && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
@@ -225,10 +230,10 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {(calendarOn || tasksOn) && (
+      {(appointmentsOn || tasksOn) && (
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Today's Appointments */}
-        {calendarOn && (
+        {appointmentsOn && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
