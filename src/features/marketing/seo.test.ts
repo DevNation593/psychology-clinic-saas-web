@@ -27,6 +27,14 @@ describe('page metadata', () => {
     expect(metadata.twitter).toMatchObject({ card: 'summary_large_image' });
   });
 
+  it('leads the home title with the brand, which the other pages get from the layout', () => {
+    const content = withContent({ brand: { ...site.brand, name: 'HCX Care' } });
+    const metadata = buildMetadata('home', content);
+    expect(metadata.title).toBe('HCX Care | Software para consultorios de salud');
+    expect(metadata.openGraph).toMatchObject({ title: 'HCX Care | Software para consultorios de salud' });
+    expect(buildMetadata('plans', content).title).toBe(PAGES.plans.title);
+  });
+
   it('attaches the social sharing image with alternative text to every page', () => {
     for (const key of keys) {
       const metadata = buildMetadata(key);

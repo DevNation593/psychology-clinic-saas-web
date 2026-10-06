@@ -17,16 +17,17 @@ describe('site content', () => {
     expect(summary).toEqual([
       ['Básico', 29, null, 1],
       ['Pro', 59, null, 1],
+      ['Personalizado', null, null, null],
       ['Básico', 99, 15, 3],
       ['Pro', 199, 12, 10],
       ['Personalizado', null, null, null],
     ]);
   });
 
-  it('splits the plans into two individual and three business plans', () => {
+  it('splits the plans into three individual and three business plans', () => {
     const names = (audience: string) =>
       site.plans.filter((plan) => plan.audience === audience).map((plan) => plan.name);
-    expect(names('individual')).toEqual(['Básico', 'Pro']);
+    expect(names('individual')).toEqual(['Básico', 'Pro', 'Personalizado']);
     expect(names('business')).toEqual(['Básico', 'Pro', 'Personalizado']);
   });
 
@@ -49,7 +50,7 @@ describe('site content', () => {
   it('gives every plan a distinct full name', () => {
     const fullNames = site.plans.map(planFullName);
     expect(fullNames).toEqual([
-      'Individual Básico', 'Individual Pro',
+      'Individual Básico', 'Individual Pro', 'Individual Personalizado',
       'Empresarial Básico', 'Empresarial Pro', 'Empresarial Personalizado',
     ]);
   });

@@ -15,7 +15,7 @@ interface PageInfo {
 }
 
 export const PAGES: Record<PageKey, PageInfo> = {
-  home: { path: '/', label: 'Inicio', kind: 'public', title: 'Software para consultorios de salud | Agenda, pacientes y facturación', description: 'Gestiona citas por especialidad, historias clínicas, equipo tratante y facturación electrónica de tu consultorio desde una sola plataforma.' },
+  home: { path: '/', label: 'Inicio', kind: 'public', title: 'Software para consultorios de salud', description: 'Gestiona citas por especialidad, historias clínicas, equipo tratante y facturación electrónica de tu consultorio desde una sola plataforma.' },
   plans: { path: '/planes', label: 'Planes', kind: 'public', title: 'Planes y precios para profesionales y clínicas', description: 'Compara los planes para profesionales independientes y clínicas: usuarios incluidos, pacientes activos y precio mensual en USD.' },
   howItWorks: { path: '/como-funciona', label: 'Cómo funciona', kind: 'public', title: 'Cómo funciona la plataforma paso a paso', description: 'Del alta del consultorio a la facturación: conoce en cinco pasos cómo se organiza el trabajo diario en la plataforma.' },
   caseStudies: { path: '/casos-de-exito', label: 'Casos de éxito', kind: 'public', title: 'Casos de éxito de consultorios que usan la plataforma', description: 'Resultados de consultorios y clínicas que organizaron su agenda y su atención con la plataforma.' },
@@ -44,21 +44,23 @@ export function buildMetadata(key: PageKey, content: SiteContent = site): Metada
   const page = PAGES[key];
   const url = absoluteUrl(page.path, content);
   const indexable = isIndexable(key, content);
+  // The layout appends the brand to every other title; the home page leads with it.
+  const title = key === 'home' ? `${content.brand.name} | ${page.title}` : page.title;
   // A page-level openGraph object replaces the root one, so the image must be repeated here.
   const image = {
     url: '/opengraph-image', width: 1200, height: 630,
     alt: `${content.brand.name}: ${content.brand.tagline}`,
   };
   return {
-    title: page.title,
+    title,
     description: page.description,
     alternates: { canonical: url },
     robots: { index: indexable, follow: indexable },
     openGraph: {
-      type: 'website', url, title: page.title, description: page.description,
+      type: 'website', url, title, description: page.description,
       siteName: content.brand.name, locale: 'es_EC', images: [image],
     },
-    twitter: { card: 'summary_large_image', title: page.title, description: page.description, images: [image.url] },
+    twitter: { card: 'summary_large_image', title, description: page.description, images: [image.url] },
   };
 }
 
