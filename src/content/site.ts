@@ -131,10 +131,12 @@ export const site: SiteContent = {
     { title: 'Facturación electrónica', description: 'Emisión de comprobantes electrónicos desde el consultorio.' },
   ],
   // Mirrors api/src/subscription/subscription-pricing.ts. Update both together.
-  // The API's trial period is not a plan on offer, so it is not published here.
+  // The API's trial period is not a plan on offer, so it is not published here. The individual
+  // custom plan is agreed with sales and has no entry in the API catalog.
   plans: [
     { id: 'personal-basic', name: 'Básico', audience: 'individual', summary: 'Para un profesional independiente.', priceMonthly: 29, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 50, storageGB: null, monthlyNotifications: 300 },
     { id: 'personal-pro', name: 'Pro', audience: 'individual', summary: 'Para una consulta individual en crecimiento.', priceMonthly: 59, pricePerExtraSeat: null, seatsIncluded: 1, maxActivePatients: 200, storageGB: 1, monthlyNotifications: 1000, highlighted: true },
+    { id: 'personal-custom', name: 'Personalizado', audience: 'individual', summary: 'Para profesionales con necesidades a medida.', priceMonthly: null, pricePerExtraSeat: null, seatsIncluded: null, maxActivePatients: null, storageGB: null, monthlyNotifications: null },
     { id: 'clinic-basic', name: 'Básico', audience: 'business', summary: 'Para equipos pequeños.', priceMonthly: 99, pricePerExtraSeat: 15, seatsIncluded: 3, maxActivePatients: 150, storageGB: 1, monthlyNotifications: 500, highlighted: true },
     { id: 'clinic-pro', name: 'Pro', audience: 'business', summary: 'Para clínicas con varias especialidades.', priceMonthly: 199, pricePerExtraSeat: 12, seatsIncluded: 10, maxActivePatients: 500, storageGB: 5, monthlyNotifications: 2000 },
     { id: 'enterprise', name: 'Personalizado', audience: 'business', summary: 'Para redes de clínicas con necesidades a medida.', priceMonthly: null, pricePerExtraSeat: null, seatsIncluded: null, maxActivePatients: null, storageGB: null, monthlyNotifications: null },
