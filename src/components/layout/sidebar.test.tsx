@@ -1,14 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tenantModulesApi } from '@/lib/api/endpoints';
 import { useAuthStore } from '@/store/authStore';
+import { useUIStore } from '@/store/uiStore';
 import { TenantType, UserRole, type Tenant, type TenantModule, type User } from '@/types';
 import { Sidebar } from './sidebar';
 
 const api = vi.hoisted(() => ({ listModules: vi.fn(), legacyListModules: vi.fn() }));
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard' }));
+const route = vi.hoisted(() => ({ pathname: '/dashboard' }));
+vi.mock('next/navigation', () => ({ usePathname: () => route.pathname }));
 const permissions = vi.hoisted(() => ({ withdrawn: [] as string[], granted: [] as string[] }));
 vi.mock('@/hooks/usePermissions', () => ({
   useMyPermissions: () => ({
@@ -71,6 +73,88 @@ beforeEach(() => {
   );
   api.legacyListModules.mockResolvedValue([teamModule]);
   useAuthStore.setState({ user: admin, tenant: clinicTenant('tenant-a') });
+  useUIStore.setState({ sidebarCollapsed: false });
+  route.pathname = '/dashboard';
+});
+
+describe('Sidebar modules and submodules', () => {
+  const linksIn = (module: string) =>
+    within(screen.getByRole('group', { name: module }))
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+
+  it('groups the entries of the account holder into modules with their submodules', async () => {
+    renderSidebar();
+    await screen.findByRole('link', { name: 'Equipo' });
+
+    expect(linksIn('Agenda')).toEqual(['Calendario', 'Actividades']);
+    expect(linksIn('Clínica')).toEqual(['Módulos clínicos', 'Formularios']);
+    expect(linksIn('Administración')).toEqual([
+      'Equipo',
+      'Reportes',
+      'Suscripción',
+      'Almacenamiento',
+      'Configuración',
+    ]);
+    // Modules with a single screen stay as a direct entry.
+    for (const name of ['Dashboard', 'Pacientes', 'Facturación']) {
+      expect(screen.getByRole('link', { name }).closest('[role="group"]')).toBeNull();
+    }
+  });
+
+  it('collapses and expands the submodules of a module', async () => {
+    renderSidebar();
+    const agenda = await screen.findByRole('button', { name: 'Agenda' });
+    expect(agenda).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(agenda);
+    expect(agenda).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Calendario' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Equipo' })).toBeInTheDocument();
+
+    fireEvent.click(agenda);
+    expect(screen.getByRole('link', { name: 'Calendario' })).toBeInTheDocument();
+  });
+
+  it('marks a collapsed module that holds the current page', async () => {
+    route.pathname = '/calendar';
+    renderSidebar();
+    const agenda = await screen.findByRole('button', { name: 'Agenda' });
+    const clinic = screen.getByRole('button', { name: 'Clínica' });
+
+    fireEvent.click(agenda);
+    fireEvent.click(clinic);
+
+    expect(agenda).toHaveClass('bg-primary/10');
+    expect(clinic).not.toHaveClass('bg-primary/10');
+  });
+
+  it('leaves out a module when none of its submodules is available', async () => {
+    useAuthStore.setState({ user: { ...admin, role: UserRole.PROFESIONAL } });
+    renderSidebar();
+    await screen.findByRole('link', { name: 'Pacientes' });
+
+    expect(linksIn('Agenda')).toEqual(['Calendario', 'Actividades']);
+    expect(screen.queryByRole('button', { name: 'Clínica' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Administración' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a module with the submodules that remain when a section is off', async () => {
+    vi.mocked(tenantModulesApi.list).mockResolvedValue(sectionRows(['core.tasks']));
+    renderSidebar();
+    await screen.findByRole('link', { name: 'Equipo' });
+
+    expect(linksIn('Agenda')).toEqual(['Calendario']);
+  });
+
+  it('shows every entry as an icon, without module headers, when the sidebar is collapsed', async () => {
+    useUIStore.setState({ sidebarCollapsed: true });
+    renderSidebar();
+
+    expect(await screen.findByRole('link', { name: 'Calendario' })).toHaveAttribute('href', '/calendar');
+    expect(screen.getByRole('link', { name: 'Configuración' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Agenda' })).not.toBeInTheDocument();
+  });
 });
 
 describe('Sidebar clinical modules entry', () => {

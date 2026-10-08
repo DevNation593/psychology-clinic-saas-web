@@ -345,9 +345,6 @@ export interface TenantSettings {
   taxIdentificationType?: string;
   taxIdentificationNumber?: string;
   fakturApiKey?: string;
-  fakturApiUrl?: string;
-  fakturInvoicePath?: string;
-  fakturEnvironment?: 'TEST' | 'PRODUCTION' | string;
   fakturEstablishment?: string;
   fakturEmissionPoint?: string;
   fakturNextSequential?: number;
