@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -11,8 +12,11 @@ import { canManageUsers, canManageSubscription, isMasterRole, isProfessionalRole
 import {
   LayoutDashboard,
   Calendar,
+  CalendarDays,
   Users,
   Brain,
+  Building2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   UserCog,
@@ -21,11 +25,31 @@ import {
   Settings,
   HardDrive,
   ClipboardList,
+  LayoutGrid,
   ListChecks,
   Stethoscope,
   BarChart3,
+  type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  show: boolean;
+}
+
+/** A module groups several screens as submodules; one with a single screen is a plain entry. */
+interface NavModule {
+  name: string;
+  icon: LucideIcon;
+  items: NavItem[];
+}
+
+type NavEntry = NavItem | NavModule;
+
+const isModule = (entry: NavEntry): entry is NavModule => 'items' in entry;
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -34,49 +58,116 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { isEnabled } = useSections();
   const { can } = useMyPermissions();
+  const [closedModules, setClosedModules] = useState<string[]>([]);
 
-  const navigation = [
+  const managesUsers = !!user && canManageUsers(user);
+  const managesSubscription = !!user && canManageSubscription(user);
+  const isMaster = !!user && isMasterRole(user.role);
+
+  const navigation: NavEntry[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, show: true },
-    { name: 'Calendario', href: '/calendar', icon: Calendar, show: isEnabled('core.calendar') },
+    {
+      name: 'Agenda',
+      icon: CalendarDays,
+      items: [
+        { name: 'Calendario', href: '/calendar', icon: Calendar, show: isEnabled('core.calendar') },
+        { name: 'Actividades', href: '/tasks', icon: ClipboardList, show: isEnabled('core.tasks') },
+      ],
+    },
     { name: 'Pacientes', href: '/patients', icon: Users, show: isEnabled('core.patients') },
-    { name: 'Actividades', href: '/tasks', icon: ClipboardList, show: isEnabled('core.tasks') },
-    { name: 'Módulos clínicos', href: '/admin/specialties', icon: Stethoscope, show: isEnabled('core.specialties') && (user ? canManageUsers(user) : false) },
-    { name: 'Formularios', href: '/admin/forms', icon: ListChecks, show: isEnabled('core.specialties') && (user ? canManageSubscription(user) : false) },
+    {
+      name: 'Clínica',
+      icon: Stethoscope,
+      items: [
+        { name: 'Módulos clínicos', href: '/admin/specialties', icon: LayoutGrid, show: isEnabled('core.specialties') && managesUsers },
+        { name: 'Formularios', href: '/admin/forms', icon: ListChecks, show: isEnabled('core.specialties') && managesSubscription },
+      ],
+    },
     { name: 'Facturación', href: '/admin/billing', icon: FileText, show: isEnabled('core.billing') && can('billing.view', user ? isMasterRole(user.role) || isProfessionalRole(user.role) : false) },
-  ].filter((item) => item.show);
+    {
+      name: 'Administración',
+      icon: Building2,
+      items: [
+        { name: 'Equipo', href: '/admin/team', icon: UserCog, show: isEnabled('core.team') && managesUsers },
+        { name: 'Reportes', href: '/admin/reports', icon: BarChart3, show: isEnabled('core.calendar') && isMaster },
+        { name: 'Suscripción', href: '/admin/subscription', icon: CreditCard, show: managesSubscription },
+        { name: 'Almacenamiento', href: '/admin/storage', icon: HardDrive, show: isEnabled('core.storage') && managesUsers },
+        { name: 'Configuración', href: '/admin/settings', icon: Settings, show: managesUsers },
+      ],
+    },
+  ];
 
-  const adminNavigation = [
-    {
-      name: 'Equipo',
-      href: '/admin/team',
-      icon: UserCog,
-      show: isEnabled('core.team') && user && canManageUsers(user),
-    },
-    {
-      name: 'Reportes',
-      href: '/admin/reports',
-      icon: BarChart3,
-      show: isEnabled('core.calendar') && user && isMasterRole(user.role),
-    },
-    {
-      name: 'Suscripción',
-      href: '/admin/subscription',
-      icon: CreditCard,
-      show: user && canManageSubscription(user),
-    },
-    {
-      name: 'Almacenamiento',
-      href: '/admin/storage',
-      icon: HardDrive,
-      show: isEnabled('core.storage') && user && canManageUsers(user),
-    },
-    {
-      name: 'Configuración',
-      href: '/admin/settings',
-      icon: Settings,
-      show: user && canManageUsers(user),
-    },
-  ].filter((item) => item.show);
+  // A module is listed only while it has a submodule to open.
+  const visibleNavigation = navigation
+    .map((entry) => (isModule(entry) ? { ...entry, items: entry.items.filter((item) => item.show) } : entry))
+    .filter((entry) => (isModule(entry) ? entry.items.length > 0 : entry.show));
+
+  const toggleModule = (name: string) =>
+    setClosedModules((closed) =>
+      closed.includes(name) ? closed.filter((module) => module !== name) : [...closed, name],
+    );
+
+  const renderLink = (item: NavItem, isSubmodule = false) => {
+    const Icon = item.icon;
+    const isActive = pathname === item.href;
+
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={cn(
+          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          sidebarCollapsed && 'justify-center'
+        )}
+        title={sidebarCollapsed ? item.name : undefined}
+      >
+        <Icon className={cn('shrink-0', isSubmodule && !sidebarCollapsed ? 'h-4 w-4' : 'h-5 w-5')} />
+        {!sidebarCollapsed && <span>{item.name}</span>}
+      </Link>
+    );
+  };
+
+  const renderModule = (module: NavModule) => {
+    // The icon rail has no room for headers: it lists the submodules between two rules.
+    if (sidebarCollapsed) {
+      return (
+        <div key={module.name} role="group" aria-label={module.name} className="space-y-1 border-y py-1">
+          {module.items.map((item) => renderLink(item, true))}
+        </div>
+      );
+    }
+
+    const Icon = module.icon;
+    const isOpen = !closedModules.includes(module.name);
+    const holdsCurrentPage = module.items.some((item) => item.href === pathname);
+
+    return (
+      <div key={module.name} role="group" aria-label={module.name} className="space-y-1">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={() => toggleModule(module.name)}
+          className={cn(
+            'flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-muted hover:text-foreground',
+            // A closed module still shows that the current page is inside it.
+            !isOpen && holdsCurrentPage ? 'bg-primary/10 text-foreground' : 'text-muted-foreground'
+          )}
+        >
+          <Icon className="h-5 w-5 shrink-0" />
+          <span className="flex-1 text-left">{module.name}</span>
+          <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', !isOpen && '-rotate-90')} />
+        </button>
+        {isOpen && (
+          <div className="ml-5 space-y-1 border-l pl-2">
+            {module.items.map((item) => renderLink(item, true))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -115,63 +206,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                sidebarCollapsed && 'justify-center'
-              )}
-              title={sidebarCollapsed ? item.name : undefined}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              {!sidebarCollapsed && <span>{item.name}</span>}
-            </Link>
-          );
-        })}
-
-        {adminNavigation.length > 0 && (
-          <>
-            <div className="pt-4 pb-2">
-              {!sidebarCollapsed && (
-                <p className="px-3 text-xs font-semibold text-muted-foreground uppercase">
-                  Administración
-                </p>
-              )}
-              {sidebarCollapsed && <div className="border-t" />}
-            </div>
-            {adminNavigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    sidebarCollapsed && 'justify-center'
-                  )}
-                  title={sidebarCollapsed ? item.name : undefined}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {!sidebarCollapsed && <span>{item.name}</span>}
-                </Link>
-              );
-            })}
-          </>
-        )}
+        {visibleNavigation.map((entry) => (isModule(entry) ? renderModule(entry) : renderLink(entry)))}
       </nav>
 
       {/* User Info */}

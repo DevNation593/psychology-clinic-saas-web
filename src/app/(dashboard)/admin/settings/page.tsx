@@ -88,9 +88,6 @@ export default function AdminSettingsPage() {
     settings?.taxIdentificationNumber || ''
   );
   const [fakturApiKey, setFakturApiKey] = useState(settings?.fakturApiKey || '');
-  const [fakturApiUrl, setFakturApiUrl] = useState(settings?.fakturApiUrl || '');
-  const [fakturInvoicePath, setFakturInvoicePath] = useState(settings?.fakturInvoicePath || '/invoices');
-  const [fakturEnvironment, setFakturEnvironment] = useState(settings?.fakturEnvironment || 'TEST');
   const [fakturEstablishment, setFakturEstablishment] = useState(settings?.fakturEstablishment || '');
   const [fakturEmissionPoint, setFakturEmissionPoint] = useState(settings?.fakturEmissionPoint || '');
   const [fakturNextSequential, setFakturNextSequential] = useState(settings?.fakturNextSequential || 1);
@@ -117,9 +114,6 @@ export default function AdminSettingsPage() {
     setTaxIdentificationType(settings.taxIdentificationType || 'RUC');
     setTaxIdentificationNumber(settings.taxIdentificationNumber || '');
     setFakturApiKey(settings.fakturApiKey || '');
-    setFakturApiUrl(settings.fakturApiUrl || '');
-    setFakturInvoicePath(settings.fakturInvoicePath || '/invoices');
-    setFakturEnvironment(settings.fakturEnvironment || 'TEST');
     setFakturEstablishment(settings.fakturEstablishment || '');
     setFakturEmissionPoint(settings.fakturEmissionPoint || '');
     setFakturNextSequential(settings.fakturNextSequential || 1);
@@ -182,9 +176,6 @@ export default function AdminSettingsPage() {
         taxIdentificationType,
         taxIdentificationNumber,
         fakturApiKey,
-        fakturApiUrl,
-        fakturInvoicePath,
-        fakturEnvironment,
         fakturEstablishment,
         fakturEmissionPoint,
         // Sent only when edited: a stale form value must not roll back
@@ -219,9 +210,6 @@ export default function AdminSettingsPage() {
       setTaxIdentificationType(settings.taxIdentificationType || 'RUC');
       setTaxIdentificationNumber(settings.taxIdentificationNumber || '');
       setFakturApiKey(settings.fakturApiKey || '');
-      setFakturApiUrl(settings.fakturApiUrl || '');
-      setFakturInvoicePath(settings.fakturInvoicePath || '/invoices');
-      setFakturEnvironment(settings.fakturEnvironment || 'TEST');
       setFakturEstablishment(settings.fakturEstablishment || '');
       setFakturEmissionPoint(settings.fakturEmissionPoint || '');
       setFakturNextSequential(settings.fakturNextSequential || 1);
@@ -513,45 +501,6 @@ export default function AdminSettingsPage() {
                   markChanged();
                 }}
               />
-            </div>
-            <div>
-              <Label htmlFor="faktur-api-url">URL de Faktur</Label>
-              <Input
-                id="faktur-api-url"
-                value={fakturApiUrl}
-                placeholder="https://api.faktur.ec"
-                onChange={(e) => {
-                  setFakturApiUrl(e.target.value);
-                  markChanged();
-                }}
-              />
-            </div>
-            <div>
-              <Label htmlFor="faktur-invoice-path">Ruta de emisión</Label>
-              <Input
-                id="faktur-invoice-path"
-                value={fakturInvoicePath}
-                placeholder="/invoices"
-                onChange={(e) => {
-                  setFakturInvoicePath(e.target.value);
-                  markChanged();
-                }}
-              />
-            </div>
-            <div>
-              <Label htmlFor="faktur-environment">Ambiente</Label>
-              <select
-                id="faktur-environment"
-                value={fakturEnvironment}
-                onChange={(e) => {
-                  setFakturEnvironment(e.target.value);
-                  markChanged();
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm mt-1"
-              >
-                <option value="TEST">Pruebas</option>
-                <option value="PRODUCTION">Producción</option>
-              </select>
             </div>
             <div>
               <Label htmlFor="faktur-establishment">Establecimiento</Label>

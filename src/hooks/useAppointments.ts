@@ -10,12 +10,15 @@ import { requireTenantId, useTenantId } from './useTenantScope';
 import { useTenantMutation } from './useTenantMutation';
 import { getAppointmentErrorMessage } from '@/features/calendar/appointment-errors';
 
-export function useAppointments(params?: Parameters<typeof appointmentsApi.list>[0]) {
+export function useAppointments(
+  params?: Parameters<typeof appointmentsApi.list>[0],
+  options: { enabled?: boolean } = {},
+) {
   const tenantId = useTenantId();
   return useQuery({
     queryKey: QUERY_KEYS.APPOINTMENTS_SCOPED(tenantId ?? '', params),
     queryFn: async () => extractArray(await appointmentsApi.list(params, requireTenantId(tenantId))),
-    enabled: !!tenantId,
+    enabled: !!tenantId && (options.enabled ?? true),
   });
 }
 

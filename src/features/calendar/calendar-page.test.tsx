@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   updateHookIds: [] as string[],
   branches: [] as { id: string; name: string; isMain: boolean; isActive: boolean }[],
   appointmentFilters: [] as unknown[],
+  appointmentOptions: [] as ({ enabled?: boolean } | undefined)[],
+  professionals: [] as { id: string; firstName: string; lastName: string }[],
+  deepLinked: undefined as Appointment | undefined,
+  detailIds: [] as string[],
 }));
 
 vi.mock('next/navigation', () => ({
@@ -57,9 +61,14 @@ vi.mock('@/hooks/useSpecialties', async (importOriginal) => ({
   }),
 }));
 vi.mock('@/hooks/useAppointments', () => ({
-  useAppointments: (filters?: unknown) => {
+  useAppointments: (filters?: unknown, options?: { enabled?: boolean }) => {
     mocks.appointmentFilters.push(filters);
+    mocks.appointmentOptions.push(options);
     return { data: mocks.appointments, isLoading: mocks.isLoading };
+  },
+  useAppointment: (id: string) => {
+    mocks.detailIds.push(id);
+    return { data: id ? mocks.deepLinked : undefined };
   },
   useUpdateAppointment: (id: string) => {
     mocks.updateHookIds.push(id);
@@ -68,6 +77,7 @@ vi.mock('@/hooks/useAppointments', () => ({
 }));
 vi.mock('@/hooks/useBranches', () => ({
   useBranches: () => ({ data: mocks.branches }),
+  useClinicProfessionals: () => ({ data: mocks.professionals, isLoading: false }),
 }));
 vi.mock('@/hooks/useTenantSettings', () => ({
   useTenantSettings: () => ({ data: undefined }),
@@ -133,6 +143,10 @@ beforeEach(() => {
   mocks.updateHookIds.length = 0;
   mocks.branches = [];
   mocks.appointmentFilters.length = 0;
+  mocks.appointmentOptions.length = 0;
+  mocks.professionals = [];
+  mocks.deepLinked = undefined;
+  mocks.detailIds.length = 0;
   useAuthStore.setState({
     user: { id: 'admin-1', role: UserRole.MASTER, tenantId: 'tenant-1' } as User,
   });
@@ -162,6 +176,85 @@ describe('CalendarPage branch filter', () => {
 
     fireEvent.change(filter, { target: { value: '' } });
     expect(mocks.appointmentFilters.at(-1)).toBeUndefined();
+  });
+});
+
+describe('CalendarPage professional scope', () => {
+  const ana = { id: 'professional-1', firstName: 'Ana', lastName: 'Paz' };
+  const leo = { id: 'professional-2', firstName: 'Leo', lastName: 'Ruiz' };
+  const signInAs = (role: UserRole, id = 'user-1') =>
+    useAuthStore.setState({ user: { id, role, tenantId: 'tenant-1' } as User });
+  const professionalFilter = () => screen.queryByLabelText('Filtrar por profesional');
+
+  beforeEach(() => {
+    // The API lists the newest account first; the filter lists them by name.
+    mocks.professionals = [leo, ana];
+  });
+
+  it('shows the master every professional and lets them narrow to one', () => {
+    render(<CalendarPage />);
+
+    expect(professionalFilter()).toHaveValue('');
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Todos los profesionales',
+      'Ana Paz',
+      'Leo Ruiz',
+    ]);
+    expect(mocks.appointmentFilters.at(-1)).toBeUndefined();
+
+    fireEvent.change(professionalFilter()!, { target: { value: 'professional-2' } });
+    expect(mocks.appointmentFilters.at(-1)).toEqual({ professionalId: 'professional-2' });
+  });
+
+  it('shows a professional their own calendar without a professional filter', () => {
+    signInAs(UserRole.PROFESIONAL, 'professional-1');
+    render(<CalendarPage />);
+
+    expect(professionalFilter()).not.toBeInTheDocument();
+    expect(mocks.appointmentFilters.at(-1)).toBeUndefined();
+    expect(mocks.appointmentOptions.at(-1)).toEqual({ enabled: true });
+  });
+
+  it('shows an assistant one professional at a time, never all of them', () => {
+    signInAs(UserRole.ASISTENTE);
+    render(<CalendarPage />);
+
+    expect(professionalFilter()).toHaveValue('professional-1');
+    expect(screen.queryByRole('option', { name: 'Todos los profesionales' })).not.toBeInTheDocument();
+    expect(mocks.appointmentFilters.at(-1)).toEqual({ professionalId: 'professional-1' });
+
+    fireEvent.change(professionalFilter()!, { target: { value: 'professional-2' } });
+    expect(mocks.appointmentFilters.at(-1)).toEqual({ professionalId: 'professional-2' });
+  });
+
+  it('does not ask for appointments while an assistant has no professional to choose', () => {
+    signInAs(UserRole.ASISTENTE);
+    mocks.professionals = [];
+    mocks.isLoading = false;
+    render(<CalendarPage />);
+
+    expect(mocks.appointmentOptions.at(-1)).toEqual({ enabled: false });
+    expect(screen.getByText('No hay profesionales con un perfil activo.')).toBeInTheDocument();
+  });
+
+  it('opens a linked appointment for an assistant in the calendar of its professional', async () => {
+    signInAs(UserRole.ASISTENTE);
+    mocks.search = 'appointmentId=appointment-2';
+    mocks.deepLinked = second;
+    mocks.appointments = [second];
+    mocks.isLoading = false;
+    render(<CalendarPage />);
+
+    await waitFor(() => expect(professionalFilter()).toHaveValue('professional-2'));
+    expect(mocks.appointmentFilters.at(-1)).toEqual({ professionalId: 'professional-2' });
+    expect(await screen.findByTestId('selected-appointment')).toHaveTextContent('appointment-2');
+  });
+
+  it('does not fetch a linked appointment apart for the master, who already lists every professional', () => {
+    mocks.search = 'appointmentId=appointment-2';
+    render(<CalendarPage />);
+
+    expect(mocks.detailIds.every((id) => id === '')).toBe(true);
   });
 });
 
